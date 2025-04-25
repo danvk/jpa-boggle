@@ -1,0 +1,1465 @@
+// The DeepSearch.c algorithm uses an in-depth investigation of neighbouring boards starting at a predefined "MASTER_SEED_BOARD".
+// The constants that define the depth of the search...  NUMBER_OF_SEEDS_TO_RUN, ROUNDS, BOARDS_PER_ROUND
+
+// Noteworthy Optimizations:
+//
+// 1) Maintaining up to date information about previously analyzed elements to eliminate redundant searching.  The trie data structure was chosen for insertion speed.
+// 1) The use of an immutable compressed lexicon data structure with complete child node information, and word tracking that enables the use of time stamps (ADTDAWG).
+// 3) Parallel batch processing using Posix PTHREADS, to reduce inter-thread communication lag.
+// 2) The reduction of the character set to "SIZE_OF_CHARACTER_SET" to eliminate the consideration of characters with limited presence in the lexicon.
+// 3) Use of GLIBC qsort code optimized with an explicit comparison macro, and memmove() for the final Insertion Sort pass.
+// 4) Replacing frequently used recursive functions with an explicit stack implementation.
+// 5) Selection of list size values so that a streamlined binary inseretion sort can be used
+// 6) The majority of numbers in the program are unsigned integers to reduce arithmetic complexity.
+// 7) Low level programming style caters to -O3 gcc optimization, such as loop unrolling.
+// 8) Arrays replace conditional cascades.
+// 9) Comprehensive documentation to isolate logical flaws, and to make the program readable, and accessible.  Strict conventions for variable names, and white space have been used.
+// 10) Generalizations are used only when they will not noticably compromise the performance of the program.
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <limits.h>
+#include <string.h>
+#include <pthread.h>
+#include <unistd.h>
+
+// The ADTDAWG for Lexicon_14, a subset of TWL06, is located in the 4 data files listed below.
+#define FOUR_PART_DTDAWG_14_PART_ONE "Four_Part_1_DTDAWG_For_Lexicon_14.dat"
+#define FOUR_PART_DTDAWG_14_PART_TWO "Four_Part_2_DTDAWG_For_Lexicon_14.dat"
+#define FOUR_PART_DTDAWG_14_PART_THREE "Four_Part_3_DTDAWG_For_Lexicon_14.dat"
+#define FOUR_PART_DTDAWG_14_PART_FOUR "Four_Part_4_DTDAWG_For_Lexicon_14.dat"
+
+// General "Boggle" Constants.
+#define MAX_ROW 5
+#define MAX_COL 5
+#define SQUARE_COUNT 25
+#define BOARD_STRING_SIZE 28
+#define NEIGHBOURS 8
+#define NUMBER_OF_ENGLISH_LETTERS 26
+#define SIZE_OF_CHARACTER_SET 14
+#define MAX_STRING_LENGTH 15
+#define BOGUS 99
+
+// Constants that define the high level "DeepSearch.c" algorithm.
+#define MASTER_SEED_BOARD "AGRIMODAOLSTECETISMNGPART"
+#define NUMBER_OF_WORKER_THREADS	4
+#define SINGLE_DEVIATIONS 312
+#define NUMBER_OF_SEEDS_TO_RUN 1000
+#define ROUNDS 25
+#define BOARDS_PER_ROUND 64
+#define BOARDS_PER_THREAD (BOARDS_PER_ROUND/NUMBER_OF_WORKER_THREADS)
+
+// Constants that are lexicon specific.
+#define TOTAL_WORDS_IN_LEXICON 44220
+#define END_OF_WORD_FLAG 67108864
+#define CHILD_MASK 32767
+#define OFFSET_INDEX_MASK 67076096
+#define OffSET_BIT_SHIFT 15
+
+// Scoreboard list constants for streamlined binary insertion sort implementation.  Note that "BOARDS_PER_ROUND" needs to be a multiple of "NUMBER_OF_WORKER_THREADS", and should be the closest multiple less than "EVALUATE_LIST_SIZE".
+#define MASTER_LIST_SIZE 1026
+#define MAX_LOOP_SEARCH_DEPTH_MASTER 9
+#define EVALUATE_LIST_SIZE 66
+#define MAX_LOOP_SEARCH_DEPTH_EVALUATE 5
+
+// Provides the Boggle score associated with words of length equal to the array index.  Fifteen is the maximum word length of the TWL06 Tournament Scrabble Word List.
+unsigned int THE_SCORE_CARD[MAX_STRING_LENGTH + 1] = { 0, 0, 0, 1, 1, 2, 3, 5, 11, 11, 11, 11, 11, 11, 11, 11 };
+
+// These constant arrays define the lexicon contained in the ADTDAWG.
+char CHARACTER_SET[SIZE_OF_CHARACTER_SET + 1] = {'A', 'C', 'D', 'E', 'G', 'I', 'L', 'M', 'N', 'O', 'P', 'R', 'S', 'T', ' '};
+unsigned int CHARACTER_LOCATIONS[NUMBER_OF_ENGLISH_LETTERS] = {0, BOGUS, 1, 2, 3, BOGUS, 4, BOGUS, 5, BOGUS, BOGUS, 6, 7, 8, 9, 10, BOGUS, 11, 12, 13, BOGUS, BOGUS, BOGUS, BOGUS, BOGUS, BOGUS};
+unsigned long int CHILD_LETTER_BIT_MASKS[SIZE_OF_CHARACTER_SET] = {1, 6, 24, 224, 1792, 14336, 114688, 1966080, 31457280, 503316480, 8053063680, 128849018880, 2061584302080, 32985348833280};
+unsigned int CHILD_LETTER_BIT_SHIFTS[SIZE_OF_CHARACTER_SET] = {0, 1, 3, 5, 8, 11, 14, 17, 21, 25, 29, 33, 37, 41};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Basic constructs and functions that will be useful.
+
+// C requires a boolean variable type so use C's typedef concept to create one.
+typedef enum { TRUE = 1, FALSE = 0} Bool;
+typedef Bool* BoolPtr;
+
+// This function assumes that "TheNumberNotYet" is a 2 char string of digits between [0,9].  Do not pass it anything else.  It will return the integer equivalent.
+inline unsigned int TwoCharStringToInt(char* TheNumberNotYet){
+	return (TheNumberNotYet[0] - '0')*10 + (TheNumberNotYet[1] - '0');
+}
+
+// Converts the two digit integer X into the string "TheThreeString" that tacks onto board strings to indicate the last altered square.  This reduces redundant element consideration.
+void ConvertSquareNumberToString( char *TheThreeString, int X ){
+	if ( X < 10 ) {
+		TheThreeString[0] = '0';
+		TheThreeString[1] = '0' + X;
+	}
+	else if ( X < 20 ) {
+		TheThreeString[0] = '1';
+		TheThreeString[1] = ('0' + (X - 10));
+	}
+	else {
+		TheThreeString[0] = '2';
+		TheThreeString[1] = ('0' + (X - 20));
+	}
+	TheThreeString[2] = '\0';
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// This section covers the streamlined Binary Insertion Sort coding.
+
+// This function inserts "ThisBoardString" into "TheList" which must have "MASTER_LIST_SIZE" elements. "TheList" will already be sorted, and a Binary Insertion Sort will be used.
+// The return value is "TRUE" or "FALSE" depending on if "ThisScore" was high enough to make the cut.
+Bool InsertBoardStringIntoMasterList(char **TheList, unsigned int *TheNumbers, const char *ThisBoardString, unsigned int ThisScore){
+	unsigned int X;
+	unsigned int Left = 0;
+	unsigned int Right = MASTER_LIST_SIZE - 1;
+	unsigned int NextElement;
+	char *TempBoardStringHolder;
+
+	// "ThisScore" does not make the cut; it is too small.
+	if ( ThisScore <= TheNumbers[Right] ) return FALSE;
+
+	// "ThisScore" belongs at the end of the list.
+	Right -= 1;
+	if ( ThisScore <= TheNumbers[Right] ) {
+		strcpy(TheList[MASTER_LIST_SIZE - 1], ThisBoardString);
+		TheNumbers[MASTER_LIST_SIZE - 1] = ThisScore;
+		return TRUE;
+	}
+
+	// "ThisScore" belongs at the first position in the list.
+	if ( ThisScore >=  TheNumbers[Left] ) {
+		TempBoardStringHolder = TheList[(MASTER_LIST_SIZE - 1)];
+		strcpy(TempBoardStringHolder, ThisBoardString);
+		memmove(TheList + 1, TheList, sizeof(char*)*(MASTER_LIST_SIZE - 1));
+		TheList[Left] = TempBoardStringHolder;
+		memmove(TheNumbers + 1, TheNumbers, sizeof(unsigned int)*(MASTER_LIST_SIZE - 1));
+		TheNumbers[Left] = ThisScore;
+		return TRUE;
+	}
+
+	// Set the initial midpoint.
+	NextElement = Left + ((Right - Left)>>1);
+
+	// This loop will be unwound by compiler optimization.
+	for ( X = 0; X < MAX_LOOP_SEARCH_DEPTH_MASTER; X++ ) {
+		// "NextElement" is the new "Left".
+		if ( TheNumbers[NextElement] >  ThisScore ) {
+			Left = NextElement;
+		}
+		// "NextElement" will become the new "Right".
+		else if ( TheNumbers[NextElement] <  ThisScore ) {
+			Right = NextElement;
+		}
+		// "NextElement" holds a value equal to "ThisScore", and is the insertion point.
+		else {
+			// memmove() is going to employ pointer arithmatic for pointers to internal array members.
+			TempBoardStringHolder = TheList[(MASTER_LIST_SIZE - 1)];
+			strcpy(TempBoardStringHolder, ThisBoardString);
+			memmove(TheList + NextElement + 1, TheList + NextElement, sizeof(char*)*(MASTER_LIST_SIZE - 1 - NextElement));
+			TheList[NextElement] = TempBoardStringHolder;
+			memmove(TheNumbers + NextElement + 1, TheNumbers + NextElement, sizeof(unsigned int)*(MASTER_LIST_SIZE - 1 - NextElement));
+			TheNumbers[NextElement] = ThisScore;
+			return TRUE;
+		}
+		// Advance the "NextElement";
+		NextElement = Left + ((Right - Left)>>1);
+	}
+
+	// "NextElement" is now flanked by "Left" and "Right", and this is known with absolute certainty.
+	// Since two cases will result in the insertion position being equal to "Right", we only need to make one comparison on the final iteration.
+	if ( TheNumbers[NextElement] <  ThisScore ) {
+		TempBoardStringHolder = TheList[(MASTER_LIST_SIZE - 1)];
+		strcpy(TempBoardStringHolder, ThisBoardString);
+		memmove(TheList + NextElement + 1, TheList + NextElement, sizeof(char*)*(MASTER_LIST_SIZE - 1 -NextElement));
+		TheList[NextElement] = TempBoardStringHolder;
+		memmove(TheNumbers + NextElement + 1, TheNumbers + NextElement, sizeof(unsigned int)*(MASTER_LIST_SIZE - 1 - NextElement));
+		TheNumbers[NextElement] = ThisScore;
+		return TRUE;
+	}
+	// "ThisScore" is smaller or equal to "TheNumbers[NextElement]", so the insertion position will be "Right".
+	else {
+		TempBoardStringHolder = TheList[(MASTER_LIST_SIZE - 1)];
+		strcpy(TempBoardStringHolder, ThisBoardString);
+		memmove(TheList + Right + 1, TheList + Right, sizeof(char*)*(MASTER_LIST_SIZE - 1 - Right));
+		TheList[Right] = TempBoardStringHolder;
+		memmove(TheNumbers + Right + 1, TheNumbers + Right, sizeof(unsigned int)*(MASTER_LIST_SIZE - 1 - Right));
+		TheNumbers[Right] = ThisScore;
+		return TRUE;
+	}
+}
+
+
+// This function inserts "ThisBoardString" into "TheList" which must have "EVALUATE_LIST_SIZE" elements. "TheList" will already be sorted, and a Binary Insertion Sort will be used.
+// The return value is "TRUE" or "FALSE" depending on if "ThisScore" was high enough to make the cut.
+Bool InsertBoardStringIntoEvaluateList(char **TheList, unsigned int *TheNumbers, const char *ThisBoardString, unsigned int ThisScore){
+	unsigned int X;
+	unsigned int Left = 0;
+	unsigned int Right = EVALUATE_LIST_SIZE - 1;
+	unsigned int NextElement;
+	char *TempBoardStringHolder;
+
+	// "ThisScore" does not make the cut; it is too small.
+	if ( ThisScore <= TheNumbers[Right] ) return FALSE;
+
+	// "ThisScore" belongs at the end of the list.
+	Right -= 1;
+	if ( ThisScore <= TheNumbers[Right] ) {
+		strcpy(TheList[EVALUATE_LIST_SIZE - 1], ThisBoardString);
+		TheNumbers[EVALUATE_LIST_SIZE - 1] = ThisScore;
+		return TRUE;
+	}
+
+	// "ThisScore" belongs at the first position in the list.
+	if ( ThisScore >=  TheNumbers[Left] ) {
+		TempBoardStringHolder = TheList[EVALUATE_LIST_SIZE - 1];
+		strcpy(TempBoardStringHolder, ThisBoardString);
+		memmove(TheList + 1, TheList, sizeof(char*)*(EVALUATE_LIST_SIZE - 1));
+		TheList[Left] = TempBoardStringHolder;
+		memmove(TheNumbers + 1, TheNumbers, sizeof(unsigned int)*(EVALUATE_LIST_SIZE - 1));
+		TheNumbers[Left] = ThisScore;
+		return TRUE;
+	}
+
+	// Set the initial midpoint.
+	NextElement = Left + ((Right - Left)>>1);
+
+	// This loop will be unwound by compiler optimization.
+	for ( X = 0; X < MAX_LOOP_SEARCH_DEPTH_EVALUATE; X++ ) {
+		// "NextElement" is the new "Left".
+		if ( TheNumbers[NextElement] >  ThisScore ) {
+			Left = NextElement;
+		}
+		// "NextElement" will become the new "Right".
+		else if ( TheNumbers[NextElement] <  ThisScore ) {
+			Right = NextElement;
+		}
+		// "NextElement" holds a value equal to "ThisScore", and is the insertion point.
+		else {
+			// memmove() is going to employ pointer arithmatic for pointers to internal array members.
+			TempBoardStringHolder = TheList[EVALUATE_LIST_SIZE - 1];
+			strcpy(TempBoardStringHolder, ThisBoardString);
+			memmove(TheList + NextElement + 1, TheList + NextElement, sizeof(char*)*(EVALUATE_LIST_SIZE - 1 - NextElement));
+			TheList[NextElement] = TempBoardStringHolder;
+			memmove(TheNumbers + NextElement + 1, TheNumbers + NextElement, sizeof(unsigned int)*(EVALUATE_LIST_SIZE - 1 - NextElement));
+			TheNumbers[NextElement] = ThisScore;
+			return TRUE;
+		}
+		// Advance the "NextElement";
+		NextElement = Left + ((Right - Left)>>1);
+	}
+
+	// "NextElement" is now flanked by "Left" and "Right", and this is known with absolute certainty.
+	// Since two cases will result in the insertion position being equal to "Right", we only need to make one comparison on the final iteration.
+	if ( TheNumbers[NextElement] <  ThisScore ) {
+		TempBoardStringHolder = TheList[EVALUATE_LIST_SIZE - 1];
+		strcpy(TempBoardStringHolder, ThisBoardString);
+		memmove(TheList + NextElement + 1, TheList + NextElement, sizeof(char*)*(EVALUATE_LIST_SIZE - 1 -NextElement));
+		TheList[NextElement] = TempBoardStringHolder;
+		memmove(TheNumbers + NextElement + 1, TheNumbers + NextElement, sizeof(unsigned int)*(EVALUATE_LIST_SIZE - 1 - NextElement));
+		TheNumbers[NextElement] = ThisScore;
+		return TRUE;
+	}
+	// "ThisScore" is smaller or equal to "TheNumbers[NextElement]", so the insertion position will be "Right".
+	else {
+		TempBoardStringHolder = TheList[EVALUATE_LIST_SIZE - 1];
+		strcpy(TempBoardStringHolder, ThisBoardString);
+		memmove(TheList + Right + 1, TheList + Right, sizeof(char*)*(EVALUATE_LIST_SIZE - 1 - Right));
+		TheList[Right] = TempBoardStringHolder;
+		memmove(TheNumbers + Right + 1, TheNumbers + Right, sizeof(unsigned int)*(EVALUATE_LIST_SIZE - 1 - Right));
+		TheNumbers[Right] = ThisScore;
+		return TRUE;
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// This sector of the program will hold the minimal trie content.  No end of word flag is required because every board must be SQUARE_COUNT chars in length
+// It is a reduced trie for holding board strings of identical size, that way boards already evaluated can be avoided for future evaluation.
+
+struct minboardtnode {
+	struct minboardtnode* Next;
+	struct minboardtnode* Child;
+	char Letter;
+};
+
+typedef struct minboardtnode MinBoardTnode;
+typedef MinBoardTnode* MinBoardTnodePtr;
+
+MinBoardTnodePtr MinBoardTnodeNext( MinBoardTnodePtr ThisMinBoardTnode ) {
+	return ThisMinBoardTnode->Next;
+}
+
+#define MIN_BOARD_TNODE_CHILD(thisminboardtnode) ((thisminboardtnode)->Child)
+
+MinBoardTnodePtr MinBoardTnodeInit(char Chap, MinBoardTnodePtr OverOne){
+	MinBoardTnodePtr Result = (MinBoardTnode*)malloc(sizeof(MinBoardTnode));
+	Result->Letter = Chap;
+	Result->Next = OverOne;
+	Result->Child = NULL;
+	return Result;
+}
+
+struct minboardtrie {
+	MinBoardTnodePtr First;
+	unsigned int NumberOfBoards;
+};
+
+typedef struct minboardtrie MinBoardTrie;
+typedef MinBoardTrie* MinBoardTriePtr;
+
+// Set up the parent node in the MinBoardTrie.
+MinBoardTriePtr MinBoardTrieInit(void){
+	MinBoardTriePtr Result;
+	Result = (MinBoardTrie*)malloc(sizeof(MinBoardTrie));
+	Result->NumberOfBoards = 0;
+	Result->First = MinBoardTnodeInit('*', NULL);
+	return Result;
+}
+
+unsigned int MinBoardTrieSize(MinBoardTriePtr ThisMinBoardTrie){
+	return ThisMinBoardTrie->NumberOfBoards;
+}
+
+// Search for "WonderBoard" under "ThisMinBoardTnode", and return TRUE or FALSE.
+Bool MinBoardTnodeBoardSearchRecurse(MinBoardTnodePtr ThisMinBoardTnode, char *WonderBoard, unsigned int CheckThisPosition){
+	MinBoardTnodePtr Current = ThisMinBoardTnode;
+	for ( ; ; ) {
+		if ( WonderBoard[CheckThisPosition] == Current->Letter ) {
+			if ( CheckThisPosition == (SQUARE_COUNT - 1) ) return TRUE;
+			else if ( Current->Child != NULL ) return MinBoardTnodeBoardSearchRecurse(Current->Child, WonderBoard, CheckThisPosition + 1);
+			else return FALSE;
+		}
+		else if ( WonderBoard[CheckThisPosition] > Current->Letter ) {
+			Current = Current->Next;
+			if ( Current == NULL ) return FALSE;
+		}
+		else return FALSE;
+	}
+}
+
+// Searches for the word "QuanderBoard" in "ThisMinBoardTrie", returns TRUE, or FALSE accordingly.
+Bool MinBoardTrieBoardSearch(MinBoardTriePtr ThisMinBoardTrie, char * QuanderBoard){
+	if ( MIN_BOARD_TNODE_CHILD(ThisMinBoardTrie->First) == NULL ) return FALSE;
+	else return MinBoardTnodeBoardSearchRecurse(MIN_BOARD_TNODE_CHILD(ThisMinBoardTrie->First), QuanderBoard, 0);
+}
+
+// This function adds a board to the MinBoardTrie and returns 1, if the board already exists, it returns 0.
+unsigned int MinBoardTnodeAddBoardRecurse(MinBoardTnodePtr ParentNode, const char *Board, unsigned int CheckThisPosition){
+	unsigned int Y;
+	MinBoardTnodePtr CurrentParent = ParentNode;
+	MinBoardTnodePtr Current = ParentNode->Child;
+	MinBoardTnodePtr NewNode;
+	// We are now dealing with the case where the new nodes will start a line as a direct child.
+	if ( Current == NULL) {
+		for ( Y = CheckThisPosition; Y < SQUARE_COUNT; Y++ ) {
+			NewNode = MinBoardTnodeInit(Board[Y], NULL);
+			CurrentParent->Child = NewNode;
+			CurrentParent = NewNode;
+		}
+		return 1;
+	}
+	// We are now going to add a new line of nodes at the beginning of a list that already exists.  The distinction is the setting of the Next pointer of the first new node.
+	if ( Current->Letter > Board[CheckThisPosition] ) {
+		NewNode = MinBoardTnodeInit(Board[CheckThisPosition], Current);
+		CurrentParent->Child = NewNode;
+		CurrentParent = NewNode;
+		for ( Y = (CheckThisPosition + 1); Y < SQUARE_COUNT; Y++ ) {
+			NewNode = MinBoardTnodeInit(Board[Y], NULL);
+			CurrentParent->Child = NewNode;
+			CurrentParent = NewNode;
+		}
+		return 1;
+	}
+	// Use iteration to roll through the next list, then recurse, return 0, or start a new line at the right place.
+	for ( ; ; ) {
+		if ( Board[CheckThisPosition] == Current->Letter ) {
+			if ( CheckThisPosition == (SQUARE_COUNT - 1) ) return 0;
+			// We have reached the node that we should be at but it is not the final letter so recurse and incrament the BoggleScoreBelowMe by the ReturnedValue.
+			else return MinBoardTnodeAddBoardRecurse(Current, Board, CheckThisPosition + 1);
+		}
+		// Current node's letter is smaller than the one we are looking for.  It will never be larger at this point because we would have caught it already.
+		else {
+			// Add a new line at the end of the list.
+			if ( Current->Next == NULL ) {
+				NewNode = MinBoardTnodeInit(Board[CheckThisPosition], NULL);
+				Current->Next = NewNode;
+				CurrentParent = NewNode;
+				for ( Y = (CheckThisPosition + 1); Y < SQUARE_COUNT; Y++ ) {
+					NewNode = MinBoardTnodeInit( Board[Y], NULL );
+					CurrentParent->Child = NewNode;
+					CurrentParent = NewNode;
+				}
+				return 1;
+			}
+			// Insert the node line directly after the Current node.
+			if ( Board[CheckThisPosition] < (Current->Next)->Letter ) {
+				NewNode = MinBoardTnodeInit(Board[CheckThisPosition], Current->Next);
+				Current->Next = NewNode;
+				CurrentParent = NewNode;
+				for ( Y = (CheckThisPosition + 1); Y < SQUARE_COUNT; Y++ ) {
+					NewNode = MinBoardTnodeInit(Board[Y], NULL);
+					CurrentParent->Child = NewNode;
+					CurrentParent = NewNode;
+				}
+				return 1;
+			}
+			// If we make it to here, keep looking on down the line.
+			Current = Current->Next;
+		}
+	}
+}
+
+
+// This function adds "NewBoard" to "ThisMinBoardTrie" if it doesn't exist already.  Returns "1" or "0" accordingly.
+unsigned int MinBoardTrieAddBoard(MinBoardTriePtr ThisMinBoardTrie, const char * NewBoard){
+	unsigned int ReturnValue;
+	ReturnValue = MinBoardTnodeAddBoardRecurse(ThisMinBoardTrie->First, NewBoard, 0);
+	ThisMinBoardTrie->NumberOfBoards += ReturnValue;
+	return ReturnValue;
+}
+
+// This is a standard depth first preorder tree traversal, whereby the objective is to print all of the boards contained in a MinBoardTrie alphabetically, for debugging only.
+void MinBoardTnodeTreeOutputRecurse(MinBoardTnodePtr ThisMinBoardTnode, char *RunnerBoard, unsigned int PositionImpossible){
+	// We are at a valid node, so add the Letter to the RunnerBoard at the PositionImpossible.
+	RunnerBoard[PositionImpossible] = ThisMinBoardTnode->Letter;
+	// If we have arrived at a word, then print it.
+	if ( PositionImpossible == (SQUARE_COUNT - 1) ) {
+		RunnerBoard[SQUARE_COUNT] = '\0';
+		printf( "|%s|\n", RunnerBoard );
+	}
+	// Move to the Child first, and then Move to the Next node in the current list.
+	if ( ThisMinBoardTnode->Child != NULL ) MinBoardTnodeTreeOutputRecurse(ThisMinBoardTnode->Child, RunnerBoard, PositionImpossible + 1);
+	if ( ThisMinBoardTnode->Next != NULL ) MinBoardTnodeTreeOutputRecurse(ThisMinBoardTnode->Next, RunnerBoard, PositionImpossible);
+}
+
+
+void MinBoardTrieOutput(MinBoardTriePtr ThisMinBoardTrie){
+	char Mercury[SQUARE_COUNT + 1];
+	// Make sure that we start at the first node under the blank root node First.
+	printf( "This Min Board Trie Contains |%d| Boards.\n", ThisMinBoardTrie->NumberOfBoards );
+	if ( MIN_BOARD_TNODE_CHILD(ThisMinBoardTrie->First) != NULL ) MinBoardTnodeTreeOutputRecurse(MIN_BOARD_TNODE_CHILD(ThisMinBoardTrie->First), Mercury, 0);
+}
+
+void FreeMinBoardTnodeRecurse(MinBoardTnodePtr ThisMinBoardTnode){
+	if ( ThisMinBoardTnode->Child != NULL ) FreeMinBoardTnodeRecurse(ThisMinBoardTnode->Child) ;
+	if ( ThisMinBoardTnode->Next != NULL ) FreeMinBoardTnodeRecurse(ThisMinBoardTnode->Next);
+	free(ThisMinBoardTnode);
+}
+
+void FreeMinBoardTrie(MinBoardTriePtr ThisMinBoardTrie){
+	FreeMinBoardTnodeRecurse(ThisMinBoardTrie->First);
+	free(ThisMinBoardTrie);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// The structure for a Boggle board is defined in this section.  This structure needs to be initialized only once.  The alphabetical order of a "Square"s neighbours is of no consequence.
+
+// The "square" struct will represent one position in a Boggle board.
+// A square also requires a flag to indicate use in the current word being formed, the number of valid neighbours, and the index of the letter showing on its face.
+struct square {
+	// The Used flag will indicate if a square is being used in constructing the current word, and hence to remove the used square from further inclusion in the same word.
+	Bool Used;
+	unsigned int NumberOfLivingNeighbours;
+	struct square *LivingNeighbourSquarePointerArray[NEIGHBOURS];
+	unsigned char LetterIndex;
+};
+
+// Define the "Square" type.
+typedef struct square Square;
+typedef Square* SquarePtr;
+
+// This Function initializes ThisSquare when passed its row and column position on the board.
+// Important note:  The function is going to use the low level C concept of pointer arithmatic to fill the LivingNeighbourSquarePointerArray, which will be filled from the top-left, clockwise.
+void SquareInit(SquarePtr ThisSquare, unsigned int RowPosition, unsigned int ColPosition){
+	ThisSquare->LetterIndex = SIZE_OF_CHARACTER_SET;
+	ThisSquare->Used = FALSE;
+	if ( RowPosition == 0 ) {
+		// ThisSquare is in the top-left position.
+		if ( ColPosition == 0 ) {
+			ThisSquare->NumberOfLivingNeighbours = 3;
+			(ThisSquare->LivingNeighbourSquarePointerArray)[0] = ThisSquare + 1;
+			(ThisSquare->LivingNeighbourSquarePointerArray)[1] = ThisSquare + MAX_COL + 1;
+			(ThisSquare->LivingNeighbourSquarePointerArray)[2] = ThisSquare + MAX_COL;
+			(ThisSquare->LivingNeighbourSquarePointerArray)[3] = NULL;
+			(ThisSquare->LivingNeighbourSquarePointerArray)[4] = NULL;
+			(ThisSquare->LivingNeighbourSquarePointerArray)[5] = NULL;
+			(ThisSquare->LivingNeighbourSquarePointerArray)[6] = NULL;
+			(ThisSquare->LivingNeighbourSquarePointerArray)[7] = NULL;
+		}
+		// ThisSquare is in the top-right position.
+		else if ( ColPosition == (MAX_COL - 1) ) {
+			ThisSquare->NumberOfLivingNeighbours = 3;
+			(ThisSquare->LivingNeighbourSquarePointerArray)[0] = ThisSquare + MAX_COL;
+			(ThisSquare->LivingNeighbourSquarePointerArray)[1] = ThisSquare + MAX_COL - 1;
+			(ThisSquare->LivingNeighbourSquarePointerArray)[2] = ThisSquare - 1;
+			(ThisSquare->LivingNeighbourSquarePointerArray)[3] = NULL;
+			(ThisSquare->LivingNeighbourSquarePointerArray)[4] = NULL;
+			(ThisSquare->LivingNeighbourSquarePointerArray)[5] = NULL;
+			(ThisSquare->LivingNeighbourSquarePointerArray)[6] = NULL;
+			(ThisSquare->LivingNeighbourSquarePointerArray)[7] = NULL;
+		}
+		// ThisSquare is in a top-middle position.
+		else {
+			ThisSquare->NumberOfLivingNeighbours = 5;
+			(ThisSquare->LivingNeighbourSquarePointerArray)[0] = ThisSquare + 1;
+			(ThisSquare->LivingNeighbourSquarePointerArray)[1] = ThisSquare + MAX_COL + 1;
+			(ThisSquare->LivingNeighbourSquarePointerArray)[2] = ThisSquare + MAX_COL;
+			(ThisSquare->LivingNeighbourSquarePointerArray)[3] = ThisSquare + MAX_COL - 1;
+			(ThisSquare->LivingNeighbourSquarePointerArray)[4] = ThisSquare - 1;
+			(ThisSquare->LivingNeighbourSquarePointerArray)[5] = NULL;
+			(ThisSquare->LivingNeighbourSquarePointerArray)[6] = NULL;
+			(ThisSquare->LivingNeighbourSquarePointerArray)[7] = NULL;
+		}
+	}
+	else if ( RowPosition == (MAX_ROW - 1) ) {
+		// ThisSquare is in the bottom-left position.
+		if ( ColPosition == 0 ) {
+			ThisSquare->NumberOfLivingNeighbours = 3;
+			(ThisSquare->LivingNeighbourSquarePointerArray)[0] = ThisSquare - MAX_COL;
+			(ThisSquare->LivingNeighbourSquarePointerArray)[1] = ThisSquare - MAX_COL + 1;
+			(ThisSquare->LivingNeighbourSquarePointerArray)[2] = ThisSquare + 1;
+			(ThisSquare->LivingNeighbourSquarePointerArray)[3] = NULL;
+			(ThisSquare->LivingNeighbourSquarePointerArray)[4] = NULL;
+			(ThisSquare->LivingNeighbourSquarePointerArray)[5] = NULL;
+			(ThisSquare->LivingNeighbourSquarePointerArray)[6] = NULL;
+			(ThisSquare->LivingNeighbourSquarePointerArray)[7] = NULL;
+		}
+		// ThisSquare is in the bottom-right position.
+		else if ( ColPosition == (MAX_COL - 1) ) {
+			ThisSquare->NumberOfLivingNeighbours = 3;
+			(ThisSquare->LivingNeighbourSquarePointerArray)[0] = ThisSquare - MAX_COL -1;
+			(ThisSquare->LivingNeighbourSquarePointerArray)[1] = ThisSquare - MAX_COL;
+			(ThisSquare->LivingNeighbourSquarePointerArray)[2] = ThisSquare - 1;
+			(ThisSquare->LivingNeighbourSquarePointerArray)[3] = NULL;
+			(ThisSquare->LivingNeighbourSquarePointerArray)[4] = NULL;
+			(ThisSquare->LivingNeighbourSquarePointerArray)[5] = NULL;
+			(ThisSquare->LivingNeighbourSquarePointerArray)[6] = NULL;
+			(ThisSquare->LivingNeighbourSquarePointerArray)[7] = NULL;
+		}
+		// ThisSquare is in a bottom-middle position.
+		else {
+			ThisSquare->NumberOfLivingNeighbours = 5;
+			(ThisSquare->LivingNeighbourSquarePointerArray)[0] = ThisSquare - MAX_COL -1;
+			(ThisSquare->LivingNeighbourSquarePointerArray)[1] = ThisSquare - MAX_COL;
+			(ThisSquare->LivingNeighbourSquarePointerArray)[2] = ThisSquare - MAX_COL + 1;
+			(ThisSquare->LivingNeighbourSquarePointerArray)[3] = ThisSquare + 1;
+			(ThisSquare->LivingNeighbourSquarePointerArray)[4] = ThisSquare - 1;
+			(ThisSquare->LivingNeighbourSquarePointerArray)[5] = NULL;
+			(ThisSquare->LivingNeighbourSquarePointerArray)[6] = NULL;
+			(ThisSquare->LivingNeighbourSquarePointerArray)[7] = NULL;
+		}
+	}
+	// ThisSquare is in a middle-left position.
+	else if ( ColPosition == 0 ) {
+		ThisSquare->NumberOfLivingNeighbours = 5;
+		(ThisSquare->LivingNeighbourSquarePointerArray)[0] = ThisSquare - MAX_COL;
+		(ThisSquare->LivingNeighbourSquarePointerArray)[1] = ThisSquare - MAX_COL + 1;
+		(ThisSquare->LivingNeighbourSquarePointerArray)[2] = ThisSquare + 1;
+		(ThisSquare->LivingNeighbourSquarePointerArray)[3] = ThisSquare + MAX_COL + 1;
+		(ThisSquare->LivingNeighbourSquarePointerArray)[4] = ThisSquare + MAX_COL;
+		(ThisSquare->LivingNeighbourSquarePointerArray)[5] = NULL;
+		(ThisSquare->LivingNeighbourSquarePointerArray)[6] = NULL;
+		(ThisSquare->LivingNeighbourSquarePointerArray)[7] = NULL;
+	}
+	// ThisSquare is in a middle-right position.
+	else if ( ColPosition == (MAX_COL - 1) ) {
+		ThisSquare->NumberOfLivingNeighbours = 5;
+		(ThisSquare->LivingNeighbourSquarePointerArray)[0] = ThisSquare - MAX_COL -1;
+		(ThisSquare->LivingNeighbourSquarePointerArray)[1] = ThisSquare - MAX_COL;
+		(ThisSquare->LivingNeighbourSquarePointerArray)[2] = ThisSquare + MAX_COL;
+		(ThisSquare->LivingNeighbourSquarePointerArray)[3] = ThisSquare + MAX_COL - 1;
+		(ThisSquare->LivingNeighbourSquarePointerArray)[4] = ThisSquare - 1;
+		(ThisSquare->LivingNeighbourSquarePointerArray)[5] = NULL;
+		(ThisSquare->LivingNeighbourSquarePointerArray)[6] = NULL;
+		(ThisSquare->LivingNeighbourSquarePointerArray)[7] = NULL;
+	}
+	// ThisSquare is in a middle-middle position.
+	else {
+		ThisSquare->NumberOfLivingNeighbours = NEIGHBOURS;
+		(ThisSquare->LivingNeighbourSquarePointerArray)[0] = ThisSquare - MAX_COL -1;
+		(ThisSquare->LivingNeighbourSquarePointerArray)[1] = ThisSquare - MAX_COL;
+		(ThisSquare->LivingNeighbourSquarePointerArray)[2] = ThisSquare - MAX_COL + 1;
+		(ThisSquare->LivingNeighbourSquarePointerArray)[3] = ThisSquare + 1;
+		(ThisSquare->LivingNeighbourSquarePointerArray)[4] = ThisSquare + MAX_COL + 1;
+		(ThisSquare->LivingNeighbourSquarePointerArray)[5] = ThisSquare + MAX_COL;
+		(ThisSquare->LivingNeighbourSquarePointerArray)[6] = ThisSquare + MAX_COL - 1;
+		(ThisSquare->LivingNeighbourSquarePointerArray)[7] = ThisSquare - 1;
+	}
+}
+
+inline char SquareLetterIndex(SquarePtr ThisSquare){
+	return ThisSquare->LetterIndex;
+}
+
+// This function has been converted into a macro, because it is used in the often called "BoardPopulate" routine, and it needs to be fast.
+#define SQUARE_CHANGE_LETTER_INDEX(thissquare, newindex) ((thissquare)->LetterIndex = (newindex))
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// A board is defined as simply a static 2 dimensional "Block" of Squares.
+struct board {
+	Square Block[MAX_ROW][MAX_COL];
+};
+
+typedef struct board Board;
+typedef Board* BoardPtr;
+
+// This initialization function sets the neighbour array for all of the Squares in ThisBoard's Block (this only needs to be done once).
+// The Letter index for each square will be a blank space ' ', and they will all be not Used.
+void BoardInit(BoardPtr ThisBoard){
+	unsigned int Row, Col;
+	for ( Row = 0; Row < MAX_ROW; Row++ ) {
+		for ( Col = 0; Col < MAX_COL; Col++ ) {
+			SquareInit(&(ThisBoard->Block[Row][Col]), Row, Col);
+		}
+	}
+}
+
+// This function simply transcribes the BoardString data into ThisBoard using the correct format.
+// A major optimization has taken place at this level because the ADTDAWG's direct property enforces the "Order Does Not Matter," paradigm, and thus, no sorting of neighbours is required.
+void BoardPopulate(BoardPtr ThisBoard, char *BoardString){
+	unsigned int Row, Col;
+	for ( Row = 0; Row < MAX_ROW; Row++ ) {
+		for ( Col = 0; Col < MAX_COL; Col++ ) {
+			SQUARE_CHANGE_LETTER_INDEX(&((ThisBoard->Block)[Row][Col]), CHARACTER_LOCATIONS[BoardString[Row * MAX_COL + Col] - 'A']);
+		}
+	}
+}
+
+// This function displays the important boards, like the "MASTER_SEED_BOARD".
+void BoardOutput(BoardPtr ThisBoard){
+	unsigned int Row, Col;
+	char *PrintLine = (char*)malloc( (2*(MAX_COL)*sizeof( char ) + 2) );
+	printf( "-----------\n" );
+	for ( Row = 0; Row < MAX_ROW; Row++ ) {
+		for ( Col = 0; Col < MAX_COL; Col++ ) {
+			PrintLine[2*Col] = '|';
+			PrintLine[2*Col + 1] = CHARACTER_SET[SquareLetterIndex(&((ThisBoard->Block)[Row][Col]))];
+		}
+		PrintLine[2*MAX_COL] = '|';
+		PrintLine[2*MAX_COL + 1] = '\0';
+		printf( "%s\n", PrintLine );
+		printf( "-----------\n" );
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// These are the global variables needed for the immutable lexicon, and for the solution to the duplicate word problem.
+
+// Each worker thread will have it's own time stamping array for all of the words in the lexicon.
+unsigned int *LexiconTimeStamps[NUMBER_OF_WORKER_THREADS];
+
+// These are the pointers to the global immutable lexicon data structure.  The ADTDAWG is well advanced and beyond the scope of the high level search algorithm.
+// Since these variables are branded as "Read Only," they can be utilized globally without passing pointers.
+unsigned int *PartOneArray;
+unsigned long int *PartTwoArray;
+unsigned int *PartThreeArray;
+unsigned int PartThreeFourTransition;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// The sequential board scoring functions are found here for the new ADTDAWG.
+// The ADTDAWG board analysis scheme is extremely powerful when applied to parallel batch processing.
+
+// An explicit stack will replace recursion and there are seven variables required to save a state while recursively discovering words on a Boggle board.
+struct discoverystacknode {
+	SquarePtr TheSquareNow;
+	unsigned int LexiconPartOneIndex;
+	unsigned int FirstChildIndex;
+	unsigned int WordLengthNow;
+	unsigned int NextMarkerNow;
+	unsigned int TheChildToWorkOn;
+	unsigned long int TheSecondPartNow;
+};
+
+typedef struct discoverystacknode DiscoveryStackNode;
+typedef DiscoveryStackNode* DiscoveryStackNodePtr;
+
+// This is where the recursion-replacement stack is implemented.
+// Using macros allows the programmer to change the value of an argument directly.
+// The stack needs room for the NULL position 0, (MAX_STRING_LENGTH - 1) square positions, and a buffer for the top pointer.
+#define DISCOVERY_STACK_SIZE (MAX_STRING_LENGTH + 1)
+#define DISCOVERY_STACK_PUSH(top, square, indie, fcindie, len, next, workon, second) (((top->TheSquareNow = (square)), (top->LexiconPartOneIndex = (indie)), (top->FirstChildIndex = (fcindie)), (top->WordLengthNow = (len)), (top->NextMarkerNow = (next)), (top->TheChildToWorkOn = (workon)), (top->TheSecondPartNow = (second)), ++top))
+#define	DISCOVERY_STACK_POP(square, indie, fcindie, len, next, workon, second, top) ((--top, (square = top->TheSquareNow), (indie = top->LexiconPartOneIndex), (fcindie = top->FirstChildIndex), (len = top->WordLengthNow), (next = top->NextMarkerNow), (workon = top->TheChildToWorkOn), (second = top->TheSecondPartNow)))
+#define	DISCOVERY_STACK_NOT_EMPTY(ThreadID, TipTop) (TheDiscoveryStacks[ThreadID] < TipTop)
+
+// Each worker thread requires its own stack, and the memory will be allocated inside of the main function before work starts.
+DiscoveryStackNodePtr TheDiscoveryStacks[NUMBER_OF_WORKER_THREADS];
+
+
+// This is the central piece of code in the "BIGS.c" Boggle board analysis scheme.
+// An explicit stack is used to traverse the neighbours of "BeginSquare," regardless of alphabetical order.  It updates the global "LexiconTimeStamps" to eliminate the duplicate word problem.
+// The algorithm is inherently recursive, and this drawback has been excised.
+// Every letter on the board must be contained in the lexicon character set, and this is easy to enforce because the user is not involved.
+
+int SquareWordDiscoverStack(SquarePtr BeginSquare, unsigned int BeginIndex, unsigned int BeginMarker, unsigned int NowTime, unsigned int ThreadIdentity){
+	Bool FirstTime = TRUE;
+	Bool DoWeNeedToPop;
+	unsigned int X;
+	unsigned int WorkOnThisChild;
+	SquarePtr WorkingSquare = BeginSquare;
+	unsigned int WorkingMarker = BeginMarker;
+	unsigned int WorkingIndex = BeginIndex;
+	unsigned int WorkingNumberOfChars = 1;
+	unsigned long int WorkingSecondPart;
+	unsigned int TheChosenLetterIndex;
+	unsigned int WorkingChildIndex;
+	unsigned int Result = 0;
+	SquarePtr *WorkingNeighbourList;
+	unsigned long int WorkingOffset;
+	int WorkingNextMarker;
+	DiscoveryStackNodePtr TheTop = TheDiscoveryStacks[ThreadIdentity] + 1;
+	//printf("In\n");
+	while ( DISCOVERY_STACK_NOT_EMPTY(ThreadIdentity, TheTop) ) {
+		//printf("1\n");
+		// The first time that we land on a square, set it to used, and check if it represents a word, and then a new word.
+		if ( FirstTime == TRUE ) {
+			WorkingChildIndex = (PartOneArray[WorkingIndex] & CHILD_MASK);
+			WorkingNextMarker = 0;
+			// Tag "WorkingSquare" as being used.
+			WorkingSquare->Used = TRUE;
+			// Check to see if we have arrived at a new word, and if so, add the correct score to the result.
+			if ( PartOneArray[WorkingIndex] & END_OF_WORD_FLAG ) {
+				//printf("Bingo Word At |%u|\n", WorkingMarker);
+				if ( (LexiconTimeStamps[ThreadIdentity])[WorkingMarker] < NowTime ) {
+					Result += THE_SCORE_CARD[WorkingNumberOfChars];
+					(LexiconTimeStamps[ThreadIdentity])[WorkingMarker] = NowTime;
+				}
+				// No matter what, we need to reduce the "WorkingNextMarker"
+				WorkingNextMarker -= 1;
+			}
+		}
+		//printf("2\n");
+		// If "WorkingSquare" has children, visit the next one up to "NumberOfLivingNeighbours" - 1.  There will be no scrolling through a list of children in the lexicon data structure when using the ADTDAWG.
+		DoWeNeedToPop = TRUE;
+		if ( WorkingChildIndex ) {
+			//printf("3\n");
+			WorkingNeighbourList = WorkingSquare->LivingNeighbourSquarePointerArray;
+			if ( FirstTime == TRUE ) {
+				WorkingNextMarker += (WorkingMarker - PartThreeArray[WorkingChildIndex]);
+				WorkingSecondPart = PartTwoArray[(PartOneArray[WorkingIndex] & OFFSET_INDEX_MASK) >> OffSET_BIT_SHIFT];
+				WorkOnThisChild = WorkingSquare->NumberOfLivingNeighbours;
+			}
+			for ( X = WorkOnThisChild; X-- > 0; ) {
+				//printf("4|%u|\n", X);
+				if ( (WorkingNeighbourList[X])->Used == FALSE ) {
+					TheChosenLetterIndex = (WorkingNeighbourList[X])->LetterIndex;
+					if ( WorkingOffset = ( WorkingSecondPart & CHILD_LETTER_BIT_MASKS[TheChosenLetterIndex]) ) {
+						//printf("5|%c| - |%u|\n", CHARACTER_SET[TheChosenLetterIndex], WorkingMarker);
+						WorkingOffset >>= CHILD_LETTER_BIT_SHIFTS[TheChosenLetterIndex];
+						WorkingOffset -= 1;
+						//printf("Pre-WorkingNextMarker |%u| at |%u|\n", WorkingNextMarker, WorkingNumberOfChars);
+						// Now that we are ready to move down to the next level, push the current state onto the stack if we are not on the final neighbour, and update the working variables.
+						DISCOVERY_STACK_PUSH(TheTop, WorkingSquare, WorkingIndex, WorkingChildIndex, WorkingNumberOfChars, WorkingNextMarker, X, WorkingSecondPart);
+						WorkingSquare = WorkingNeighbourList[X];
+						WorkingIndex = WorkingChildIndex + (unsigned int)WorkingOffset;
+						WorkingMarker = WorkingNextMarker + PartThreeArray[WorkingChildIndex + (unsigned int)WorkingOffset];
+						WorkingNumberOfChars += 1;
+						FirstTime = TRUE;
+						DoWeNeedToPop = FALSE;
+						break;
+					}
+				}
+			}
+		}
+		if ( DoWeNeedToPop ) {
+			// We have now finished using "WorkingSquare", so set its Used element to FALSE.
+			WorkingSquare->Used = FALSE;
+			// Pop the top of the stack into the function and pick up where we left off at that particular square.
+			DISCOVERY_STACK_POP(WorkingSquare, WorkingIndex, WorkingChildIndex, WorkingNumberOfChars, WorkingNextMarker, WorkOnThisChild, WorkingSecondPart, TheTop);
+			//printf("WorkingNextMarker |%u|\n", WorkingNextMarker);
+			FirstTime = FALSE;
+		}
+	}
+	return Result;
+}
+
+// This function returns the Boggle score for "ThisBoard".  It will stamp the "LexiconTimeStamps[CallingThread]" with "TheTimeNow".
+unsigned int BoardSquareWordDiscover(BoardPtr ThisBoard, unsigned int TheTimeNow, unsigned int CallingThread){
+	unsigned int TheScoreTotal = 0;
+	unsigned int CurrentRow;
+	unsigned int CurrentCol;
+	unsigned int CurrentPartOneIndex;
+	for ( CurrentRow = 0; CurrentRow < MAX_ROW; CurrentRow++ ) {
+		for ( CurrentCol = 0; CurrentCol < MAX_COL; CurrentCol++ ) {
+			CurrentPartOneIndex = (((ThisBoard->Block)[CurrentRow][CurrentCol]).LetterIndex + 1);
+			TheScoreTotal += SquareWordDiscoverStack(&((ThisBoard->Block)[CurrentRow][CurrentCol]), CurrentPartOneIndex, PartThreeArray[CurrentPartOneIndex], TheTimeNow, CallingThread);
+		}
+	}
+	return TheScoreTotal;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// This section is dedicated to sorting large lists of evaluated boards and scores.  It represents an adaptation of the GLIBC qsort code and an explicit stack documented here http://www.corpit.ru/mjt/qsort.html
+// I will thank Michael Tokarev for an excellent web page, and a very useful recursion elimination technique.
+
+// The BoardData pseudo-class will use macros for its associated functionality.
+struct boarddata {
+	char TheBoardString[SQUARE_COUNT + 2 + 1];
+	unsigned int TheBoardScore;
+};
+
+typedef struct boarddata BoardData;
+typedef BoardData* BoardDataPtr;
+
+#define BOARD_DATA_THE_BOARD_STRING(thisboarddata) ((thisboarddata)->TheBoardString)
+
+#define BOARD_DATA_THE_BOARD_SCORE(thisboarddata) (thisboarddata->TheBoardScore)
+
+#define BOARD_DATA_SET_THE_BOARD_STRING(thisboarddata, newstring) (strcpy(thisboarddata->TheBoardString, newstring))
+
+#define BOARD_DATA_SET_THE_BOARD_SCORE(thisboarddata, newscore) (thisboarddata->TheBoardScore = (newscore))
+
+#define BOARD_DATA_SET(thisboarddata, string, score) ((strcpy(thisboarddata->TheBoardString, string)),(thisboarddata->TheBoardScore = (score)))
+
+// This statement evaluates to TRUE when the board at "First" has a higher score than the board at "Second".
+#define COMPARE_BOARD_DATA(First, Second) ( (*First)->TheBoardScore > (*Second)->TheBoardScore )? TRUE: FALSE
+
+// Swap two items pointed to by "a" and "b" using temporary buffer "T".
+#define BOARD_DATA_SWAP(a, b, T) ((void)((T = *a), (*a = *b), (*b = T)))
+
+// When a list gets this small, standard insertion sort is a faster method.
+#define SORT_TRANSITION_SIZE 4
+
+// define the size of the list being sorted.  This number represents the total number of boards analyzed per thread, per round.
+#define LIST_SIZE (BOARDS_PER_THREAD*SINGLE_DEVIATIONS)
+
+// A qsort stack only needs to save two values.
+struct qsortstacknode {
+	BoardDataPtr *Lo;
+	BoardDataPtr *Hi;
+};
+
+typedef struct qsortstacknode QsortStackNode;
+typedef QsortStackNode* QsortStackNodePtr;
+
+// This is where the recursion-replacement stack is implemented.
+// Using macros allows the programmer to change the value of an argument directly.
+#define QSORT_STACK_SIZE (8 * sizeof(unsigned int))
+#define QSORT_STACK_PUSH(top, low, high) (((top->Lo = (low)), (top->Hi = (high)), ++top))
+#define	QSORT_STACK_POP(low, high, top) ((--top, (low = top->Lo), (high = top->Hi)))
+#define	QSORT_STACK_NOT_EMPTY(identity, top) ((TheQsortStacks[identity]) < top)
+
+// Each worker thread will require its own qsort() stack.
+QsortStackNode *TheQsortStacks[NUMBER_OF_WORKER_THREADS];
+
+void BoardDataExplicitStackQuickSort(BoardDataPtr *Base, unsigned int Size, unsigned int CallingThread){
+	BoardDataPtr Temp;
+	if ( Size > SORT_TRANSITION_SIZE ) {
+		BoardDataPtr *Low = Base;
+		BoardDataPtr *High = Low + Size - 1;
+		QsortStackNodePtr TheTop = TheQsortStacks[CallingThread] + 1;
+		// Declaring "Left", "Right", and "Mid" inside of this while() loop is a valid choice.  "Low", and "High", on the other hand, require a larger scope.
+		while ( QSORT_STACK_NOT_EMPTY(CallingThread, TheTop) ) {
+			BoardDataPtr *Left;
+			BoardDataPtr *Right;
+			// Select median value from among "Low", "Mid", and "High".
+			// Shift "Low" and "High" so the three values are sorted.
+			// This lowers the probability of picking a bad pivot value.
+			// Also a comparison is skipped for both "Left" and "Right" in the while loops.
+			BoardDataPtr *Mid = Low + ((High - Low) >> 1);
+			if ( COMPARE_BOARD_DATA(Mid, Low) ) BOARD_DATA_SWAP(Mid, Low, Temp);
+			if ( COMPARE_BOARD_DATA(High, Mid) ) {
+				BOARD_DATA_SWAP(Mid, High, Temp);
+				if ( COMPARE_BOARD_DATA(Mid, Low) ) BOARD_DATA_SWAP(Mid, Low, Temp);
+			}
+			// The values at positions Low and High are already known to be in the correct partition.
+			Left = Low + 1;
+			Right = High - 1;
+			// This section of Qsort collapses the walls of "Left" and "Right" until they cross over each other.
+			do {
+				while ( COMPARE_BOARD_DATA(Left, Mid) ) ++Left;
+				while ( COMPARE_BOARD_DATA(Mid, Right) ) --Right;
+				// Swap the elements at "Left" and "Right", but make sure to maintain the Mid pointer, because it might get in the way.
+				if ( Left < Right) {
+					BOARD_DATA_SWAP(Left, Right, Temp);
+					if ( Mid == Left) Mid = Right;
+					else if ( Mid == Right ) Mid = Left;
+					++Left;
+					--Right;
+				}
+				// When "Left" is equal to "Right", make them cross over each other.
+				else if ( Left == Right ) {
+					++Left;
+					--Right;
+					break;
+				}
+			} while ( Left <= Right);
+			// Set up pointers for the next partitions, and push the larger partition onto the stack if its size exceeds "SORT_TRANSITION_SIZE".
+			// By always pushing the larger of the two partitiona onto the stack, the stack size has an absolute limit of LOG base 2 (Size).
+			// Continue sorting the smaller partition if its size exceeds "SORT_TRANSITION_SIZE".
+			if ( (Right - Low) <= SORT_TRANSITION_SIZE ) {
+				// Ignore both small partitions.
+				if ( (High - Left) <= SORT_TRANSITION_SIZE ) QSORT_STACK_POP(Low, High, TheTop);
+				// Ignore small left partition.
+				else Low = Left;
+			}
+			// Ignore small right partition.
+			else if ( (High - Left) <= SORT_TRANSITION_SIZE ) High = Right;
+			// Push the larger left partition indices.
+			else if ( (Right - Low) > (High - Left) ) {
+				QSORT_STACK_PUSH(TheTop, Low, Right);
+				Low = Left;
+			}
+			// Push the larger right partition indices.
+			else {
+				QSORT_STACK_PUSH(TheTop, Left, High);
+				High = Right;
+			}
+		}
+	}
+
+	// The Base array of BoardData is now partitioned into an ordered sequence of small unsorted blocks.
+	// Insertion sort will be used to sort the whole array, because it is faster when shifting over short distances.
+	{
+		BoardDataPtr *End = Base + Size - 1;
+		BoardDataPtr *TempPointer = Base;
+		register BoardDataPtr *RunPointer;
+		BoardDataPtr *Threshold;
+
+		Threshold = Base + SORT_TRANSITION_SIZE;
+		if ( Threshold > End) Threshold = End;
+
+		// Find largest element in first "Threshold" and place it at the beginning of the array.
+		// This is the largest array element, and the operation speeds up insertion sort's inner loop.
+
+		for ( RunPointer = TempPointer + 1; RunPointer <= Threshold; ++RunPointer ) if ( COMPARE_BOARD_DATA(RunPointer, TempPointer) ) TempPointer = RunPointer;
+
+		if ( TempPointer != Base ) BOARD_DATA_SWAP(TempPointer, Base, Temp);
+
+		// This is a modification of the GLIBC code that seems to be a shifting optimization.
+		// Insertion sort, running from left-hand-side up to right-hand-side.
+		// Everything to the left as we go through the array is sorted and the maximum insertion displacement will be SORT_TRANSITION_SIZE
+		RunPointer = Base + 1;
+		while ( ++RunPointer <= End ) {
+			TempPointer = RunPointer - 1;
+			// When "RunPointer" needs to be moved, set "TempPointer" to the insertion position.
+			while ( COMPARE_BOARD_DATA(RunPointer, TempPointer) ) --TempPointer;
+			++TempPointer;
+			if ( TempPointer != RunPointer ) {
+				// Save the element at position "RunPointer" into "Temp".
+				Temp = *RunPointer;
+				// Move the elements from the range ("TempPointer" up to just before "RunPointer"), one position towards the end of the array.
+				memmove(TempPointer + 1, TempPointer, sizeof(BoardDataPtr)*(RunPointer - TempPointer));
+				// Fill the insertion position at "TempPointer" with the "Temp" value.
+				*TempPointer = Temp;
+			}
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// The Global array of pointers to arrays of "BoardDataPtr"s.  All of the associated "BoardData" with this array will thus never move around.
+// The Main thread will allocate the space required to store the actual "BoardData".
+// The thread identities and attributes are also defined here.
+BoardDataPtr *WorkingBoardScoreTallies[NUMBER_OF_WORKER_THREADS];
+pthread_t Threads[NUMBER_OF_WORKER_THREADS];
+pthread_attr_t ThreadAttribute;
+char ThreadBoardStringsToAnalyze[NUMBER_OF_WORKER_THREADS][BOARDS_PER_ROUND/NUMBER_OF_WORKER_THREADS][BOARD_STRING_SIZE];
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// The POSIX thread inter-thread communication section.
+
+// Two sets of inter-thread communication variables are defined below.  Each "condition variable" requires an associated "mutex".
+// It is the responsibility of the programmer to ensure that the global variables connected to a "mutex" are only modified under a lock condition.
+
+// Set one.
+pthread_mutex_t StartWorkMutex;
+pthread_cond_t StartWorkCondition;
+
+// The "StartWorkCondition" sends a boolean flag to request the worker threads to "WorkOn" or terminate, and a value indicating the current "Round".
+Bool WorkOn = FALSE;
+// This set of variables will coordinate the dispersed use of the lexicon time stamps by the main thread during round 0, when 25x(SIZE_OF_CHARACTER_SET - 1) boards are evaluated to begin the following deviation rounds.
+unsigned int Round = 0;
+Bool HandOffRecievedByWorker = TRUE;
+unsigned int HandOffThread = 0;
+unsigned int TimeStampHandOff = 1;
+
+// Set two.
+pthread_mutex_t CompleteMutex;
+pthread_cond_t CompleteCondition;
+
+// The worker threads need to let the main thread know which one has just sent the "CompleteCondition" signal, so it can coordinate the correct data set.
+// The main thread needs to let the worker threads know when it is waiting for a signal and this is communicated using "MainThreadWaiting".
+Bool MainThreadWaiting = FALSE;
+unsigned int TheCompletedBatch = BOGUS;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// POSIX thread function, which ends up processing large batches of computation undisturbed.
+
+// This Thread function will complete an entire round of board single-deviations and analysis when it recieves the "StartWorkCondition" broadcast.
+// Then it will wait for the next round to be coordinated.
+// It is also responsible for sorting the board analysis results.
+void *ThreadForSetOfBoardsAnalysis(void *ThreadArgument){
+	unsigned int ThreadIndex;
+	char *ThisBoardStringTwoArray;
+	char TempBoardString[BOARD_STRING_SIZE];
+	char TheNewOffLimitSquareString[3];
+	BoardPtr WorkingBoard = (Board*)malloc(sizeof(Board));
+	unsigned int X, Y, Z;
+	unsigned int OffLimitSquare;
+	unsigned int OffLimitLetterIndex;
+	unsigned int InsertionSpot;
+	unsigned int CurrentStringIndex;
+	unsigned int TheLocalTime = 0;
+
+	ThreadIndex = (unsigned long int)UINT_MAX & (unsigned long int)ThreadArgument;
+	ThisBoardStringTwoArray = &(ThreadBoardStringsToAnalyze[ThreadIndex][0][0]);
+
+	//printf( "We are now inside of Thread |%d|\n", TaskIdentity );
+	BoardDataPtr *WorkingBoardScoreTally = WorkingBoardScoreTallies[ThreadIndex];
+
+	// Zero all of the time stamps for the words associated with this "ThreadIndex".  The stamps are 32-bit integers so for now they will only need to be zeroed once.  2^32 -1 = 4,294,967,295 represents a very deep search.
+	memset(LexiconTimeStamps[ThreadIndex], 0, (TOTAL_WORDS_IN_LEXICON + 1)*sizeof(unsigned int));
+
+	BoardInit(WorkingBoard);
+
+	// Enter a waiting state for the "StartWorkCondition".
+	pthread_mutex_lock(&StartWorkMutex);
+	pthread_cond_wait(&StartWorkCondition, &StartWorkMutex);
+	while ( TRUE ) {
+		// It is necessary to unlock the "StartWorkMutex" before thread termination, so that the other worker threads can also terminate.
+		if ( WorkOn == FALSE ) {
+			pthread_mutex_unlock(&StartWorkMutex);
+			pthread_exit(NULL);
+		}
+		// When the round is zero, we have to check if the main thread has used this thread's time stamps to evaluate all the seed board deviations.
+		if ( Round == 0 ) {
+			if ( HandOffRecievedByWorker == FALSE ) {
+				// Indicate that the hand-off has now been made, and read the new value into "TheLocalTime".
+				if ( HandOffThread == ThreadIndex ) {
+					HandOffRecievedByWorker = TRUE;
+					TheLocalTime = TimeStampHandOff;
+					// Set "HandOffThread" to the next thread inline so that the main thread can adjust its local time value, after all the work is done.
+					HandOffThread = (HandOffThread + 1)%NUMBER_OF_WORKER_THREADS;
+				}
+			}
+		}
+		pthread_mutex_unlock(&StartWorkMutex);
+		// All of the work will be carried out here.
+
+		// Fill "WorkingBoardScoreTally" with all single deviations of the boards located in "ThisBoardStringTwoArray".
+		InsertionSpot = 0;
+		for ( X = 0; X < BOARDS_PER_THREAD; X++ ) {
+			strcpy(TempBoardString, &(ThisBoardStringTwoArray[X*BOARD_STRING_SIZE]));
+			OffLimitSquare = TwoCharStringToInt(&(TempBoardString[SQUARE_COUNT]));
+			for ( Y = 0; Y < SQUARE_COUNT; Y++ ) {
+				if ( Y == OffLimitSquare ) continue;
+				// Y will now represent the placement of the off limits Square so set it as such.
+				ConvertSquareNumberToString( TheNewOffLimitSquareString, Y );
+				TempBoardString[SQUARE_COUNT] = TheNewOffLimitSquareString[0];
+				TempBoardString[SQUARE_COUNT + 1] = TheNewOffLimitSquareString[1];
+				OffLimitLetterIndex = CHARACTER_LOCATIONS[TempBoardString[Y] - 'A'];
+				for ( Z = 0; Z < SIZE_OF_CHARACTER_SET; Z++ ) {
+					if ( Z == OffLimitLetterIndex ) continue;
+					TempBoardString[Y] = CHARACTER_SET[Z];
+					BOARD_DATA_SET_THE_BOARD_STRING(WorkingBoardScoreTally[InsertionSpot], TempBoardString);
+					InsertionSpot += 1;
+				}
+				TempBoardString[Y] = CHARACTER_SET[OffLimitLetterIndex];
+			}
+		}
+
+		// Evaluate all of the single deviation boards and store the scores into the BoardData in "WorkingBoardScoreTallly".
+		for ( X = 0; X < LIST_SIZE; X++ ) {
+			TheLocalTime += 1;
+			BoardPopulate(WorkingBoard, BOARD_DATA_THE_BOARD_STRING(WorkingBoardScoreTally[X]));
+			// Insert the board score into the "WorkingBoardScoreTally" array.
+			BOARD_DATA_SET_THE_BOARD_SCORE(WorkingBoardScoreTally[X], BoardSquareWordDiscover(WorkingBoard, TheLocalTime, ThreadIndex));
+		}
+
+		// We are now going to use an explicit stack, optimized qsort to arrange "WorkingBoardScoreTally.
+		BoardDataExplicitStackQuickSort(WorkingBoardScoreTally, LIST_SIZE, ThreadIndex);
+
+		// Get a lock on "CompleteMutex" and make sure that the main thread is waiting, then set "TheCompletedBatch" to "ThreadIndex".  Set "MainThreadWaiting" to "FALSE".
+		// If the main thread is not waiting, continue trying to get a lock on "CompleteMutex" unitl "MainThreadWaiting" is "TRUE".
+		while ( TRUE ) {
+			pthread_mutex_lock(&CompleteMutex);
+			if ( MainThreadWaiting == TRUE ) {
+				// While this thread still has a lock on the "CompleteMutex", set "MainThreadWaiting" to "FALSE", so that the next thread to maintain a lock will be the main thread.
+				MainThreadWaiting = FALSE;
+				break;
+			}
+			pthread_mutex_unlock(&CompleteMutex);
+		}
+		TheCompletedBatch = ThreadIndex;
+		// Lock the "StartWorkMutex" before we send out the "CompleteCondition" signal.
+		// This way, we can enter a waiting state for the next round before the main thread broadcasts the "StartWorkCondition".
+		pthread_mutex_lock(&StartWorkMutex);
+		//printf("Thread-%u: Completed Batch %d\n", ThreadIndex, Round);
+		pthread_cond_signal(&CompleteCondition);
+		pthread_mutex_unlock(&CompleteMutex);
+		// Coordinate the hand-off of the current time to the main thread if we are on the final round.
+		if ( Round == (ROUNDS - 1) ) {
+			if ( HandOffRecievedByWorker == TRUE ) {
+				// Send out this thread's "TheLocalTime" to the main thread.
+				if ( HandOffThread == ThreadIndex ) {
+					TimeStampHandOff = TheLocalTime;
+				}
+			}
+			else exit(EXIT_FAILURE);
+		}
+		// Wait for the Main thread to send us the next "StartWorkCondition" broadcast.
+		// Be sure to unlock the corresponding mutex immediately so that the other worker threads can exit their waiting state as well.
+		pthread_cond_wait(&StartWorkCondition, &StartWorkMutex);
+	}
+
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+int main () {
+	// for() loop counter variables.
+	unsigned int X, Y, T, S;
+
+	// Variables used in coordinating pthreads.
+	long unsigned int Identity;
+	void *Status;
+	int ReturnCode;
+	unsigned int InsertionSlot;
+	unsigned int SendToThread;
+	unsigned int TheReturn;
+
+	// A string to use fgets() with at the end of the program for monitoring purposes.
+	char ExitString[BOARD_STRING_SIZE];
+
+	// The seed board selection process is beyond the scope of this program.
+	// For now, choose seeds that are as different as possible and verify that they all produce the same results.
+	char SeedBoard[BOARD_STRING_SIZE] = MASTER_SEED_BOARD;
+
+	// The evaluation lists.
+	char *TopEvaluationBoardList[EVALUATE_LIST_SIZE];
+	unsigned int TopEvaluationBoardScores[EVALUATE_LIST_SIZE];
+
+	// The Master List.
+	char *MasterResultsBoardList[MASTER_LIST_SIZE];
+	unsigned int MasterResultsBoardScores[MASTER_LIST_SIZE];
+
+	// Holders used for the seed board single deviations before the deviation rounds begin.
+	BoardPtr InitialWorkingBoard;
+	unsigned int UseTheseTimeStamps = 0;
+	char TemporaryBoardString[BOARD_STRING_SIZE];
+	unsigned int TemporaryBoardScore;
+	char SquareNumberString[3];
+	char TheSeedLetter;
+	unsigned int TheCurrentTime = 0;
+
+	// These "MinBoardTrie"s will maintain information about the search so that new boards will continue to be evaluated.  This is an important construct to a search algorithm.
+	MinBoardTriePtr CurrentBoardsConsideredThisRound;
+	MinBoardTriePtr AllEvaluatedBoards = MinBoardTrieInit();
+	MinBoardTriePtr ChosenSeedBoards = MinBoardTrieInit();
+	MinBoardTriePtr WhatMadeTheMasterList = MinBoardTrieInit();
+
+	// The ADTDAWG lexicon is stored inside of four files, and then read into three arrays for speed.  This is the case because the data structure is extremely small.
+	FILE *PartOne = fopen(FOUR_PART_DTDAWG_14_PART_ONE, "rb");
+	FILE *PartTwo = fopen(FOUR_PART_DTDAWG_14_PART_TWO, "rb");
+	FILE *PartThree = fopen(FOUR_PART_DTDAWG_14_PART_THREE, "rb");
+	FILE *PartFour = fopen(FOUR_PART_DTDAWG_14_PART_FOUR, "rb");
+	unsigned int SizeOfPartOne;
+	unsigned long int SizeOfPartTwo;
+	unsigned int SizeOfPartThree;
+	unsigned int SizeOfPartFour;
+	unsigned char TempReadIn;
+
+	// The global variables required by the worker threads to do their work are allocated here.
+
+	// Allocate the arrays of "BoardDataPtr"s.
+	for ( X = 0; X < NUMBER_OF_WORKER_THREADS; X++ ) WorkingBoardScoreTallies[X] = (BoardDataPtr*)malloc(LIST_SIZE*sizeof(BoardDataPtr));
+	// Allocate the actual "BoardData" that the arrays of pointers will point to.
+	for ( X = 0; X < NUMBER_OF_WORKER_THREADS; X++ ) for ( Y = 0; Y < LIST_SIZE; Y++ ) (WorkingBoardScoreTallies[X])[Y] = (BoardData*)malloc(sizeof(BoardData));
+	// Allocate the "NUMBER_OF_WORKER_THREADS" Qsort stacks.
+	for ( X = 0; X < NUMBER_OF_WORKER_THREADS; X++ ) TheQsortStacks[X] = (QsortStackNode*)malloc(QSORT_STACK_SIZE*sizeof(QsortStackNode));
+	// Allocate the explicit discovery stacks for each worker thread.
+	for ( X = 0; X < NUMBER_OF_WORKER_THREADS; X++ ) TheDiscoveryStacks[X] = (DiscoveryStackNode*)malloc((DISCOVERY_STACK_SIZE)*sizeof(DiscoveryStackNode));
+	// Allocate the set of lexicon time stamps as unsigned integers.
+	for ( X = 0; X < NUMBER_OF_WORKER_THREADS; X++ ) LexiconTimeStamps[X] = (unsigned int*)malloc((TOTAL_WORDS_IN_LEXICON + 1)*sizeof(unsigned int));
+
+	// Read in the size of each data file.
+	if ( fread(&SizeOfPartOne, 4, 1, PartOne) != 1 ) return 0;
+	if ( fread(&SizeOfPartTwo, 8, 1, PartTwo) != 1 ) return 0;
+	if ( fread(&SizeOfPartThree, 4, 1, PartThree) != 1 ) return 0;
+	PartThreeFourTransition = SizeOfPartThree + 1;
+	SizeOfPartFour = SizeOfPartOne - SizeOfPartThree;
+
+	// Print out the lexicon size values.
+	printf("\n");
+	printf("SizeOfPartOne |%d|\n", SizeOfPartOne);
+	printf("SizeOfPartTwo |%ld|\n", SizeOfPartTwo);
+	printf("SizeOfPartThree |%d|\n", SizeOfPartThree);
+	printf("Transition |%d|\n", PartThreeFourTransition);
+	printf("SizeOfPartFour |%d|\n", SizeOfPartFour);
+	printf("\n");
+
+	// Allocate memory for the ADTDAWG.
+	PartOneArray = (unsigned int *)malloc((SizeOfPartOne + 1) * sizeof(int));
+	PartTwoArray = (unsigned long int *)malloc(SizeOfPartTwo * sizeof(long int));
+	PartThreeArray = (unsigned int *)malloc((SizeOfPartOne + 1) * sizeof(int));
+
+	// Read in the data files into global arrays of basic integer types.
+	// The zero position in "PartOneArray" is the NULL node.
+	PartOneArray[0] = 0;
+	if ( fread(PartOneArray + 1, 4, SizeOfPartOne, PartOne) != SizeOfPartOne ) return 0;
+	if ( fread(PartTwoArray, 8, SizeOfPartTwo, PartTwo) != SizeOfPartTwo ) return 0;
+	// The Zero position in "PartThreeArray" maps to the NULL node in "PartOneArray".
+	PartThreeArray[0] = 0;
+	if ( fread(PartThreeArray + 1, 4, SizeOfPartThree, PartThree) != SizeOfPartThree ) return 0;
+	// Part Four has been replaced by encoding the Part Four WTEOBL values as 32 bit integers for speed.  The size of the data structure is small enough as it is.
+	for ( X = (SizeOfPartThree + 1); X <= SizeOfPartOne; X++ ) {
+		if ( fread(&TempReadIn, 1, 1, PartFour) != 1 ) return 0;
+		PartThreeArray[X] = TempReadIn;
+	}
+
+	// Close the four files.
+	fclose(PartOne);
+	fclose(PartTwo);
+	fclose(PartThree);
+	fclose(PartFour);
+
+	// Print out the high level algorithm variables for this run of the DeepSearch.
+	printf("ADTDAWG Read of Lexicon_14 is Complete.\n\n");
+	printf("DoubleUp.c Variables - Chain Seeds |%d|, Single Deviation Rounds |%d|, Full Evaluations Per Round |%d|.\n\n", NUMBER_OF_SEEDS_TO_RUN, ROUNDS, BOARDS_PER_ROUND);
+
+	// Populate the "InitialWorkingBoard" with the original seed board.
+	InitialWorkingBoard = (Board*)malloc(sizeof(Board));
+	BoardInit(InitialWorkingBoard);
+	BoardPopulate(InitialWorkingBoard, SeedBoard);
+
+	// Allocate and zero the master list.
+	for ( X = 0; X < MASTER_LIST_SIZE; X++ ) {
+		MasterResultsBoardList[X] = (char*)calloc(BOARD_STRING_SIZE, sizeof(char));
+		MasterResultsBoardScores[X] = 0;
+	}
+	// Allocate the evaluation list.
+	for ( X = 0; X < EVALUATE_LIST_SIZE; X++ ) {
+		TopEvaluationBoardList[X] = (char*)calloc(BOARD_STRING_SIZE, sizeof(char));
+	}
+
+	// Initialize all of the thread related objects.
+	pthread_t Threads[NUMBER_OF_WORKER_THREADS];
+  pthread_attr_t attr;
+
+	pthread_mutex_init(&CompleteMutex, NULL);
+  pthread_cond_init (&CompleteCondition, NULL);
+
+	pthread_mutex_init(&StartWorkMutex, NULL);
+  pthread_cond_init (&StartWorkCondition, NULL);
+
+  /* For portability, explicitly create threads in a joinable state */
+  pthread_attr_init(&ThreadAttribute);
+  pthread_attr_setdetachstate(&ThreadAttribute, PTHREAD_CREATE_JOINABLE);
+
+	// Create all of the worker threads here.
+	for ( Identity = 0; Identity < NUMBER_OF_WORKER_THREADS; Identity++ ) pthread_create(&Threads[Identity], &ThreadAttribute, ThreadForSetOfBoardsAnalysis, (void *)Identity);
+
+	// Allow time for the worker threads to start up and wait for the signal that is going to be sent out soon.
+	printf("Wait for 3 second for the %d worker threads to enter a waiting state.\n\n", NUMBER_OF_WORKER_THREADS);
+	sleep(3);
+
+	// The very first task is to insert the original seed board into the master list.
+	TheCurrentTime += 1;
+	TemporaryBoardScore = BoardSquareWordDiscover(InitialWorkingBoard, TheCurrentTime, UseTheseTimeStamps);
+	MinBoardTrieAddBoard(WhatMadeTheMasterList, SeedBoard);
+	InsertBoardStringIntoMasterList(MasterResultsBoardList, MasterResultsBoardScores, SeedBoard, TemporaryBoardScore);
+
+	printf( "This is the original seed board that will be used...  It is worth |%d| points.  Sleep for 2 seconds to look at it\n\n", TemporaryBoardScore );
+	BoardOutput( InitialWorkingBoard );
+	sleep(2);
+
+
+	// This loop represents the chain seeds cascade.
+	for( S = 0; S < NUMBER_OF_SEEDS_TO_RUN; S++ ) {
+		// The main thread will alternate its use of the time stamps so that the time stamps get equal use, and the most evaluation can be run on "NUMBER_OF_WORKER_THREADS"xMax(unsigned 32-bit int), without timestamp zeroing.
+		UseTheseTimeStamps = S%NUMBER_OF_WORKER_THREADS;
+
+		pthread_mutex_lock(&StartWorkMutex);
+		// Inherit the "TimeStampHandOff" from the "UseTheseTimeStamps" worker thread.
+		if ( HandOffRecievedByWorker == TRUE ) {
+			// Pick up the "UseTheseTimeStamps" thread time value.
+			if ( HandOffThread == UseTheseTimeStamps ) {
+				TheCurrentTime = TimeStampHandOff;
+			}
+		}
+		else exit(EXIT_FAILURE);
+		pthread_mutex_unlock(&StartWorkMutex);
+
+		// Before checking the "AllEvaluatedBoards" Trie, test if the score is high enough to make the list.
+		// The scores attached to this list needs to be reset every time that we start a new seed, the important remaining list is the master list.
+		memset(TopEvaluationBoardScores, 0, EVALUATE_LIST_SIZE*sizeof(unsigned int));
+
+		for ( X = 0; X < MASTER_LIST_SIZE; X++ ) {
+			if ( MinBoardTrieBoardSearch( ChosenSeedBoards, MasterResultsBoardList[X] ) == FALSE ) {
+				strcpy( SeedBoard, MasterResultsBoardList[X] );
+				TemporaryBoardScore = MasterResultsBoardScores[X];
+				break;
+			}
+		}
+
+		SeedBoard[SQUARE_COUNT] = '\0';
+		printf( "For the |%d|'th run the seed board is |%s| worth |%d| points.\n", S + 1, SeedBoard, TemporaryBoardScore );
+		MinBoardTrieAddBoard( ChosenSeedBoards, SeedBoard );
+		MinBoardTrieAddBoard( AllEvaluatedBoards, SeedBoard );
+		// Populate the evaluate list for the first round of boards based on the best solitary deviations of the current seed board.  Add these boards to the Evaluate and Master lists.  They Have not been fully evaluated yet.
+		// These boards will not get evaluated in the threads, so evaluate them here.  Add them to the master list if they qualify.
+		strcpy(TemporaryBoardString, SeedBoard);
+		for ( X = 0; X < SQUARE_COUNT; X++ ) {
+			if ( X > 0 ) TemporaryBoardString[X - 1] = SeedBoard[X - 1];
+			ConvertSquareNumberToString(SquareNumberString, X);
+			strcpy(TemporaryBoardString + SQUARE_COUNT, SquareNumberString);
+			TheSeedLetter = SeedBoard[X];
+			for ( Y = 0; Y < SIZE_OF_CHARACTER_SET; Y++ ) {
+				// This statement indicates that less new boards are generated for each evaluation board, as in one square will be off limits.  This is how we arrive at the number "SOLITARY_DEVIATIONS".
+				if ( TheSeedLetter == CHARACTER_SET[Y]) continue;
+				TemporaryBoardString[X] = CHARACTER_SET[Y];
+				BoardPopulate(InitialWorkingBoard, TemporaryBoardString);
+				TheCurrentTime += 1;
+				TemporaryBoardScore = BoardSquareWordDiscover(InitialWorkingBoard, TheCurrentTime, UseTheseTimeStamps);
+				// Try to add each board to the "MasterResultsBoardList", and the "TopEvaluationBoardList".  Do this in sequence.  Only the "WhatMadeTheMasterList" MinBoardTrie will be augmented.
+				if ( MinBoardTrieBoardSearch(WhatMadeTheMasterList, TemporaryBoardString) == FALSE ) {
+					if ( InsertBoardStringIntoMasterList(MasterResultsBoardList, MasterResultsBoardScores, TemporaryBoardString, TemporaryBoardScore) == TRUE ) {
+						MinBoardTrieAddBoard(WhatMadeTheMasterList, TemporaryBoardString);
+						printf("Round |%d|Pop - New On Master |%s| Score |%d|\n", 0, TemporaryBoardString, TemporaryBoardScore);
+					}
+				}
+				if ( MinBoardTrieBoardSearch(AllEvaluatedBoards, TemporaryBoardString) == FALSE ) InsertBoardStringIntoEvaluateList(TopEvaluationBoardList, TopEvaluationBoardScores, TemporaryBoardString, TemporaryBoardScore);
+			}
+		}
+
+		// This Loop Represents the rounds cascade.
+		for ( T = 0; T < ROUNDS; T++ ) {
+			// Initiate a "MinBoardTrie" to keep track of the round returns.
+			CurrentBoardsConsideredThisRound = MinBoardTrieInit();
+			// Lock the "StartWorkMutex" to set the global work coordination variables.  Be sure to hand off "TheCurrentTime" to the right thread.
+			pthread_mutex_lock(&StartWorkMutex);
+			// Set the WorkOn to TRUE, the current Round, and "TheCurrentTime" HandOff to the right thread.
+			WorkOn = TRUE;
+			Round = T;
+			if ( T == 0 ) {
+				HandOffRecievedByWorker = FALSE;
+				HandOffThread = UseTheseTimeStamps;
+				TimeStampHandOff = TheCurrentTime;
+			}
+			// Here is where we have to transcripe the board strings in "TopEvaluationBoardList" into the global "ThreadBoardStringsToAnalyze".
+			InsertionSlot = 0;
+			for( X = 0; X < BOARDS_PER_ROUND; X++ ) {
+					InsertionSlot = X/NUMBER_OF_WORKER_THREADS;
+					SendToThread = X%NUMBER_OF_WORKER_THREADS;
+					strcpy(&(ThreadBoardStringsToAnalyze[SendToThread][InsertionSlot][0]), TopEvaluationBoardList[X]);
+			}
+			// Now that the "TopEvaluationBoardList" has been sent over to the global array, add the board strings to the "AllEvaluatedBoards" trie.
+			for ( X = 0; X < BOARDS_PER_ROUND; X++) {
+				MinBoardTrieAddBoard(AllEvaluatedBoards, TopEvaluationBoardList[X]);
+			}
+			// The boards on the evaluate list in round zero have already been added to the master list.
+			if ( T != 0 ) {
+				for ( X = 0; X < EVALUATE_LIST_SIZE; X++ ) {
+					if ( TopEvaluationBoardScores[X] > MasterResultsBoardScores[MASTER_LIST_SIZE - 1]) {
+						if ( MinBoardTrieBoardSearch( WhatMadeTheMasterList, TopEvaluationBoardList[X] ) == FALSE ) {
+							InsertBoardStringIntoMasterList(MasterResultsBoardList, MasterResultsBoardScores, TopEvaluationBoardList[X], TopEvaluationBoardScores[X]);
+							MinBoardTrieAddBoard( WhatMadeTheMasterList, TopEvaluationBoardList[X] );
+							printf("Round |%d|Pop - New On Master |%s| Score |%d|\n", T, TopEvaluationBoardList[X], TopEvaluationBoardScores[X]);
+						}
+					}
+					// As soon as a board is reached that doesn't make the master list, get the fuck out of here.
+					else break;
+				}
+			}
+			// Even if nothing qualifies for the master list on this round, print out the best result for the round to keep track of the progress.
+			printf( "\nRound|%d|, Best Board|%s|, Best Score|%d|\n", T, TopEvaluationBoardList[0], TopEvaluationBoardScores[0] );
+			printf("\nThe Top 10 Off The Master List After Round |%d|.\n", T);
+			for ( X = 0; X < 10; X++ ) {
+				printf("#%4d -|%5d|-|%s|\n", X + 1, MasterResultsBoardScores[X], MasterResultsBoardList[X]);
+			}
+			// Zero the scores on the evaluation board list so we can fill it with the next round boards.
+			memset(TopEvaluationBoardScores, 0, EVALUATE_LIST_SIZE*sizeof(unsigned int));
+			// The Work broadcast signal is now ready to be sent out to the worker threads.
+			//printf("Main: Broadcast Signal To Start Batch |%d|\n", Round);
+			// Lock the "CompleteMutex" so we can start waiting for completion before any of the worker threads finish their batch.
+			pthread_mutex_lock(&CompleteMutex);
+			pthread_cond_broadcast(&StartWorkCondition);
+			pthread_mutex_unlock(&StartWorkMutex);
+
+			// This construct is to recieve and coordinate the results as they come in, one by one.
+			for ( X = 0; X < NUMBER_OF_WORKER_THREADS; X++ ) {
+				// Before entering a waiting state, set "MainThreadWaiting" to "TRUE" while we still have a lock on the "CompleteMutex".
+				// Worker threads will be waiting for this condition to be met before sending "CompleteCondition" signals.
+				MainThreadWaiting = TRUE;
+				pthread_cond_wait(&CompleteCondition, &CompleteMutex);
+				TheReturn = TheCompletedBatch;
+				//printf("Main: Complete Signal Recieved From Thread-%d\n", TheCompletedBatch);
+				// This is where partial work on the batch data coordination will happen.  All of the worker threads will have to finish before we can start the next batch.
+				for ( Y = 0; Y < LIST_SIZE; Y++ ) {
+					// Because the list is sorted, once we find a board that doesn't make this evaluation round, get the fuck out.
+					if ( BOARD_DATA_THE_BOARD_SCORE((WorkingBoardScoreTallies[TheReturn])[Y]) > TopEvaluationBoardScores[EVALUATE_LIST_SIZE - 1] ) {
+						if ( MinBoardTrieAddBoard(CurrentBoardsConsideredThisRound, BOARD_DATA_THE_BOARD_STRING((WorkingBoardScoreTallies[TheReturn])[Y])) == 1 ) {
+							if ( MinBoardTrieBoardSearch(AllEvaluatedBoards, BOARD_DATA_THE_BOARD_STRING((WorkingBoardScoreTallies[TheReturn])[Y])) == FALSE ) {
+								InsertBoardStringIntoEvaluateList(TopEvaluationBoardList, TopEvaluationBoardScores, BOARD_DATA_THE_BOARD_STRING((WorkingBoardScoreTallies[TheReturn])[Y]), BOARD_DATA_THE_BOARD_SCORE((WorkingBoardScoreTallies[TheReturn])[Y]));
+							}
+						}
+					}
+					else break;
+				}
+
+			}
+			pthread_mutex_unlock(&CompleteMutex);
+
+			// This Point represents the end of the current round so the current boards min trie needs to be freed.
+			FreeMinBoardTrie( CurrentBoardsConsideredThisRound );
+		}
+
+		// Print to screen all of the new boards that qualified for the "MasterResultsBoardList" on the final round.
+		for ( X = 0; X < EVALUATE_LIST_SIZE; X++ ) {
+			if ( TopEvaluationBoardScores[X] > MasterResultsBoardScores[MASTER_LIST_SIZE - 1]) {
+				if ( MinBoardTrieBoardSearch(WhatMadeTheMasterList, TopEvaluationBoardList[X]) == FALSE ) {
+					InsertBoardStringIntoMasterList(MasterResultsBoardList, MasterResultsBoardScores, TopEvaluationBoardList[X], TopEvaluationBoardScores[X]);
+					MinBoardTrieAddBoard(WhatMadeTheMasterList, TopEvaluationBoardList[X]);
+					printf("Round |%d|Pop - New On Master |%s| Score |%d|\n", T, TopEvaluationBoardList[X], TopEvaluationBoardScores[X]);
+				}
+			}
+			// As soon as a board is reached that doesn't make the master list, get the fuck out of here.
+			else break;
+		}
+		// Even if nothing qualifies for the master list on this round, print out the best result for the round to keep track of the progress.
+		printf("\nRound|%d|, Best Board|%s|, Best Score|%d|\n", T, TopEvaluationBoardList[0], TopEvaluationBoardScores[0] );
+		// The last round is now complete, so we have to get ready for the next seed.
+		printf("\nThe Top 10 Off The Master List After Round |%d|.\n", T);
+		for ( X = 0; X < 10; X++ ) {
+			printf("#%4d -|%5d|-|%s|\n", X + 1, MasterResultsBoardScores[X], MasterResultsBoardList[X]);
+		}
+		printf("\n");
+
+		printf( "At this point, |%d| boards have been placed on the evaluation queue, and have been singularly deviated.\n", MinBoardTrieSize ( AllEvaluatedBoards ) );
+
+		// Print out everything on the master results list after running each chain seed.
+		printf( "\nThe Master List After Seed |%d|.\n", S + 1 );
+		for ( X = 0; X < MASTER_LIST_SIZE; X++ ){
+			printf( "#%4d -|%5d|-|%s|\n", X + 1, MasterResultsBoardScores[X], MasterResultsBoardList[X] );
+		}
+	}
+
+	pthread_mutex_lock(&StartWorkMutex);
+	// Set the GAME OVER condition.
+	WorkOn = FALSE;
+	printf("Main: Broadcast The Termination Signal\n");
+	pthread_cond_broadcast(&StartWorkCondition);
+	pthread_mutex_unlock(&StartWorkMutex);
+
+  // Wait for all threads to complete, and then join with them.
+  for ( X = 0; X < NUMBER_OF_WORKER_THREADS; X++ ) {
+		pthread_join(Threads[X], NULL);
+		printf("Main: Thread[%d] Has Been Joined And Terminated.\n", X);
+	}
+
+	// Produce a list of the boards used as seeds when done, and wait for the user to look at, and store the results if they want to.
+	printf( "The boards used as seed boards are as follows:..\n" );
+	MinBoardTrieOutput( ChosenSeedBoards );
+	free( InitialWorkingBoard );
+	FreeMinBoardTrie( AllEvaluatedBoards );
+	FreeMinBoardTrie( ChosenSeedBoards );
+	FreeMinBoardTrie( WhatMadeTheMasterList );
+	printf( "Done... Press enter to exit...:");
+	if ( fgets(ExitString, BOARD_STRING_SIZE - 1, stdin ) == NULL ) return 0;
+	// Clean up and exit.
+  pthread_attr_destroy(&ThreadAttribute);
+  pthread_mutex_destroy(&CompleteMutex);
+  pthread_cond_destroy(&CompleteCondition);
+	pthread_mutex_destroy(&StartWorkMutex);
+  pthread_cond_destroy(&StartWorkCondition);
+  pthread_exit (NULL);
+}
+
+// This is a deterministic way to find the top 10 Boggle boards beyond a reasonable doubt.  This is one solution that works.  That is all.
