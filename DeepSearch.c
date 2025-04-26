@@ -178,6 +178,64 @@ void *ThreadForSetOfBoardsAnalysis(void *ThreadArgument){
 
 }
 
+int ReadLexicon() {
+	// The ADTDAWG lexicon is stored inside of four files, and then read into three arrays for speed.  This is the case because the data structure is extremely small.
+	FILE *PartOne = fopen(FOUR_PART_DTDAWG_14_PART_ONE, "rb");
+	FILE *PartTwo = fopen(FOUR_PART_DTDAWG_14_PART_TWO, "rb");
+	FILE *PartThree = fopen(FOUR_PART_DTDAWG_14_PART_THREE, "rb");
+	FILE *PartFour = fopen(FOUR_PART_DTDAWG_14_PART_FOUR, "rb");
+	unsigned int SizeOfPartOne;
+	unsigned long int SizeOfPartTwo;
+	unsigned int SizeOfPartThree;
+	unsigned int SizeOfPartFour;
+	unsigned char TempReadIn;
+
+	// Read in the size of each data file.
+	if ( fread(&SizeOfPartOne, 4, 1, PartOne) != 1 ) return 0;
+	if ( fread(&SizeOfPartTwo, 8, 1, PartTwo) != 1 ) return 0;
+	if ( fread(&SizeOfPartThree, 4, 1, PartThree) != 1 ) return 0;
+	PartThreeFourTransition = SizeOfPartThree + 1;
+	SizeOfPartFour = SizeOfPartOne - SizeOfPartThree;
+
+	// Print out the lexicon size values.
+	printf("\n");
+	printf("SizeOfPartOne |%d|\n", SizeOfPartOne);
+	printf("SizeOfPartTwo |%ld|\n", SizeOfPartTwo);
+	printf("SizeOfPartThree |%d|\n", SizeOfPartThree);
+	printf("Transition |%d|\n", PartThreeFourTransition);
+	printf("SizeOfPartFour |%d|\n", SizeOfPartFour);
+	printf("\n");
+
+	// Allocate memory for the ADTDAWG.
+	PartOneArray = (unsigned int *)malloc((SizeOfPartOne + 1) * sizeof(int));
+	PartTwoArray = (unsigned long int *)malloc(SizeOfPartTwo * sizeof(long int));
+	PartThreeArray = (unsigned int *)malloc((SizeOfPartOne + 1) * sizeof(int));
+
+	// Read in the data files into global arrays of basic integer types.
+	// The zero position in "PartOneArray" is the NULL node.
+	PartOneArray[0] = 0;
+	if ( fread(PartOneArray + 1, 4, SizeOfPartOne, PartOne) != SizeOfPartOne ) return 0;
+	if ( fread(PartTwoArray, 8, SizeOfPartTwo, PartTwo) != SizeOfPartTwo ) return 0;
+	// The Zero position in "PartThreeArray" maps to the NULL node in "PartOneArray".
+	PartThreeArray[0] = 0;
+	if ( fread(PartThreeArray + 1, 4, SizeOfPartThree, PartThree) != SizeOfPartThree ) return 0;
+	// Part Four has been replaced by encoding the Part Four WTEOBL values as 32 bit integers for speed.  The size of the data structure is small enough as it is.
+	for ( unsigned int X = (SizeOfPartThree + 1); X <= SizeOfPartOne; X++ ) {
+		if ( fread(&TempReadIn, 1, 1, PartFour) != 1 ) return 0;
+		PartThreeArray[X] = TempReadIn;
+	}
+
+	// Close the four files.
+	fclose(PartOne);
+	fclose(PartTwo);
+	fclose(PartThree);
+	fclose(PartFour);
+
+	// Print out the high level algorithm variables for this run of the DeepSearch.
+	printf("ADTDAWG Read of Lexicon_14 is Complete.\n\n");
+	return 1;
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 int main () {
@@ -222,16 +280,9 @@ int main () {
 	MinBoardTriePtr ChosenSeedBoards = MinBoardTrieInit();
 	MinBoardTriePtr WhatMadeTheMasterList = MinBoardTrieInit();
 
-	// The ADTDAWG lexicon is stored inside of four files, and then read into three arrays for speed.  This is the case because the data structure is extremely small.
-	FILE *PartOne = fopen(FOUR_PART_DTDAWG_14_PART_ONE, "rb");
-	FILE *PartTwo = fopen(FOUR_PART_DTDAWG_14_PART_TWO, "rb");
-	FILE *PartThree = fopen(FOUR_PART_DTDAWG_14_PART_THREE, "rb");
-	FILE *PartFour = fopen(FOUR_PART_DTDAWG_14_PART_FOUR, "rb");
-	unsigned int SizeOfPartOne;
-	unsigned long int SizeOfPartTwo;
-	unsigned int SizeOfPartThree;
-	unsigned int SizeOfPartFour;
-	unsigned char TempReadIn;
+	if (ReadLexicon() == 0) {
+		return 0;
+	}
 
 	// The global variables required by the worker threads to do their work are allocated here.
 
@@ -246,49 +297,6 @@ int main () {
 	// Allocate the set of lexicon time stamps as unsigned integers.
 	for ( X = 0; X < NUMBER_OF_WORKER_THREADS; X++ ) LexiconTimeStamps[X] = (unsigned int*)malloc((TOTAL_WORDS_IN_LEXICON + 1)*sizeof(unsigned int));
 
-	// Read in the size of each data file.
-	if ( fread(&SizeOfPartOne, 4, 1, PartOne) != 1 ) return 0;
-	if ( fread(&SizeOfPartTwo, 8, 1, PartTwo) != 1 ) return 0;
-	if ( fread(&SizeOfPartThree, 4, 1, PartThree) != 1 ) return 0;
-	PartThreeFourTransition = SizeOfPartThree + 1;
-	SizeOfPartFour = SizeOfPartOne - SizeOfPartThree;
-
-	// Print out the lexicon size values.
-	printf("\n");
-	printf("SizeOfPartOne |%d|\n", SizeOfPartOne);
-	printf("SizeOfPartTwo |%ld|\n", SizeOfPartTwo);
-	printf("SizeOfPartThree |%d|\n", SizeOfPartThree);
-	printf("Transition |%d|\n", PartThreeFourTransition);
-	printf("SizeOfPartFour |%d|\n", SizeOfPartFour);
-	printf("\n");
-
-	// Allocate memory for the ADTDAWG.
-	PartOneArray = (unsigned int *)malloc((SizeOfPartOne + 1) * sizeof(int));
-	PartTwoArray = (unsigned long int *)malloc(SizeOfPartTwo * sizeof(long int));
-	PartThreeArray = (unsigned int *)malloc((SizeOfPartOne + 1) * sizeof(int));
-
-	// Read in the data files into global arrays of basic integer types.
-	// The zero position in "PartOneArray" is the NULL node.
-	PartOneArray[0] = 0;
-	if ( fread(PartOneArray + 1, 4, SizeOfPartOne, PartOne) != SizeOfPartOne ) return 0;
-	if ( fread(PartTwoArray, 8, SizeOfPartTwo, PartTwo) != SizeOfPartTwo ) return 0;
-	// The Zero position in "PartThreeArray" maps to the NULL node in "PartOneArray".
-	PartThreeArray[0] = 0;
-	if ( fread(PartThreeArray + 1, 4, SizeOfPartThree, PartThree) != SizeOfPartThree ) return 0;
-	// Part Four has been replaced by encoding the Part Four WTEOBL values as 32 bit integers for speed.  The size of the data structure is small enough as it is.
-	for ( X = (SizeOfPartThree + 1); X <= SizeOfPartOne; X++ ) {
-		if ( fread(&TempReadIn, 1, 1, PartFour) != 1 ) return 0;
-		PartThreeArray[X] = TempReadIn;
-	}
-
-	// Close the four files.
-	fclose(PartOne);
-	fclose(PartTwo);
-	fclose(PartThree);
-	fclose(PartFour);
-
-	// Print out the high level algorithm variables for this run of the DeepSearch.
-	printf("ADTDAWG Read of Lexicon_14 is Complete.\n\n");
 	printf("DoubleUp.c Variables - Chain Seeds |%d|, Single Deviation Rounds |%d|, Full Evaluations Per Round |%d|.\n\n", NUMBER_OF_SEEDS_TO_RUN, ROUNDS, BOARDS_PER_ROUND);
 
 	// Populate the "InitialWorkingBoard" with the original seed board.
@@ -308,17 +316,17 @@ int main () {
 
 	// Initialize all of the thread related objects.
 	pthread_t Threads[NUMBER_OF_WORKER_THREADS];
-  pthread_attr_t attr;
+	pthread_attr_t attr;
 
 	pthread_mutex_init(&CompleteMutex, NULL);
-  pthread_cond_init (&CompleteCondition, NULL);
+	pthread_cond_init (&CompleteCondition, NULL);
 
 	pthread_mutex_init(&StartWorkMutex, NULL);
-  pthread_cond_init (&StartWorkCondition, NULL);
+	pthread_cond_init (&StartWorkCondition, NULL);
 
-  /* For portability, explicitly create threads in a joinable state */
-  pthread_attr_init(&ThreadAttribute);
-  pthread_attr_setdetachstate(&ThreadAttribute, PTHREAD_CREATE_JOINABLE);
+	/* For portability, explicitly create threads in a joinable state */
+	pthread_attr_init(&ThreadAttribute);
+	pthread_attr_setdetachstate(&ThreadAttribute, PTHREAD_CREATE_JOINABLE);
 
 	// Create all of the worker threads here.
 	for ( Identity = 0; Identity < NUMBER_OF_WORKER_THREADS; Identity++ ) pthread_create(&Threads[Identity], &ThreadAttribute, ThreadForSetOfBoardsAnalysis, (void *)Identity);

@@ -1,6 +1,8 @@
 #ifndef MIN_BOARD_TRIE_H
 #define MIN_BOARD_TRIE_H
 
+// danvk: I think this just stores a list of boards?
+
 #include "const.h"
 
 struct minboardtnode {
