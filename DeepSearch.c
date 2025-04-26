@@ -28,30 +28,6 @@
 #define ROUNDS 25
 #define BOARDS_PER_THREAD (BOARDS_PER_ROUND/NUMBER_OF_WORKER_THREADS)
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Basic constructs and functions that will be useful.
-
-// This function assumes that "TheNumberNotYet" is a 2 char string of digits between [0,9].  Do not pass it anything else.  It will return the integer equivalent.
-inline unsigned int TwoCharStringToInt(char* TheNumberNotYet){
-	return (TheNumberNotYet[0] - '0')*10 + (TheNumberNotYet[1] - '0');
-}
-
-// Converts the two digit integer X into the string "TheThreeString" that tacks onto board strings to indicate the last altered square.  This reduces redundant element consideration.
-void ConvertSquareNumberToString( char *TheThreeString, int X ){
-	if ( X < 10 ) {
-		TheThreeString[0] = '0';
-		TheThreeString[1] = '0' + X;
-	}
-	else if ( X < 20 ) {
-		TheThreeString[0] = '1';
-		TheThreeString[1] = ('0' + (X - 10));
-	}
-	else {
-		TheThreeString[0] = '2';
-		TheThreeString[1] = ('0' + (X - 20));
-	}
-	TheThreeString[2] = '\0';
-}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // The POSIX thread inter-thread communication section.
