@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <time.h>
+#include <time.h> // Ensure this is included for clock()
 
 // The ADTDAWG for Lexicon_14, a subset of TWL06, is located in the 4 data files listed below.
 #define FOUR_PART_DTDAWG_14_PART_ONE "Four_Part_1_DTDAWG_For_Lexicon_14.dat"
@@ -56,7 +56,7 @@ struct square {
 	unsigned int LetterIndex;
 };
 
-// Define the "Square" type. 
+// Define the "Square" type.
 typedef struct square Square;
 typedef Square* SquarePtr;
 
@@ -90,7 +90,7 @@ void SquareInit(SquarePtr ThisSquare, unsigned int RowPosition, unsigned int Col
 			(ThisSquare->LivingNeighbourSquarePointerArray)[5] = NULL;
 			(ThisSquare->LivingNeighbourSquarePointerArray)[6] = NULL;
 			(ThisSquare->LivingNeighbourSquarePointerArray)[7] = NULL;
-		} 
+		}
 		// ThisSquare is in a top-middle position.
 		else {
 			ThisSquare->NumberOfLivingNeighbours = 5;
@@ -102,7 +102,7 @@ void SquareInit(SquarePtr ThisSquare, unsigned int RowPosition, unsigned int Col
 			(ThisSquare->LivingNeighbourSquarePointerArray)[5] = NULL;
 			(ThisSquare->LivingNeighbourSquarePointerArray)[6] = NULL;
 			(ThisSquare->LivingNeighbourSquarePointerArray)[7] = NULL;
-		} 
+		}
 	}
 	else if ( RowPosition == (MAX_ROW - 1) ) {
 		// ThisSquare is in the bottom-left position.
@@ -116,7 +116,7 @@ void SquareInit(SquarePtr ThisSquare, unsigned int RowPosition, unsigned int Col
 			(ThisSquare->LivingNeighbourSquarePointerArray)[5] = NULL;
 			(ThisSquare->LivingNeighbourSquarePointerArray)[6] = NULL;
 			(ThisSquare->LivingNeighbourSquarePointerArray)[7] = NULL;
-		} 
+		}
 		// ThisSquare is in the bottom-right position.
 		else if ( ColPosition == (MAX_COL - 1) ) {
 			ThisSquare->NumberOfLivingNeighbours = 3;
@@ -128,7 +128,7 @@ void SquareInit(SquarePtr ThisSquare, unsigned int RowPosition, unsigned int Col
 			(ThisSquare->LivingNeighbourSquarePointerArray)[5] = NULL;
 			(ThisSquare->LivingNeighbourSquarePointerArray)[6] = NULL;
 			(ThisSquare->LivingNeighbourSquarePointerArray)[7] = NULL;
-		} 
+		}
 		// ThisSquare is in a bottom-middle position.
 		else {
 			ThisSquare->NumberOfLivingNeighbours = 5;
@@ -140,7 +140,7 @@ void SquareInit(SquarePtr ThisSquare, unsigned int RowPosition, unsigned int Col
 			(ThisSquare->LivingNeighbourSquarePointerArray)[5] = NULL;
 			(ThisSquare->LivingNeighbourSquarePointerArray)[6] = NULL;
 			(ThisSquare->LivingNeighbourSquarePointerArray)[7] = NULL;
-		} 
+		}
 	}
 	// ThisSquare is in a middle-left position.
 	else if ( ColPosition == 0 ) {
@@ -153,7 +153,7 @@ void SquareInit(SquarePtr ThisSquare, unsigned int RowPosition, unsigned int Col
 		(ThisSquare->LivingNeighbourSquarePointerArray)[5] = NULL;
 		(ThisSquare->LivingNeighbourSquarePointerArray)[6] = NULL;
 		(ThisSquare->LivingNeighbourSquarePointerArray)[7] = NULL;
-	} 
+	}
 	// ThisSquare is in a middle-right position.
 	else if ( ColPosition == (MAX_COL - 1) ) {
 		ThisSquare->NumberOfLivingNeighbours = 5;
@@ -165,7 +165,7 @@ void SquareInit(SquarePtr ThisSquare, unsigned int RowPosition, unsigned int Col
 		(ThisSquare->LivingNeighbourSquarePointerArray)[5] = NULL;
 		(ThisSquare->LivingNeighbourSquarePointerArray)[6] = NULL;
 		(ThisSquare->LivingNeighbourSquarePointerArray)[7] = NULL;
-	} 
+	}
 	// ThisSquare is in a middle-middle position.
 	else {
 		ThisSquare->NumberOfLivingNeighbours = NEIGHBOURS;
@@ -177,7 +177,7 @@ void SquareInit(SquarePtr ThisSquare, unsigned int RowPosition, unsigned int Col
 		(ThisSquare->LivingNeighbourSquarePointerArray)[5] = ThisSquare + MAX_COL;
 		(ThisSquare->LivingNeighbourSquarePointerArray)[6] = ThisSquare + MAX_COL - 1;
 		(ThisSquare->LivingNeighbourSquarePointerArray)[7] = ThisSquare - 1;
-	} 
+	}
 }
 
 inline char SquareLetterIndex(SquarePtr ThisSquare){
@@ -320,7 +320,7 @@ int SquareWordDiscoverStack(SquarePtr BeginSquare, unsigned int BeginIndex, unsi
 		if ( FirstTime == TRUE ) {
 			WorkingChildIndex = (PartOneArray[WorkingIndex] & CHILD_MASK);
 			WorkingNextMarker = 0;
-			// Tag "WorkingSquare" as being used.	
+			// Tag "WorkingSquare" as being used.
 			WorkingSquare->Used = TRUE;
 			// Check to see if we have arrived at a new word, and if so, add the correct score to the result.
 			if ( PartOneArray[WorkingIndex] & END_OF_WORD_FLAG ) {
@@ -393,21 +393,21 @@ unsigned int BoardSquareWordDiscover(BoardPtr ThisBoard, unsigned int TheTimeNow
 // Converts the two digit integer X into a string that tacks onto board strings to indicate the last square to be altered.
 void ConvertSquareNumberToString( char *TheThreeString, unsigned int X ){
 	if ( X > 19 ) {
-		TheThreeString[0] = '2'; 
-		TheThreeString[1] = ('0' + (X - 20)); 
+		TheThreeString[0] = '2';
+		TheThreeString[1] = ('0' + (X - 20));
 	}
 	else if ( X > 9 ) {
 		TheThreeString[0] = '1';
-		TheThreeString[1] = ('0' + (X - 10)); 
+		TheThreeString[1] = ('0' + (X - 10));
 	}
 	else {
 		TheThreeString[0] = '0';
-		TheThreeString[1] = '0' + X; 
+		TheThreeString[1] = '0' + X;
 	}
 	TheThreeString[2] = '\0';
 }
 
-int main(){
+int main() {
 
 	unsigned int X;
 	int Y;
@@ -416,55 +416,55 @@ int main(){
 	unsigned int WhatTime;
 	unsigned int UniqueFours = 0;
 	unsigned char TempReadIn;
-	
+
 	unsigned int InsertionSpot = 0;
 	unsigned int CurrentScore;
 	unsigned int BestScore = 0;
 	unsigned int TheBestBoardIndex;
-	
+
 	unsigned int FirstOffLimitsLetterIndex;
 	unsigned int SecondOffLimitsLetterIndex;
-	
+
 	char SeedBoardString[SQUARE_COUNT + 1];
 	char TemporaryBoardString[BOARD_STRING_SIZE];
-	
+
 	char CurrentOffLimitsNumbers[5];
-	
+
 	char *DoubleDeed = (char*)malloc(sizeof(char)*NUMBER_OF_DOUBLE_DEVIATIONS*(BOARD_STRING_SIZE));
-	
+
 	BoardPtr WorkingBoard = (BoardPtr)malloc(sizeof(Board));
-	
+
 	FILE *PartOne = fopen(FOUR_PART_DTDAWG_14_PART_ONE, "rb");
 	FILE *PartTwo = fopen(FOUR_PART_DTDAWG_14_PART_TWO, "rb");
 	FILE *PartThree = fopen(FOUR_PART_DTDAWG_14_PART_THREE, "rb");
 	FILE *PartFour = fopen(FOUR_PART_DTDAWG_14_PART_FOUR, "rb");
-	
+
 	unsigned int SizeOfPartOne;
 	unsigned long int SizeOfPartTwo;
 	unsigned int SizeOfPartThree;
 	unsigned int SizeOfPartFour;
-	
-	time_t BeginWorkTime;
-	time_t EndWorkTime;
+
+	double BeginWorkTime;
+	double EndWorkTime;
 	double TheRunTime;
 	srand((unsigned int)time(NULL));
-	
+
 	BoardInit(WorkingBoard);
-	
+
 	// Allocate the set of lexicon time stamps as unsigned integers.
 	for ( X = 0; X < NUMBER_OF_WORKER_THREADS; X++ ) LexiconTimeStamps[X] = (unsigned int*)malloc((TOTAL_WORDS_IN_LEXICON + 1)*sizeof(unsigned int));
-	
+
 	// Zero all of the global time stamps.  Notice how there are only time stamps for each word in the lexicon and not for intermediate nodes.
 	// The memset() function promises a more efficient zeroing procedure than a for loop.
 	for ( X = 0; X < NUMBER_OF_WORKER_THREADS; X++ ) memset(LexiconTimeStamps[X], 0, (TOTAL_WORDS_IN_LEXICON + 1)*sizeof(unsigned int));
-	
+
 	// Read in the size of each data file.
 	if ( fread(&SizeOfPartOne, 4, 1, PartOne) != 1 ) return 0;
 	if ( fread(&SizeOfPartTwo, 8, 1, PartTwo) != 1 ) return 0;
 	if ( fread(&SizeOfPartThree, 4, 1, PartThree) != 1 ) return 0;
 	PartThreeFourTransition = SizeOfPartThree + 1;
 	SizeOfPartFour = SizeOfPartOne - SizeOfPartThree;
-	
+
 	// Print out the lexicon size values.
 	printf("\n");
 	printf("SizeOfPartOne |%d|\n", SizeOfPartOne);
@@ -473,12 +473,12 @@ int main(){
 	printf("Transition |%d|\n", PartThreeFourTransition);
 	printf("SizeOfPartFour |%d|\n", SizeOfPartFour);
 	printf("\n");
-	
+
 	// Allocate memory for the ADTDAWG.
 	PartOneArray = (unsigned int *)malloc((SizeOfPartOne + 1) * sizeof(int));
 	PartTwoArray = (unsigned long int *)malloc(SizeOfPartTwo * sizeof(long int));
 	PartThreeArray = (unsigned int *)malloc((SizeOfPartOne + 1) * sizeof(int));
-	
+
 	// Read in the data files into global arrays of basic integer types.
 	// The zero position in "PartOneArray" is the NULL node.
 	PartOneArray[0] = 0;
@@ -492,23 +492,23 @@ int main(){
 		if ( fread(&TempReadIn, 1, 1, PartFour) != 1 ) return 0;
 		PartThreeArray[X] = TempReadIn;
 	}
-	
+
 	fclose(PartOne);
 	fclose(PartTwo);
 	fclose(PartThree);
 	fclose(PartFour);
-	
+
 	printf("The four data files have been opened and read into memory.\n\n");
-	
+
 	strcpy(SeedBoardString, "RSLCSDEIAEGNTRPATESESMIDR");
 	strcpy(TemporaryBoardString, SeedBoardString);
 	TemporaryBoardString[SQUARE_COUNT] = '2';
-	
+
 	printf("Create all of the champion board's double deviations, |%s|.\n", SeedBoardString);
 	BoardPopulate(WorkingBoard, SeedBoardString);
 	BoardOutput(WorkingBoard);
 	printf("The Seed Score |%d|\n\n", BoardSquareWordDiscover(WorkingBoard, 1, 0));
-	
+
 	// Fill a large array with all of the champion board's double deviations.
 	for ( X = 0; X < SQUARE_COUNT; X++ ) {
 		for ( Y = X + 1; Y < SQUARE_COUNT; Y++ ) {
@@ -526,6 +526,7 @@ int main(){
 					if ( W == SecondOffLimitsLetterIndex ) continue;
 					TemporaryBoardString[Y] = CHARACTER_SET[W];
 					strcpy(&(DoubleDeed[InsertionSpot*(BOARD_STRING_SIZE)]), TemporaryBoardString);
+					// printf("%s\n", TemporaryBoardString);
 					InsertionSpot += 1;
 				}
 			}
@@ -533,57 +534,60 @@ int main(){
 			TemporaryBoardString[SQUARE_COUNT] = '2';
 		}
 	}
-	
+
 	printf("Total Number Of Good Boards Being Evaluated Now = |%d|, so please wait.\n", InsertionSpot);
-	
-	BeginWorkTime = time(NULL);
+
+	BeginWorkTime = (double)clock() / CLOCKS_PER_SEC;
 	// The boards inside of "DoubleDeed" get evaluated inside of this loop.
-	for ( WhatTime = 0; WhatTime < InsertionSpot ; WhatTime++ ) {
-		BoardPopulate(WorkingBoard, &(DoubleDeed[WhatTime*(BOARD_STRING_SIZE)]));
-		CurrentScore = BoardSquareWordDiscover(WorkingBoard, WhatTime + 2, 0)/*)*/;
+	for (WhatTime = 0; WhatTime < InsertionSpot; WhatTime++) {
+		BoardPopulate(WorkingBoard, &(DoubleDeed[WhatTime * (BOARD_STRING_SIZE)]));
+		CurrentScore = BoardSquareWordDiscover(WorkingBoard, WhatTime + 2, 0);
 		if (CurrentScore > BestScore) {
 			BestScore = CurrentScore;
 			TheBestBoardIndex = WhatTime;
 		}
 	}
-	EndWorkTime = time(NULL);
-	TheRunTime = difftime(EndWorkTime, BeginWorkTime);
-	BoardPopulate(WorkingBoard, &(DoubleDeed[TheBestBoardIndex*(BOARD_STRING_SIZE)]));
-	printf("The Best Score Found Is|%d| At Position |%d| - |%s|\n\n", BestScore, TheBestBoardIndex, &(DoubleDeed[TheBestBoardIndex*(BOARD_STRING_SIZE)]));
-	printf("The Running time for this operation is |%g| seconds. |%d| Boards per second.\n\n", TheRunTime, div(InsertionSpot, (int)TheRunTime).quot);
+	EndWorkTime = (double)clock() / CLOCKS_PER_SEC;
+	TheRunTime = EndWorkTime - BeginWorkTime;
+
+	BoardPopulate(WorkingBoard, &(DoubleDeed[TheBestBoardIndex * (BOARD_STRING_SIZE)]));
+	printf("The Best Score Found Is|%d| At Position |%d| - |%s|\n\n", BestScore, TheBestBoardIndex, &(DoubleDeed[TheBestBoardIndex * (BOARD_STRING_SIZE)]));
+	printf("The Running time for this operation is |%g| seconds. |%g| Boards per second.\n\n", TheRunTime, InsertionSpot / TheRunTime);
 	BoardOutput(WorkingBoard);
+
 	printf("\n-----------------------------------------------------------------------\n");
 	printf("\nAnalyze a random board batch of the same size.\n");
 	InsertionSpot = 0;
-	for ( X = 0; X < NUMBER_OF_DOUBLE_DEVIATIONS; X++) {
-		for ( Y = 0; Y < SQUARE_COUNT; Y++ ) TemporaryBoardString[Y] = CHARACTER_SET[rand()%SIZE_OF_CHARACTER_SET] ;
+	for (X = 0; X < NUMBER_OF_DOUBLE_DEVIATIONS; X++) {
+		for (Y = 0; Y < SQUARE_COUNT; Y++) TemporaryBoardString[Y] = CHARACTER_SET[rand() % SIZE_OF_CHARACTER_SET];
 		TemporaryBoardString[SQUARE_COUNT] = '\0';
-		strcpy(&(DoubleDeed[InsertionSpot*(BOARD_STRING_SIZE)]), TemporaryBoardString);
+		strcpy(&(DoubleDeed[InsertionSpot * (BOARD_STRING_SIZE)]), TemporaryBoardString);
 		InsertionSpot += 1;
 	}
-	
+
 	printf("Total Number Of Random Boards Being Evaluated Now = |%d|, so please wait.\n", InsertionSpot);
-	
-	BeginWorkTime = time(NULL);
+
+	BeginWorkTime = (double)clock() / CLOCKS_PER_SEC;
 	// Evaluate the random boards.
 	// Zero the timestamps.
-	for ( X = 0; X < NUMBER_OF_WORKER_THREADS; X++ ) memset(LexiconTimeStamps[X], 0, (TOTAL_WORDS_IN_LEXICON + 1)*sizeof(unsigned int));
+	for (X = 0; X < NUMBER_OF_WORKER_THREADS; X++) memset(LexiconTimeStamps[X], 0, (TOTAL_WORDS_IN_LEXICON + 1) * sizeof(unsigned int));
 	BestScore = 0;
-	for ( WhatTime = 0; WhatTime < InsertionSpot ; WhatTime++ ) {
-		BoardPopulate(WorkingBoard, &(DoubleDeed[WhatTime*(BOARD_STRING_SIZE)]));
-		CurrentScore = BoardSquareWordDiscover(WorkingBoard, WhatTime + 2, 0)/*)*/;
+	for (WhatTime = 0; WhatTime < InsertionSpot; WhatTime++) {
+		BoardPopulate(WorkingBoard, &(DoubleDeed[WhatTime * (BOARD_STRING_SIZE)]));
+		CurrentScore = BoardSquareWordDiscover(WorkingBoard, WhatTime + 2, 0);
 		if (CurrentScore > BestScore) {
 			BestScore = CurrentScore;
 			TheBestBoardIndex = WhatTime;
 		}
 	}
-	
-	EndWorkTime = time(NULL);
-	TheRunTime = difftime(EndWorkTime, BeginWorkTime);
-	BoardPopulate(WorkingBoard, &(DoubleDeed[TheBestBoardIndex*(BOARD_STRING_SIZE)]));
-	printf("The Best Random Score Found Is|%d| At Position |%d| - |%s|\n\n", BestScore, TheBestBoardIndex, &(DoubleDeed[TheBestBoardIndex*(BOARD_STRING_SIZE)]));
-	printf("The Running time for this operation is |%g| seconds. |%d| Boards per second.\n\n", TheRunTime, div(InsertionSpot, (int)TheRunTime).quot);
+
+	EndWorkTime = (double)clock() / CLOCKS_PER_SEC;
+	TheRunTime = EndWorkTime - BeginWorkTime;
+
+	BoardPopulate(WorkingBoard, &(DoubleDeed[TheBestBoardIndex * (BOARD_STRING_SIZE)]));
+	printf("The Best Random Score Found Is|%d| At Position |%d| - |%s|\n\n", BestScore, TheBestBoardIndex, &(DoubleDeed[TheBestBoardIndex * (BOARD_STRING_SIZE)]));
+	printf("The Running time for this operation is |%g| seconds. |%g| Boards per second.\n\n", TheRunTime, InsertionSpot / TheRunTime);
 	BoardOutput(WorkingBoard);
-	
+
 	return 0;
 }
