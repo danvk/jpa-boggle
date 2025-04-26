@@ -1312,7 +1312,7 @@ int main () {
 				if ( MinBoardTrieBoardSearch(WhatMadeTheMasterList, TemporaryBoardString) == FALSE ) {
 					if ( InsertBoardStringIntoMasterList(MasterResultsBoardList, MasterResultsBoardScores, TemporaryBoardString, TemporaryBoardScore) == TRUE ) {
 						MinBoardTrieAddBoard(WhatMadeTheMasterList, TemporaryBoardString);
-						printf("Round |%d|Pop - New On Master |%s| Score |%d|\n", 0, TemporaryBoardString, TemporaryBoardScore);
+						// printf("Round |%d|Pop - New On Master |%s| Score |%d|\n", 0, TemporaryBoardString, TemporaryBoardScore);
 					}
 				}
 				if ( MinBoardTrieBoardSearch(AllEvaluatedBoards, TemporaryBoardString) == FALSE ) InsertBoardStringIntoEvaluateList(TopEvaluationBoardList, TopEvaluationBoardScores, TemporaryBoardString, TemporaryBoardScore);
@@ -1351,7 +1351,7 @@ int main () {
 						if ( MinBoardTrieBoardSearch( WhatMadeTheMasterList, TopEvaluationBoardList[X] ) == FALSE ) {
 							InsertBoardStringIntoMasterList(MasterResultsBoardList, MasterResultsBoardScores, TopEvaluationBoardList[X], TopEvaluationBoardScores[X]);
 							MinBoardTrieAddBoard( WhatMadeTheMasterList, TopEvaluationBoardList[X] );
-							printf("Round |%d|Pop - New On Master |%s| Score |%d|\n", T, TopEvaluationBoardList[X], TopEvaluationBoardScores[X]);
+							// printf("Round |%d|Pop - New On Master |%s| Score |%d|\n", T, TopEvaluationBoardList[X], TopEvaluationBoardScores[X]);
 						}
 					}
 					// As soon as a board is reached that doesn't make the master list, get the fuck out of here.
@@ -1407,7 +1407,7 @@ int main () {
 				if ( MinBoardTrieBoardSearch(WhatMadeTheMasterList, TopEvaluationBoardList[X]) == FALSE ) {
 					InsertBoardStringIntoMasterList(MasterResultsBoardList, MasterResultsBoardScores, TopEvaluationBoardList[X], TopEvaluationBoardScores[X]);
 					MinBoardTrieAddBoard(WhatMadeTheMasterList, TopEvaluationBoardList[X]);
-					printf("Round |%d|Pop - New On Master |%s| Score |%d|\n", T, TopEvaluationBoardList[X], TopEvaluationBoardScores[X]);
+					// printf("Round |%d|Pop - New On Master |%s| Score |%d|\n", T, TopEvaluationBoardList[X], TopEvaluationBoardScores[X]);
 				}
 			}
 			// As soon as a board is reached that doesn't make the master list, get the fuck out of here.
@@ -1423,6 +1423,13 @@ int main () {
 		printf("\n");
 
 		printf( "At this point, |%d| boards have been placed on the evaluation queue, and have been singularly deviated.\n", MinBoardTrieSize ( AllEvaluatedBoards ) );
+
+		// Print the current time and date.
+		time_t now = time(NULL);
+		struct tm *local = localtime(&now);
+		printf("%02d-%02d-%04d %02d:%02d:%02d\n",
+			   local->tm_mday, local->tm_mon + 1, local->tm_year + 1900,
+			   local->tm_hour, local->tm_min, local->tm_sec);
 
 		// Print out everything on the master results list after running each chain seed.
 		printf( "\nThe Master List After Seed |%d|.\n", S + 1 );
