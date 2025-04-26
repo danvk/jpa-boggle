@@ -4,6 +4,7 @@
         "adtdawg.h": "c",
         "board-evaluate.h": "c",
         "insert.h": "c",
-        "min-board-trie.h": "c"
+        "min-board-trie.h": "c",
+        "unistd.h": "c"
     }
 }

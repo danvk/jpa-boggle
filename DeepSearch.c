@@ -9,6 +9,7 @@
 #include <unistd.h>
 
 #include "adtdawg.h"
+#include "board-data.h"
 #include "board-evaluate.h"
 #include "const.h"
 #include "insert.h"
@@ -25,7 +26,6 @@
 #define SINGLE_DEVIATIONS 312
 #define NUMBER_OF_SEEDS_TO_RUN 1000
 #define ROUNDS 25
-#define BOARDS_PER_ROUND 64
 #define BOARDS_PER_THREAD (BOARDS_PER_ROUND/NUMBER_OF_WORKER_THREADS)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -52,177 +52,6 @@ void ConvertSquareNumberToString( char *TheThreeString, int X ){
 	}
 	TheThreeString[2] = '\0';
 }
-
-
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// This section is dedicated to sorting large lists of evaluated boards and scores.  It represents an adaptation of the GLIBC qsort code and an explicit stack documented here http://www.corpit.ru/mjt/qsort.html
-// I will thank Michael Tokarev for an excellent web page, and a very useful recursion elimination technique.
-
-// The BoardData pseudo-class will use macros for its associated functionality.
-struct boarddata {
-	char TheBoardString[SQUARE_COUNT + 2 + 1];
-	unsigned int TheBoardScore;
-};
-
-typedef struct boarddata BoardData;
-typedef BoardData* BoardDataPtr;
-
-#define BOARD_DATA_THE_BOARD_STRING(thisboarddata) ((thisboarddata)->TheBoardString)
-
-#define BOARD_DATA_THE_BOARD_SCORE(thisboarddata) (thisboarddata->TheBoardScore)
-
-#define BOARD_DATA_SET_THE_BOARD_STRING(thisboarddata, newstring) (strcpy(thisboarddata->TheBoardString, newstring))
-
-#define BOARD_DATA_SET_THE_BOARD_SCORE(thisboarddata, newscore) (thisboarddata->TheBoardScore = (newscore))
-
-#define BOARD_DATA_SET(thisboarddata, string, score) ((strcpy(thisboarddata->TheBoardString, string)),(thisboarddata->TheBoardScore = (score)))
-
-// This statement evaluates to TRUE when the board at "First" has a higher score than the board at "Second".
-#define COMPARE_BOARD_DATA(First, Second) ( (*First)->TheBoardScore > (*Second)->TheBoardScore )? TRUE: FALSE
-
-// Swap two items pointed to by "a" and "b" using temporary buffer "T".
-#define BOARD_DATA_SWAP(a, b, T) ((void)((T = *a), (*a = *b), (*b = T)))
-
-// When a list gets this small, standard insertion sort is a faster method.
-#define SORT_TRANSITION_SIZE 4
-
-// define the size of the list being sorted.  This number represents the total number of boards analyzed per thread, per round.
-#define LIST_SIZE (BOARDS_PER_THREAD*SINGLE_DEVIATIONS)
-
-// A qsort stack only needs to save two values.
-struct qsortstacknode {
-	BoardDataPtr *Lo;
-	BoardDataPtr *Hi;
-};
-
-typedef struct qsortstacknode QsortStackNode;
-typedef QsortStackNode* QsortStackNodePtr;
-
-// This is where the recursion-replacement stack is implemented.
-// Using macros allows the programmer to change the value of an argument directly.
-#define QSORT_STACK_SIZE (8 * sizeof(unsigned int))
-#define QSORT_STACK_PUSH(top, low, high) (((top->Lo = (low)), (top->Hi = (high)), ++top))
-#define	QSORT_STACK_POP(low, high, top) ((--top, (low = top->Lo), (high = top->Hi)))
-#define	QSORT_STACK_NOT_EMPTY(identity, top) ((TheQsortStacks[identity]) < top)
-
-// Each worker thread will require its own qsort() stack.
-QsortStackNode *TheQsortStacks[NUMBER_OF_WORKER_THREADS];
-
-void BoardDataExplicitStackQuickSort(BoardDataPtr *Base, unsigned int Size, unsigned int CallingThread){
-	BoardDataPtr Temp;
-	if ( Size > SORT_TRANSITION_SIZE ) {
-		BoardDataPtr *Low = Base;
-		BoardDataPtr *High = Low + Size - 1;
-		QsortStackNodePtr TheTop = TheQsortStacks[CallingThread] + 1;
-		// Declaring "Left", "Right", and "Mid" inside of this while() loop is a valid choice.  "Low", and "High", on the other hand, require a larger scope.
-		while ( QSORT_STACK_NOT_EMPTY(CallingThread, TheTop) ) {
-			BoardDataPtr *Left;
-			BoardDataPtr *Right;
-			// Select median value from among "Low", "Mid", and "High".
-			// Shift "Low" and "High" so the three values are sorted.
-			// This lowers the probability of picking a bad pivot value.
-			// Also a comparison is skipped for both "Left" and "Right" in the while loops.
-			BoardDataPtr *Mid = Low + ((High - Low) >> 1);
-			if ( COMPARE_BOARD_DATA(Mid, Low) ) BOARD_DATA_SWAP(Mid, Low, Temp);
-			if ( COMPARE_BOARD_DATA(High, Mid) ) {
-				BOARD_DATA_SWAP(Mid, High, Temp);
-				if ( COMPARE_BOARD_DATA(Mid, Low) ) BOARD_DATA_SWAP(Mid, Low, Temp);
-			}
-			// The values at positions Low and High are already known to be in the correct partition.
-			Left = Low + 1;
-			Right = High - 1;
-			// This section of Qsort collapses the walls of "Left" and "Right" until they cross over each other.
-			do {
-				while ( COMPARE_BOARD_DATA(Left, Mid) ) ++Left;
-				while ( COMPARE_BOARD_DATA(Mid, Right) ) --Right;
-				// Swap the elements at "Left" and "Right", but make sure to maintain the Mid pointer, because it might get in the way.
-				if ( Left < Right) {
-					BOARD_DATA_SWAP(Left, Right, Temp);
-					if ( Mid == Left) Mid = Right;
-					else if ( Mid == Right ) Mid = Left;
-					++Left;
-					--Right;
-				}
-				// When "Left" is equal to "Right", make them cross over each other.
-				else if ( Left == Right ) {
-					++Left;
-					--Right;
-					break;
-				}
-			} while ( Left <= Right);
-			// Set up pointers for the next partitions, and push the larger partition onto the stack if its size exceeds "SORT_TRANSITION_SIZE".
-			// By always pushing the larger of the two partitiona onto the stack, the stack size has an absolute limit of LOG base 2 (Size).
-			// Continue sorting the smaller partition if its size exceeds "SORT_TRANSITION_SIZE".
-			if ( (Right - Low) <= SORT_TRANSITION_SIZE ) {
-				// Ignore both small partitions.
-				if ( (High - Left) <= SORT_TRANSITION_SIZE ) QSORT_STACK_POP(Low, High, TheTop);
-				// Ignore small left partition.
-				else Low = Left;
-			}
-			// Ignore small right partition.
-			else if ( (High - Left) <= SORT_TRANSITION_SIZE ) High = Right;
-			// Push the larger left partition indices.
-			else if ( (Right - Low) > (High - Left) ) {
-				QSORT_STACK_PUSH(TheTop, Low, Right);
-				Low = Left;
-			}
-			// Push the larger right partition indices.
-			else {
-				QSORT_STACK_PUSH(TheTop, Left, High);
-				High = Right;
-			}
-		}
-	}
-
-	// The Base array of BoardData is now partitioned into an ordered sequence of small unsorted blocks.
-	// Insertion sort will be used to sort the whole array, because it is faster when shifting over short distances.
-	{
-		BoardDataPtr *End = Base + Size - 1;
-		BoardDataPtr *TempPointer = Base;
-		register BoardDataPtr *RunPointer;
-		BoardDataPtr *Threshold;
-
-		Threshold = Base + SORT_TRANSITION_SIZE;
-		if ( Threshold > End) Threshold = End;
-
-		// Find largest element in first "Threshold" and place it at the beginning of the array.
-		// This is the largest array element, and the operation speeds up insertion sort's inner loop.
-
-		for ( RunPointer = TempPointer + 1; RunPointer <= Threshold; ++RunPointer ) if ( COMPARE_BOARD_DATA(RunPointer, TempPointer) ) TempPointer = RunPointer;
-
-		if ( TempPointer != Base ) BOARD_DATA_SWAP(TempPointer, Base, Temp);
-
-		// This is a modification of the GLIBC code that seems to be a shifting optimization.
-		// Insertion sort, running from left-hand-side up to right-hand-side.
-		// Everything to the left as we go through the array is sorted and the maximum insertion displacement will be SORT_TRANSITION_SIZE
-		RunPointer = Base + 1;
-		while ( ++RunPointer <= End ) {
-			TempPointer = RunPointer - 1;
-			// When "RunPointer" needs to be moved, set "TempPointer" to the insertion position.
-			while ( COMPARE_BOARD_DATA(RunPointer, TempPointer) ) --TempPointer;
-			++TempPointer;
-			if ( TempPointer != RunPointer ) {
-				// Save the element at position "RunPointer" into "Temp".
-				Temp = *RunPointer;
-				// Move the elements from the range ("TempPointer" up to just before "RunPointer"), one position towards the end of the array.
-				memmove(TempPointer + 1, TempPointer, sizeof(BoardDataPtr)*(RunPointer - TempPointer));
-				// Fill the insertion position at "TempPointer" with the "Temp" value.
-				*TempPointer = Temp;
-			}
-		}
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-// The Global array of pointers to arrays of "BoardDataPtr"s.  All of the associated "BoardData" with this array will thus never move around.
-// The Main thread will allocate the space required to store the actual "BoardData".
-// The thread identities and attributes are also defined here.
-BoardDataPtr *WorkingBoardScoreTallies[NUMBER_OF_WORKER_THREADS];
-pthread_t Threads[NUMBER_OF_WORKER_THREADS];
-pthread_attr_t ThreadAttribute;
-char ThreadBoardStringsToAnalyze[NUMBER_OF_WORKER_THREADS][BOARDS_PER_ROUND/NUMBER_OF_WORKER_THREADS][BOARD_STRING_SIZE];
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // The POSIX thread inter-thread communication section.
