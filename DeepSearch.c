@@ -1,21 +1,6 @@
 // The DeepSearch.c algorithm uses an in-depth investigation of neighbouring boards starting at a predefined "MASTER_SEED_BOARD".
 // The constants that define the depth of the search...  NUMBER_OF_SEEDS_TO_RUN, ROUNDS, BOARDS_PER_ROUND
 
-// Noteworthy Optimizations:
-//
-// 1) Maintaining up to date information about previously analyzed elements to eliminate redundant searching.  The trie data structure was chosen for insertion speed.
-// 1) The use of an immutable compressed lexicon data structure with complete child node information, and word tracking that enables the use of time stamps (ADTDAWG).
-// 3) Parallel batch processing using Posix PTHREADS, to reduce inter-thread communication lag.
-// 2) The reduction of the character set to "SIZE_OF_CHARACTER_SET" to eliminate the consideration of characters with limited presence in the lexicon.
-// 3) Use of GLIBC qsort code optimized with an explicit comparison macro, and memmove() for the final Insertion Sort pass.
-// 4) Replacing frequently used recursive functions with an explicit stack implementation.
-// 5) Selection of list size values so that a streamlined binary inseretion sort can be used
-// 6) The majority of numbers in the program are unsigned integers to reduce arithmetic complexity.
-// 7) Low level programming style caters to -O3 gcc optimization, such as loop unrolling.
-// 8) Arrays replace conditional cascades.
-// 9) Comprehensive documentation to isolate logical flaws, and to make the program readable, and accessible.  Strict conventions for variable names, and white space have been used.
-// 10) Generalizations are used only when they will not noticably compromise the performance of the program.
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <limits.h>
@@ -26,23 +11,13 @@
 #include "adtdawg.h"
 #include "board-evaluate.h"
 #include "const.h"
+#include "insert.h"
 
 // The ADTDAWG for Lexicon_14, a subset of TWL06, is located in the 4 data files listed below.
 #define FOUR_PART_DTDAWG_14_PART_ONE "Four_Part_1_DTDAWG_For_Lexicon_14.dat"
 #define FOUR_PART_DTDAWG_14_PART_TWO "Four_Part_2_DTDAWG_For_Lexicon_14.dat"
 #define FOUR_PART_DTDAWG_14_PART_THREE "Four_Part_3_DTDAWG_For_Lexicon_14.dat"
 #define FOUR_PART_DTDAWG_14_PART_FOUR "Four_Part_4_DTDAWG_For_Lexicon_14.dat"
-
-// General "Boggle" Constants.
-#define MAX_ROW 5
-#define MAX_COL 5
-#define SQUARE_COUNT 25
-#define BOARD_STRING_SIZE 28
-#define NEIGHBOURS 8
-#define NUMBER_OF_ENGLISH_LETTERS 26
-#define SIZE_OF_CHARACTER_SET 14
-#define MAX_STRING_LENGTH 15
-#define BOGUS 99
 
 // Constants that define the high level "DeepSearch.c" algorithm.
 #define MASTER_SEED_BOARD "AGRIMODAOLSTECETISMNGPART"
@@ -51,12 +26,6 @@
 #define ROUNDS 25
 #define BOARDS_PER_ROUND 64
 #define BOARDS_PER_THREAD (BOARDS_PER_ROUND/NUMBER_OF_WORKER_THREADS)
-
-// Scoreboard list constants for streamlined binary insertion sort implementation.  Note that "BOARDS_PER_ROUND" needs to be a multiple of "NUMBER_OF_WORKER_THREADS", and should be the closest multiple less than "EVALUATE_LIST_SIZE".
-#define MASTER_LIST_SIZE 1026
-#define MAX_LOOP_SEARCH_DEPTH_MASTER 9
-#define EVALUATE_LIST_SIZE 66
-#define MAX_LOOP_SEARCH_DEPTH_EVALUATE 5
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Basic constructs and functions that will be useful.
@@ -83,173 +52,7 @@ void ConvertSquareNumberToString( char *TheThreeString, int X ){
 	TheThreeString[2] = '\0';
 }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// This section covers the streamlined Binary Insertion Sort coding.
 
-// This function inserts "ThisBoardString" into "TheList" which must have "MASTER_LIST_SIZE" elements. "TheList" will already be sorted, and a Binary Insertion Sort will be used.
-// The return value is "TRUE" or "FALSE" depending on if "ThisScore" was high enough to make the cut.
-Bool InsertBoardStringIntoMasterList(char **TheList, unsigned int *TheNumbers, const char *ThisBoardString, unsigned int ThisScore){
-	unsigned int X;
-	unsigned int Left = 0;
-	unsigned int Right = MASTER_LIST_SIZE - 1;
-	unsigned int NextElement;
-	char *TempBoardStringHolder;
-
-	// "ThisScore" does not make the cut; it is too small.
-	if ( ThisScore <= TheNumbers[Right] ) return FALSE;
-
-	// "ThisScore" belongs at the end of the list.
-	Right -= 1;
-	if ( ThisScore <= TheNumbers[Right] ) {
-		strcpy(TheList[MASTER_LIST_SIZE - 1], ThisBoardString);
-		TheNumbers[MASTER_LIST_SIZE - 1] = ThisScore;
-		return TRUE;
-	}
-
-	// "ThisScore" belongs at the first position in the list.
-	if ( ThisScore >=  TheNumbers[Left] ) {
-		TempBoardStringHolder = TheList[(MASTER_LIST_SIZE - 1)];
-		strcpy(TempBoardStringHolder, ThisBoardString);
-		memmove(TheList + 1, TheList, sizeof(char*)*(MASTER_LIST_SIZE - 1));
-		TheList[Left] = TempBoardStringHolder;
-		memmove(TheNumbers + 1, TheNumbers, sizeof(unsigned int)*(MASTER_LIST_SIZE - 1));
-		TheNumbers[Left] = ThisScore;
-		return TRUE;
-	}
-
-	// Set the initial midpoint.
-	NextElement = Left + ((Right - Left)>>1);
-
-	// This loop will be unwound by compiler optimization.
-	for ( X = 0; X < MAX_LOOP_SEARCH_DEPTH_MASTER; X++ ) {
-		// "NextElement" is the new "Left".
-		if ( TheNumbers[NextElement] >  ThisScore ) {
-			Left = NextElement;
-		}
-		// "NextElement" will become the new "Right".
-		else if ( TheNumbers[NextElement] <  ThisScore ) {
-			Right = NextElement;
-		}
-		// "NextElement" holds a value equal to "ThisScore", and is the insertion point.
-		else {
-			// memmove() is going to employ pointer arithmatic for pointers to internal array members.
-			TempBoardStringHolder = TheList[(MASTER_LIST_SIZE - 1)];
-			strcpy(TempBoardStringHolder, ThisBoardString);
-			memmove(TheList + NextElement + 1, TheList + NextElement, sizeof(char*)*(MASTER_LIST_SIZE - 1 - NextElement));
-			TheList[NextElement] = TempBoardStringHolder;
-			memmove(TheNumbers + NextElement + 1, TheNumbers + NextElement, sizeof(unsigned int)*(MASTER_LIST_SIZE - 1 - NextElement));
-			TheNumbers[NextElement] = ThisScore;
-			return TRUE;
-		}
-		// Advance the "NextElement";
-		NextElement = Left + ((Right - Left)>>1);
-	}
-
-	// "NextElement" is now flanked by "Left" and "Right", and this is known with absolute certainty.
-	// Since two cases will result in the insertion position being equal to "Right", we only need to make one comparison on the final iteration.
-	if ( TheNumbers[NextElement] <  ThisScore ) {
-		TempBoardStringHolder = TheList[(MASTER_LIST_SIZE - 1)];
-		strcpy(TempBoardStringHolder, ThisBoardString);
-		memmove(TheList + NextElement + 1, TheList + NextElement, sizeof(char*)*(MASTER_LIST_SIZE - 1 -NextElement));
-		TheList[NextElement] = TempBoardStringHolder;
-		memmove(TheNumbers + NextElement + 1, TheNumbers + NextElement, sizeof(unsigned int)*(MASTER_LIST_SIZE - 1 - NextElement));
-		TheNumbers[NextElement] = ThisScore;
-		return TRUE;
-	}
-	// "ThisScore" is smaller or equal to "TheNumbers[NextElement]", so the insertion position will be "Right".
-	else {
-		TempBoardStringHolder = TheList[(MASTER_LIST_SIZE - 1)];
-		strcpy(TempBoardStringHolder, ThisBoardString);
-		memmove(TheList + Right + 1, TheList + Right, sizeof(char*)*(MASTER_LIST_SIZE - 1 - Right));
-		TheList[Right] = TempBoardStringHolder;
-		memmove(TheNumbers + Right + 1, TheNumbers + Right, sizeof(unsigned int)*(MASTER_LIST_SIZE - 1 - Right));
-		TheNumbers[Right] = ThisScore;
-		return TRUE;
-	}
-}
-
-
-// This function inserts "ThisBoardString" into "TheList" which must have "EVALUATE_LIST_SIZE" elements. "TheList" will already be sorted, and a Binary Insertion Sort will be used.
-// The return value is "TRUE" or "FALSE" depending on if "ThisScore" was high enough to make the cut.
-Bool InsertBoardStringIntoEvaluateList(char **TheList, unsigned int *TheNumbers, const char *ThisBoardString, unsigned int ThisScore){
-	unsigned int X;
-	unsigned int Left = 0;
-	unsigned int Right = EVALUATE_LIST_SIZE - 1;
-	unsigned int NextElement;
-	char *TempBoardStringHolder;
-
-	// "ThisScore" does not make the cut; it is too small.
-	if ( ThisScore <= TheNumbers[Right] ) return FALSE;
-
-	// "ThisScore" belongs at the end of the list.
-	Right -= 1;
-	if ( ThisScore <= TheNumbers[Right] ) {
-		strcpy(TheList[EVALUATE_LIST_SIZE - 1], ThisBoardString);
-		TheNumbers[EVALUATE_LIST_SIZE - 1] = ThisScore;
-		return TRUE;
-	}
-
-	// "ThisScore" belongs at the first position in the list.
-	if ( ThisScore >=  TheNumbers[Left] ) {
-		TempBoardStringHolder = TheList[EVALUATE_LIST_SIZE - 1];
-		strcpy(TempBoardStringHolder, ThisBoardString);
-		memmove(TheList + 1, TheList, sizeof(char*)*(EVALUATE_LIST_SIZE - 1));
-		TheList[Left] = TempBoardStringHolder;
-		memmove(TheNumbers + 1, TheNumbers, sizeof(unsigned int)*(EVALUATE_LIST_SIZE - 1));
-		TheNumbers[Left] = ThisScore;
-		return TRUE;
-	}
-
-	// Set the initial midpoint.
-	NextElement = Left + ((Right - Left)>>1);
-
-	// This loop will be unwound by compiler optimization.
-	for ( X = 0; X < MAX_LOOP_SEARCH_DEPTH_EVALUATE; X++ ) {
-		// "NextElement" is the new "Left".
-		if ( TheNumbers[NextElement] >  ThisScore ) {
-			Left = NextElement;
-		}
-		// "NextElement" will become the new "Right".
-		else if ( TheNumbers[NextElement] <  ThisScore ) {
-			Right = NextElement;
-		}
-		// "NextElement" holds a value equal to "ThisScore", and is the insertion point.
-		else {
-			// memmove() is going to employ pointer arithmatic for pointers to internal array members.
-			TempBoardStringHolder = TheList[EVALUATE_LIST_SIZE - 1];
-			strcpy(TempBoardStringHolder, ThisBoardString);
-			memmove(TheList + NextElement + 1, TheList + NextElement, sizeof(char*)*(EVALUATE_LIST_SIZE - 1 - NextElement));
-			TheList[NextElement] = TempBoardStringHolder;
-			memmove(TheNumbers + NextElement + 1, TheNumbers + NextElement, sizeof(unsigned int)*(EVALUATE_LIST_SIZE - 1 - NextElement));
-			TheNumbers[NextElement] = ThisScore;
-			return TRUE;
-		}
-		// Advance the "NextElement";
-		NextElement = Left + ((Right - Left)>>1);
-	}
-
-	// "NextElement" is now flanked by "Left" and "Right", and this is known with absolute certainty.
-	// Since two cases will result in the insertion position being equal to "Right", we only need to make one comparison on the final iteration.
-	if ( TheNumbers[NextElement] <  ThisScore ) {
-		TempBoardStringHolder = TheList[EVALUATE_LIST_SIZE - 1];
-		strcpy(TempBoardStringHolder, ThisBoardString);
-		memmove(TheList + NextElement + 1, TheList + NextElement, sizeof(char*)*(EVALUATE_LIST_SIZE - 1 -NextElement));
-		TheList[NextElement] = TempBoardStringHolder;
-		memmove(TheNumbers + NextElement + 1, TheNumbers + NextElement, sizeof(unsigned int)*(EVALUATE_LIST_SIZE - 1 - NextElement));
-		TheNumbers[NextElement] = ThisScore;
-		return TRUE;
-	}
-	// "ThisScore" is smaller or equal to "TheNumbers[NextElement]", so the insertion position will be "Right".
-	else {
-		TempBoardStringHolder = TheList[EVALUATE_LIST_SIZE - 1];
-		strcpy(TempBoardStringHolder, ThisBoardString);
-		memmove(TheList + Right + 1, TheList + Right, sizeof(char*)*(EVALUATE_LIST_SIZE - 1 - Right));
-		TheList[Right] = TempBoardStringHolder;
-		memmove(TheNumbers + Right + 1, TheNumbers + Right, sizeof(unsigned int)*(EVALUATE_LIST_SIZE - 1 - Right));
-		TheNumbers[Right] = ThisScore;
-		return TRUE;
-	}
-}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // This sector of the program will hold the minimal trie content.  No end of word flag is required because every board must be SQUARE_COUNT chars in length
@@ -1092,8 +895,8 @@ int main () {
 	pthread_cond_broadcast(&StartWorkCondition);
 	pthread_mutex_unlock(&StartWorkMutex);
 
-  // Wait for all threads to complete, and then join with them.
-  for ( X = 0; X < NUMBER_OF_WORKER_THREADS; X++ ) {
+	// Wait for all threads to complete, and then join with them.
+	for ( X = 0; X < NUMBER_OF_WORKER_THREADS; X++ ) {
 		pthread_join(Threads[X], NULL);
 		printf("Main: Thread[%d] Has Been Joined And Terminated.\n", X);
 	}
@@ -1108,12 +911,12 @@ int main () {
 	printf( "Done... Press enter to exit...:");
 	if ( fgets(ExitString, BOARD_STRING_SIZE - 1, stdin ) == NULL ) return 0;
 	// Clean up and exit.
-  pthread_attr_destroy(&ThreadAttribute);
-  pthread_mutex_destroy(&CompleteMutex);
-  pthread_cond_destroy(&CompleteCondition);
+	pthread_attr_destroy(&ThreadAttribute);
+	pthread_mutex_destroy(&CompleteMutex);
+	pthread_cond_destroy(&CompleteCondition);
 	pthread_mutex_destroy(&StartWorkMutex);
-  pthread_cond_destroy(&StartWorkCondition);
-  pthread_exit (NULL);
+	pthread_cond_destroy(&StartWorkCondition);
+	pthread_exit (NULL);
 }
 
 // This is a deterministic way to find the top 10 Boggle boards beyond a reasonable doubt.  This is one solution that works.  That is all.

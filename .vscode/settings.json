@@ -2,6 +2,7 @@
     "files.associations": {
         "const.h": "c",
         "adtdawg.h": "c",
-        "board-evaluate.h": "c"
+        "board-evaluate.h": "c",
+        "insert.h": "c"
     }
 }

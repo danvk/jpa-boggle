@@ -27,6 +27,7 @@ unsigned int CHILD_LETTER_BIT_SHIFTS[SIZE_OF_CHARACTER_SET];
 
 // Constants that define the high level "DeepSearch.c" algorithm.
 #define NUMBER_OF_WORKER_THREADS	4
+// #define NUMBER_OF_WORKER_THREADS	1
 
 // Constants that are lexicon specific.
 #define TOTAL_WORDS_IN_LEXICON 44220
