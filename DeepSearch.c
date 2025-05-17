@@ -378,6 +378,7 @@ int main () {
 		printf( "For the |%d|'th run the seed board is |%s| worth |%d| points.\n", S + 1, SeedBoard, TemporaryBoardScore );
 		MinBoardTrieAddBoard( ChosenSeedBoards, SeedBoard );
 		MinBoardTrieAddBoard( AllEvaluatedBoards, SeedBoard );
+
 		// Populate the evaluate list for the first round of boards based on the best solitary deviations of the current seed board.  Add these boards to the Evaluate and Master lists.  They Have not been fully evaluated yet.
 		// These boards will not get evaluated in the threads, so evaluate them here.  Add them to the master list if they qualify.
 		strcpy(TemporaryBoardString, SeedBoard);
