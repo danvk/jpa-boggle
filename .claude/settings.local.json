@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(sed:*)",
+      "Bash(./postprocess.py /tmp/run-main-1.txt)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
