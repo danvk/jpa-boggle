@@ -217,8 +217,7 @@ void BoardOutput(BoardPtr ThisBoard) {
     (fcindie = top->FirstChildIndex), (len = top->WordLengthNow),              \
     (next = top->NextMarkerNow), (workon = top->TheChildToWorkOn),             \
     (second = top->TheSecondPartNow)))
-#define DISCOVERY_STACK_NOT_EMPTY(TipTop)                                      \
-  (TheDiscoveryStack < TipTop)
+#define DISCOVERY_STACK_NOT_EMPTY(TipTop) (TheDiscoveryStack < TipTop)
 
 // This is the central piece of code in the "BIGS.c" Boggle board analysis
 // scheme. An explicit stack is used to traverse the neighbours of

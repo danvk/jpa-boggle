@@ -38,16 +38,13 @@ using namespace std;
 
 // Custom comparator for set<string> that only compares first SQUARE_COUNT
 // characters
-struct BoardComparator
-{
-  bool operator()(const string &a, const string &b) const
-  {
+struct BoardComparator {
+  bool operator()(const string &a, const string &b) const {
     return a.compare(0, SQUARE_COUNT, b, 0, SQUARE_COUNT) < 0;
   }
 };
 
-int ReadLexicon()
-{
+int ReadLexicon() {
   // The ADTDAWG lexicon is stored inside of four files, and then read into
   // three arrays for speed.  This is the case because the data structure is
   // extremely small.
@@ -101,8 +98,7 @@ int ReadLexicon()
   // Part Four has been replaced by encoding the Part Four WTEOBL values as 32
   // bit integers for speed.  The size of the data structure is small enough as
   // it is.
-  for (unsigned int X = (SizeOfPartThree + 1); X <= SizeOfPartOne; X++)
-  {
+  for (unsigned int X = (SizeOfPartThree + 1); X <= SizeOfPartOne; X++) {
     if (fread(&TempReadIn, 1, 1, PartFour) != 1)
       return 0;
     PartThreeArray[X] = TempReadIn;
@@ -121,8 +117,7 @@ int ReadLexicon()
 }
 
 // Returns 1 if this adds board to the container
-int AddBoard(set<string, BoardComparator> &container, char *board)
-{
+int AddBoard(set<string, BoardComparator> &container, char *board) {
   if (board == NULL)
     return 0;
   std::string s(board);
@@ -132,8 +127,7 @@ int AddBoard(set<string, BoardComparator> &container, char *board)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-int main()
-{
+int main() {
   // for() loop counter variables.
   unsigned int X, Y, Z, T, S;
 
@@ -179,27 +173,27 @@ int main()
   set<string, BoardComparator> ChosenSeedBoards;
   set<string, BoardComparator> WhatMadeTheMasterList;
 
-  if (ReadLexicon() == 0)
-  {
+  if (ReadLexicon() == 0) {
     return 0;
   }
 
   // Allocate the global variables for board processing
 
   // Allocate the array of "BoardDataPtr"s.
-  WorkingBoardScoreTally = (BoardDataPtr *)malloc(LIST_SIZE * sizeof(BoardDataPtr));
+  WorkingBoardScoreTally =
+      (BoardDataPtr *)malloc(LIST_SIZE * sizeof(BoardDataPtr));
 
   // Allocate the actual "BoardData" that the pointers will point to.
   for (Y = 0; Y < LIST_SIZE; Y++)
     WorkingBoardScoreTally[Y] = (BoardData *)malloc(sizeof(BoardData));
 
   // Allocate the explicit discovery stack.
-  TheDiscoveryStack = (DiscoveryStackNode *)malloc(
-      (DISCOVERY_STACK_SIZE) * sizeof(DiscoveryStackNode));
+  TheDiscoveryStack = (DiscoveryStackNode *)malloc((DISCOVERY_STACK_SIZE) *
+                                                   sizeof(DiscoveryStackNode));
 
   // Allocate the set of lexicon time stamps as unsigned integers.
   LexiconTimeStamps = (unsigned int *)malloc((TOTAL_WORDS_IN_LEXICON + 1) *
-                                              sizeof(unsigned int));
+                                             sizeof(unsigned int));
 
   printf("DoubleUp.c Variables - Chain Seeds |%d|, Single Deviation Rounds "
          "|%d|, Full Evaluations Per Round |%d|.\n\n",
@@ -221,8 +215,8 @@ int main()
   // The very first task is to insert the original seed board into the master
   // list.
   TheCurrentTime += 1;
-  TemporaryBoardScore = BoardSquareWordDiscover(
-      InitialWorkingBoard, TheCurrentTime);
+  TemporaryBoardScore =
+      BoardSquareWordDiscover(InitialWorkingBoard, TheCurrentTime);
   WhatMadeTheMasterList.insert(SeedBoard);
   InsertIntoMasterList(MasterResults, TemporaryBoardScore, SeedBoard);
 
@@ -233,19 +227,16 @@ int main()
   sleep(2);
 
   // This loop represents the chain seeds cascade.
-  for (S = 0; S < NUMBER_OF_SEEDS_TO_RUN; S++)
-  {
+  for (S = 0; S < NUMBER_OF_SEEDS_TO_RUN; S++) {
     // Before checking the "AllEvaluatedBoards" Trie, test if the score is high
     // enough to make the list. The scores attached to this list needs to be
     // reset every time that we start a new seed, the important remaining list
     // is the master list.
     TopEvaluationBoardList.clear();
 
-    for (const auto &result : MasterResults)
-    {
+    for (const auto &result : MasterResults) {
       const auto &board = result.board;
-      if (ChosenSeedBoards.find(board) == ChosenSeedBoards.end())
-      {
+      if (ChosenSeedBoards.find(board) == ChosenSeedBoards.end()) {
         strcpy(SeedBoard, board.c_str());
         TemporaryBoardScore = result.score;
         break;
@@ -264,15 +255,13 @@ int main()
     // These boards will not get evaluated in the threads, so evaluate them
     // here.  Add them to the master list if they qualify.
     strcpy(TemporaryBoardString, SeedBoard);
-    for (X = 0; X < SQUARE_COUNT; X++)
-    {
+    for (X = 0; X < SQUARE_COUNT; X++) {
       if (X > 0)
         TemporaryBoardString[X - 1] = SeedBoard[X - 1];
       ConvertSquareNumberToString(SquareNumberString, X);
       strcpy(TemporaryBoardString + SQUARE_COUNT, SquareNumberString);
       TheSeedLetter = SeedBoard[X];
-      for (Y = 0; Y < SIZE_OF_CHARACTER_SET; Y++)
-      {
+      for (Y = 0; Y < SIZE_OF_CHARACTER_SET; Y++) {
         // This statement indicates that less new boards are generated for each
         // evaluation board, as in one square will be off limits.  This is how
         // we arrive at the number "SOLITARY_DEVIATIONS".
@@ -281,29 +270,26 @@ int main()
         TemporaryBoardString[X] = CHARACTER_SET[Y];
         BoardPopulate(InitialWorkingBoard, TemporaryBoardString);
         TheCurrentTime += 1;
-        TemporaryBoardScore = BoardSquareWordDiscover(
-            InitialWorkingBoard, TheCurrentTime);
+        TemporaryBoardScore =
+            BoardSquareWordDiscover(InitialWorkingBoard, TheCurrentTime);
         // Try to add each board to the "MasterResultsBoardList", and the
         // "TopEvaluationBoardList".  Do this in sequence.  Only the
         // "WhatMadeTheMasterList" MinBoardTrie will be augmented.
         if (WhatMadeTheMasterList.find(TemporaryBoardString) ==
-            WhatMadeTheMasterList.end())
-        {
+            WhatMadeTheMasterList.end()) {
           size_t old_size = MasterResults.size();
           InsertIntoMasterList(MasterResults, TemporaryBoardScore,
                                TemporaryBoardString);
           if (MasterResults.size() > old_size ||
               (MasterResults.size() == MASTER_LIST_SIZE &&
-               TemporaryBoardScore > MasterResults.back().score))
-          {
+               TemporaryBoardScore > MasterResults.back().score)) {
             WhatMadeTheMasterList.insert(TemporaryBoardString);
             // printf("Round |%d|Pop - New On Master |%s| Score |%d|\n", 0,
             // TemporaryBoardString, TemporaryBoardScore);
           }
         }
         if (AllEvaluatedBoards.find(TemporaryBoardString) ==
-            AllEvaluatedBoards.end())
-        {
+            AllEvaluatedBoards.end()) {
           InsertIntoEvaluateList(TopEvaluationBoardList, TemporaryBoardScore,
                                  TemporaryBoardString);
         }
@@ -311,35 +297,29 @@ int main()
     }
 
     // This Loop Represents the rounds cascade.
-    for (T = 0; T < ROUNDS; T++)
-    {
+    for (T = 0; T < ROUNDS; T++) {
       // Initiate a "MinBoardTrie" to keep track of the round returns.
       set<string, BoardComparator> CurrentBoardsConsideredThisRound;
 
       // Add the board strings from TopEvaluationBoardList to the
       // "AllEvaluatedBoards" trie.
       for (X = 0; X < BOARDS_PER_ROUND && X < TopEvaluationBoardList.size();
-           X++)
-      {
+           X++) {
         AllEvaluatedBoards.insert(TopEvaluationBoardList[X].board);
       }
       // The boards on the evaluate list in round zero have already been added
       // to the master list.
-      if (T != 0)
-      {
+      if (T != 0) {
         unsigned int min_master_score = MasterResults.size() == MASTER_LIST_SIZE
                                             ? MasterResults.back().score
                                             : 0;
-        for (const auto &result : TopEvaluationBoardList)
-        {
+        for (const auto &result : TopEvaluationBoardList) {
           const auto &board = result.board;
           const auto &score = result.score;
 
-          if (score > min_master_score)
-          {
+          if (score > min_master_score) {
             if (WhatMadeTheMasterList.find(board) ==
-                WhatMadeTheMasterList.end())
-            {
+                WhatMadeTheMasterList.end()) {
               InsertIntoMasterList(MasterResults, score, board.c_str());
               WhatMadeTheMasterList.insert(board);
               // printf("Round |%d|Pop - New On Master |%s| Score |%d|\n", T,
@@ -355,15 +335,13 @@ int main()
       }
       // Even if nothing qualifies for the master list on this round, print out
       // the best result for the round to keep track of the progress.
-      if (!TopEvaluationBoardList.empty())
-      {
+      if (!TopEvaluationBoardList.empty()) {
         printf("\nRound|%d|, Best Board|%s|, Best Score|%d|\n", T,
                TopEvaluationBoardList[0].board.c_str(),
                TopEvaluationBoardList[0].score);
       }
       printf("\nThe Top 10 Off The Master List After Round |%d|.\n", T);
-      for (X = 0; X < 10 && X < MasterResults.size(); X++)
-      {
+      for (X = 0; X < 10 && X < MasterResults.size(); X++) {
         printf("#%4d -|%5d|-|%s|\n", X + 1, MasterResults[X].score,
                MasterResults[X].board.c_str());
       }
@@ -379,12 +357,10 @@ int main()
       // in CurrentEvaluationList
       InsertionSlot = 0;
       for (X = 0; X < BOARDS_PER_ROUND && X < CurrentEvaluationList.size();
-           X++)
-      {
+           X++) {
         strcpy(TempBoardString, CurrentEvaluationList[X].board.c_str());
         OffLimitSquare = TwoCharStringToInt(&(TempBoardString[SQUARE_COUNT]));
-        for (Y = 0; Y < SQUARE_COUNT; Y++)
-        {
+        for (Y = 0; Y < SQUARE_COUNT; Y++) {
           if (Y == OffLimitSquare)
             continue;
           // Y will now represent the placement of the off limits Square so set
@@ -393,12 +369,12 @@ int main()
           TempBoardString[SQUARE_COUNT] = TheNewOffLimitSquareString[0];
           TempBoardString[SQUARE_COUNT + 1] = TheNewOffLimitSquareString[1];
           OffLimitLetterIndex = CHARACTER_LOCATIONS[TempBoardString[Y] - 'A'];
-          for (Z = 0; Z < SIZE_OF_CHARACTER_SET; Z++)
-          {
+          for (Z = 0; Z < SIZE_OF_CHARACTER_SET; Z++) {
             if (Z == OffLimitLetterIndex)
               continue;
             TempBoardString[Y] = CHARACTER_SET[Z];
-            strcpy(WorkingBoardScoreTally[InsertionSlot]->board, TempBoardString);
+            strcpy(WorkingBoardScoreTally[InsertionSlot]->board,
+                   TempBoardString);
             InsertionSlot += 1;
           }
           TempBoardString[Y] = CHARACTER_SET[OffLimitLetterIndex];
@@ -406,8 +382,7 @@ int main()
       }
 
       // Evaluate all of the single deviation boards and store the scores
-      for (X = 0; X < LIST_SIZE; X++)
-      {
+      for (X = 0; X < LIST_SIZE; X++) {
         TheCurrentTime += 1;
         // Insert the board score into the "WorkingBoardScoreTally" array.
         BoardPopulate(WorkingBoard, WorkingBoardScoreTally[X]->board);
@@ -417,15 +392,13 @@ int main()
 
       // Sort the results in descending order by score using std::sort
       std::sort(WorkingBoardScoreTally, WorkingBoardScoreTally + LIST_SIZE,
-                [](const BoardDataPtr &a, const BoardDataPtr &b)
-                {
+                [](const BoardDataPtr &a, const BoardDataPtr &b) {
                   return a->score > b->score;
                 });
 
       // Process the results - add qualifying boards to the evaluation list for
       // the next round
-      for (Y = 0; Y < LIST_SIZE; Y++)
-      {
+      for (Y = 0; Y < LIST_SIZE; Y++) {
         // Because the list is sorted, once we find a board that doesn't make
         // this evaluation round, get the fuck out.
         unsigned int min_eval_score =
@@ -433,21 +406,15 @@ int main()
                 ? TopEvaluationBoardList.back().score
                 : 0;
         const auto &board = WorkingBoardScoreTally[Y];
-        if (board->score > min_eval_score)
-        {
-          if (AddBoard(CurrentBoardsConsideredThisRound,
-                       board->board) == 1)
-          {
+        if (board->score > min_eval_score) {
+          if (AddBoard(CurrentBoardsConsideredThisRound, board->board) == 1) {
             if (AllEvaluatedBoards.find(board->board) ==
-                AllEvaluatedBoards.end())
-            {
-              InsertIntoEvaluateList(TopEvaluationBoardList,
-                                     board->score,
+                AllEvaluatedBoards.end()) {
+              InsertIntoEvaluateList(TopEvaluationBoardList, board->score,
                                      board->board);
             }
           }
-        }
-        else
+        } else
           break;
       }
     }
@@ -457,14 +424,11 @@ int main()
     unsigned int min_master_score_final =
         MasterResults.size() == MASTER_LIST_SIZE ? MasterResults.back().score
                                                  : 0;
-    for (const auto &result : TopEvaluationBoardList)
-    {
+    for (const auto &result : TopEvaluationBoardList) {
       const auto &board = result.board;
       const auto &score = result.score;
-      if (score > min_master_score_final)
-      {
-        if (WhatMadeTheMasterList.find(board) == WhatMadeTheMasterList.end())
-        {
+      if (score > min_master_score_final) {
+        if (WhatMadeTheMasterList.find(board) == WhatMadeTheMasterList.end()) {
           InsertIntoMasterList(MasterResults, score, board.c_str());
           WhatMadeTheMasterList.insert(board);
           // printf("Round |%d|Pop - New On Master |%s| Score |%d|\n", T,
@@ -479,8 +443,7 @@ int main()
     }
     // Even if nothing qualifies for the master list on this round, print out
     // the best result for the round to keep track of the progress.
-    if (!TopEvaluationBoardList.empty())
-    {
+    if (!TopEvaluationBoardList.empty()) {
       printf("\nRound|%d|, Best Board|%s|, Best Score|%d|\n", T,
              TopEvaluationBoardList[0].board.c_str(),
              TopEvaluationBoardList[0].score);
@@ -488,8 +451,7 @@ int main()
     // The last round is now complete, so we have to get ready for the next
     // seed.
     printf("\nThe Top 10 Off The Master List After Round |%d|.\n", T);
-    for (X = 0; X < 10 && X < MasterResults.size(); X++)
-    {
+    for (X = 0; X < 10 && X < MasterResults.size(); X++) {
       printf("#%4d -|%5d|-|%s|\n", X + 1, MasterResults[X].score,
              MasterResults[X].board.c_str());
     }
@@ -502,8 +464,7 @@ int main()
     // Print out everything on the master results list after running each chain
     // seed.
     printf("\nThe Master List After Seed |%d|.\n", S + 1);
-    for (X = 0; X < MasterResults.size(); X++)
-    {
+    for (X = 0; X < MasterResults.size(); X++) {
       printf("#%4d -|%5d|-|%s|\n", X + 1, MasterResults[X].score,
              MasterResults[X].board.c_str());
     }
@@ -514,8 +475,7 @@ int main()
   printf("The boards used as seed boards are as follows:..\n");
   printf("This Min Board Trie Contains |%zu| Boards.\n",
          ChosenSeedBoards.size());
-  for (const auto &board : ChosenSeedBoards)
-  {
+  for (const auto &board : ChosenSeedBoards) {
     printf("|%s|\n", board.c_str());
   }
 
