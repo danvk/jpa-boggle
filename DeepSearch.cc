@@ -9,6 +9,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <set>
 #include <string>
 #include <vector>
@@ -403,8 +404,11 @@ int main() {
             BoardSquareWordDiscover(WorkingBoard, TheCurrentTime, 0));
       }
 
-      // Sort the results using explicit stack qsort
-      BoardDataExplicitStackQuickSort(WorkingBoardScoreTally, LIST_SIZE, 0);
+      // Sort the results in descending order by score using std::sort
+      std::sort(WorkingBoardScoreTally, WorkingBoardScoreTally + LIST_SIZE,
+                [](const BoardDataPtr &a, const BoardDataPtr &b) {
+                  return a->score > b->score;
+                });
 
       // Process the results - add qualifying boards to the evaluation list for
       // the next round
