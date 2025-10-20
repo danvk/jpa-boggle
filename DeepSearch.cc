@@ -276,13 +276,13 @@ int main () {
 	// For now, choose seeds that are as different as possible and verify that they all produce the same results.
 	char SeedBoard[BOARD_STRING_SIZE] = MASTER_SEED_BOARD;
 
-	// The evaluation lists.
-	char *TopEvaluationBoardList[EVALUATE_LIST_SIZE];
-	unsigned int TopEvaluationBoardScores[EVALUATE_LIST_SIZE];
+	// The evaluation lists - now using vector
+	std::vector<BoardScore> TopEvaluationBoardList;
+	TopEvaluationBoardList.reserve(EVALUATE_LIST_SIZE);
 
-	// The Master List.
-	char *MasterResultsBoardList[MASTER_LIST_SIZE];
-	unsigned int MasterResultsBoardScores[MASTER_LIST_SIZE];
+	// The Master List - now using vector
+	std::vector<BoardScore> MasterResultsBoardList;
+	MasterResultsBoardList.reserve(MASTER_LIST_SIZE);
 
 	// Holders used for the seed board single deviations before the deviation rounds begin.
 	BoardPtr InitialWorkingBoard;
@@ -323,15 +323,7 @@ int main () {
 	BoardInit(InitialWorkingBoard);
 	BoardPopulate(InitialWorkingBoard, SeedBoard);
 
-	// Allocate and zero the master list.
-	for ( X = 0; X < MASTER_LIST_SIZE; X++ ) {
-		MasterResultsBoardList[X] = (char*)calloc(BOARD_STRING_SIZE, sizeof(char));
-		MasterResultsBoardScores[X] = 0;
-	}
-	// Allocate the evaluation list.
-	for ( X = 0; X < EVALUATE_LIST_SIZE; X++ ) {
-		TopEvaluationBoardList[X] = (char*)calloc(BOARD_STRING_SIZE, sizeof(char));
-	}
+	// Vectors are already initialized and reserved above
 
 	// Initialize all of the thread related objects.
 	pthread_t Threads[NUMBER_OF_WORKER_THREADS];
@@ -358,7 +350,7 @@ int main () {
 	TheCurrentTime += 1;
 	TemporaryBoardScore = BoardSquareWordDiscover(InitialWorkingBoard, TheCurrentTime, UseTheseTimeStamps);
 	WhatMadeTheMasterList.insert(SeedBoard);
-	InsertBoardStringIntoMasterList(MasterResultsBoardList, MasterResultsBoardScores, SeedBoard, TemporaryBoardScore);
+	InsertBoardScoreIntoMasterList(MasterResultsBoardList, TemporaryBoardScore, SeedBoard);
 
 	printf( "This is the original seed board that will be used...  It is worth |%d| points.  Sleep for 2 seconds to look at it\n\n", TemporaryBoardScore );
 	BoardOutput( InitialWorkingBoard );
@@ -383,12 +375,12 @@ int main () {
 
 		// Before checking the "AllEvaluatedBoards" Trie, test if the score is high enough to make the list.
 		// The scores attached to this list needs to be reset every time that we start a new seed, the important remaining list is the master list.
-		memset(TopEvaluationBoardScores, 0, EVALUATE_LIST_SIZE*sizeof(unsigned int));
+		TopEvaluationBoardList.clear();
 
-		for ( X = 0; X < MASTER_LIST_SIZE; X++ ) {
-			if ( ChosenSeedBoards.find(MasterResultsBoardList[X]) == ChosenSeedBoards.end()) {
-				strcpy( SeedBoard, MasterResultsBoardList[X] );
-				TemporaryBoardScore = MasterResultsBoardScores[X];
+		for ( X = 0; X < MasterResultsBoardList.size(); X++ ) {
+			if ( ChosenSeedBoards.find(MasterResultsBoardList[X].board) == ChosenSeedBoards.end()) {
+				strcpy( SeedBoard, MasterResultsBoardList[X].board.c_str() );
+				TemporaryBoardScore = MasterResultsBoardList[X].score;
 				break;
 			}
 		}
@@ -415,13 +407,16 @@ int main () {
 				TemporaryBoardScore = BoardSquareWordDiscover(InitialWorkingBoard, TheCurrentTime, UseTheseTimeStamps);
 				// Try to add each board to the "MasterResultsBoardList", and the "TopEvaluationBoardList".  Do this in sequence.  Only the "WhatMadeTheMasterList" MinBoardTrie will be augmented.
 				if ( WhatMadeTheMasterList.find(TemporaryBoardString) == WhatMadeTheMasterList.end()) {
-					if ( InsertBoardStringIntoMasterList(MasterResultsBoardList, MasterResultsBoardScores, TemporaryBoardString, TemporaryBoardScore) == TRUE ) {
+					size_t old_size = MasterResultsBoardList.size();
+					InsertBoardScoreIntoMasterList(MasterResultsBoardList, TemporaryBoardScore, TemporaryBoardString);
+					if (MasterResultsBoardList.size() > old_size ||
+					    (MasterResultsBoardList.size() == MASTER_LIST_SIZE && TemporaryBoardScore > MasterResultsBoardList.back().score)) {
 						WhatMadeTheMasterList.insert(TemporaryBoardString);
 						// printf("Round |%d|Pop - New On Master |%s| Score |%d|\n", 0, TemporaryBoardString, TemporaryBoardScore);
 					}
 				}
 				if ( AllEvaluatedBoards.find(TemporaryBoardString) == AllEvaluatedBoards.end() ) {
-					InsertBoardStringIntoEvaluateList(TopEvaluationBoardList, TopEvaluationBoardScores, TemporaryBoardString, TemporaryBoardScore);
+					InsertBoardScoreIntoEvaluateList(TopEvaluationBoardList, TemporaryBoardScore, TemporaryBoardString);
 				}
 			}
 		}
@@ -442,23 +437,25 @@ int main () {
 			}
 			// Here is where we have to transcripe the board strings in "TopEvaluationBoardList" into the global "ThreadBoardStringsToAnalyze".
 			InsertionSlot = 0;
-			for( X = 0; X < BOARDS_PER_ROUND; X++ ) {
+			for( X = 0; X < BOARDS_PER_ROUND && X < TopEvaluationBoardList.size(); X++ ) {
 					InsertionSlot = X/NUMBER_OF_WORKER_THREADS;
 					SendToThread = X%NUMBER_OF_WORKER_THREADS;
-					strcpy(&(ThreadBoardStringsToAnalyze[SendToThread][InsertionSlot][0]), TopEvaluationBoardList[X]);
+					strcpy(&(ThreadBoardStringsToAnalyze[SendToThread][InsertionSlot][0]), TopEvaluationBoardList[X].board.c_str());
 			}
 			// Now that the "TopEvaluationBoardList" has been sent over to the global array, add the board strings to the "AllEvaluatedBoards" trie.
-			for ( X = 0; X < BOARDS_PER_ROUND; X++) {
-				AllEvaluatedBoards.insert(TopEvaluationBoardList[X]);
+			for ( X = 0; X < BOARDS_PER_ROUND && X < TopEvaluationBoardList.size(); X++) {
+				AllEvaluatedBoards.insert(TopEvaluationBoardList[X].board);
 			}
 			// The boards on the evaluate list in round zero have already been added to the master list.
 			if ( T != 0 ) {
-				for ( X = 0; X < EVALUATE_LIST_SIZE; X++ ) {
-					if ( TopEvaluationBoardScores[X] > MasterResultsBoardScores[MASTER_LIST_SIZE - 1]) {
-						if ( WhatMadeTheMasterList.find(TopEvaluationBoardList[X]) == WhatMadeTheMasterList.end() ) {
-							InsertBoardStringIntoMasterList(MasterResultsBoardList, MasterResultsBoardScores, TopEvaluationBoardList[X], TopEvaluationBoardScores[X]);
-							WhatMadeTheMasterList.insert(TopEvaluationBoardList[X]);
-							// printf("Round |%d|Pop - New On Master |%s| Score |%d|\n", T, TopEvaluationBoardList[X], TopEvaluationBoardScores[X]);
+				unsigned int min_master_score = MasterResultsBoardList.size() == MASTER_LIST_SIZE ?
+				                                 MasterResultsBoardList.back().score : 0;
+				for ( X = 0; X < TopEvaluationBoardList.size(); X++ ) {
+					if ( TopEvaluationBoardList[X].score > min_master_score) {
+						if ( WhatMadeTheMasterList.find(TopEvaluationBoardList[X].board) == WhatMadeTheMasterList.end() ) {
+							InsertBoardScoreIntoMasterList(MasterResultsBoardList, TopEvaluationBoardList[X].score, TopEvaluationBoardList[X].board.c_str());
+							WhatMadeTheMasterList.insert(TopEvaluationBoardList[X].board);
+							// printf("Round |%d|Pop - New On Master |%s| Score |%d|\n", T, TopEvaluationBoardList[X].board.c_str(), TopEvaluationBoardList[X].score);
 						}
 					}
 					// As soon as a board is reached that doesn't make the master list, get the fuck out of here.
@@ -466,13 +463,15 @@ int main () {
 				}
 			}
 			// Even if nothing qualifies for the master list on this round, print out the best result for the round to keep track of the progress.
-			printf( "\nRound|%d|, Best Board|%s|, Best Score|%d|\n", T, TopEvaluationBoardList[0], TopEvaluationBoardScores[0] );
-			printf("\nThe Top 10 Off The Master List After Round |%d|.\n", T);
-			for ( X = 0; X < 10; X++ ) {
-				printf("#%4d -|%5d|-|%s|\n", X + 1, MasterResultsBoardScores[X], MasterResultsBoardList[X]);
+			if (!TopEvaluationBoardList.empty()) {
+				printf( "\nRound|%d|, Best Board|%s|, Best Score|%d|\n", T, TopEvaluationBoardList[0].board.c_str(), TopEvaluationBoardList[0].score );
 			}
-			// Zero the scores on the evaluation board list so we can fill it with the next round boards.
-			memset(TopEvaluationBoardScores, 0, EVALUATE_LIST_SIZE*sizeof(unsigned int));
+			printf("\nThe Top 10 Off The Master List After Round |%d|.\n", T);
+			for ( X = 0; X < 10 && X < MasterResultsBoardList.size(); X++ ) {
+				printf("#%4d -|%5d|-|%s|\n", X + 1, MasterResultsBoardList[X].score, MasterResultsBoardList[X].board.c_str());
+			}
+			// Clear the evaluation board list so we can fill it with the next round boards.
+			TopEvaluationBoardList.clear();
 			// The Work broadcast signal is now ready to be sent out to the worker threads.
 			//printf("Main: Broadcast Signal To Start Batch |%d|\n", Round);
 			// Lock the "CompleteMutex" so we can start waiting for completion before any of the worker threads finish their batch.
@@ -491,10 +490,12 @@ int main () {
 				// This is where partial work on the batch data coordination will happen.  All of the worker threads will have to finish before we can start the next batch.
 				for ( Y = 0; Y < LIST_SIZE; Y++ ) {
 					// Because the list is sorted, once we find a board that doesn't make this evaluation round, get the fuck out.
-					if ( BOARD_DATA_THE_BOARD_SCORE((WorkingBoardScoreTallies[TheReturn])[Y]) > TopEvaluationBoardScores[EVALUATE_LIST_SIZE - 1] ) {
+					unsigned int min_eval_score = TopEvaluationBoardList.size() == EVALUATE_LIST_SIZE ?
+					                               TopEvaluationBoardList.back().score : 0;
+					if ( BOARD_DATA_THE_BOARD_SCORE((WorkingBoardScoreTallies[TheReturn])[Y]) > min_eval_score ) {
 						if ( AddBoard(CurrentBoardsConsideredThisRound, BOARD_DATA_THE_BOARD_STRING((WorkingBoardScoreTallies[TheReturn])[Y])) == 1 ) {
 							if ( AllEvaluatedBoards.find(BOARD_DATA_THE_BOARD_STRING((WorkingBoardScoreTallies[TheReturn])[Y])) == AllEvaluatedBoards.end()) {
-								InsertBoardStringIntoEvaluateList(TopEvaluationBoardList, TopEvaluationBoardScores, BOARD_DATA_THE_BOARD_STRING((WorkingBoardScoreTallies[TheReturn])[Y]), BOARD_DATA_THE_BOARD_SCORE((WorkingBoardScoreTallies[TheReturn])[Y]));
+								InsertBoardScoreIntoEvaluateList(TopEvaluationBoardList, BOARD_DATA_THE_BOARD_SCORE((WorkingBoardScoreTallies[TheReturn])[Y]), BOARD_DATA_THE_BOARD_STRING((WorkingBoardScoreTallies[TheReturn])[Y]));
 							}
 						}
 					}
@@ -506,23 +507,27 @@ int main () {
 		}
 
 		// Print to screen all of the new boards that qualified for the "MasterResultsBoardList" on the final round.
-		for ( X = 0; X < EVALUATE_LIST_SIZE; X++ ) {
-			if ( TopEvaluationBoardScores[X] > MasterResultsBoardScores[MASTER_LIST_SIZE - 1]) {
-				if (WhatMadeTheMasterList.find(TopEvaluationBoardList[X]) == WhatMadeTheMasterList.end()) {
-					InsertBoardStringIntoMasterList(MasterResultsBoardList, MasterResultsBoardScores, TopEvaluationBoardList[X], TopEvaluationBoardScores[X]);
-					WhatMadeTheMasterList.insert(TopEvaluationBoardList[X]);
-					// printf("Round |%d|Pop - New On Master |%s| Score |%d|\n", T, TopEvaluationBoardList[X], TopEvaluationBoardScores[X]);
+		unsigned int min_master_score_final = MasterResultsBoardList.size() == MASTER_LIST_SIZE ?
+		                                       MasterResultsBoardList.back().score : 0;
+		for ( X = 0; X < TopEvaluationBoardList.size(); X++ ) {
+			if ( TopEvaluationBoardList[X].score > min_master_score_final) {
+				if (WhatMadeTheMasterList.find(TopEvaluationBoardList[X].board) == WhatMadeTheMasterList.end()) {
+					InsertBoardScoreIntoMasterList(MasterResultsBoardList, TopEvaluationBoardList[X].score, TopEvaluationBoardList[X].board.c_str());
+					WhatMadeTheMasterList.insert(TopEvaluationBoardList[X].board);
+					// printf("Round |%d|Pop - New On Master |%s| Score |%d|\n", T, TopEvaluationBoardList[X].board.c_str(), TopEvaluationBoardList[X].score);
 				}
 			}
 			// As soon as a board is reached that doesn't make the master list, get the fuck out of here.
 			else break;
 		}
 		// Even if nothing qualifies for the master list on this round, print out the best result for the round to keep track of the progress.
-		printf("\nRound|%d|, Best Board|%s|, Best Score|%d|\n", T, TopEvaluationBoardList[0], TopEvaluationBoardScores[0] );
+		if (!TopEvaluationBoardList.empty()) {
+			printf("\nRound|%d|, Best Board|%s|, Best Score|%d|\n", T, TopEvaluationBoardList[0].board.c_str(), TopEvaluationBoardList[0].score );
+		}
 		// The last round is now complete, so we have to get ready for the next seed.
 		printf("\nThe Top 10 Off The Master List After Round |%d|.\n", T);
-		for ( X = 0; X < 10; X++ ) {
-			printf("#%4d -|%5d|-|%s|\n", X + 1, MasterResultsBoardScores[X], MasterResultsBoardList[X]);
+		for ( X = 0; X < 10 && X < MasterResultsBoardList.size(); X++ ) {
+			printf("#%4d -|%5d|-|%s|\n", X + 1, MasterResultsBoardList[X].score, MasterResultsBoardList[X].board.c_str());
 		}
 		printf("\n");
 
@@ -530,8 +535,8 @@ int main () {
 
 		// Print out everything on the master results list after running each chain seed.
 		printf( "\nThe Master List After Seed |%d|.\n", S + 1 );
-		for ( X = 0; X < MASTER_LIST_SIZE; X++ ){
-			printf( "#%4d -|%5d|-|%s|\n", X + 1, MasterResultsBoardScores[X], MasterResultsBoardList[X] );
+		for ( X = 0; X < MasterResultsBoardList.size(); X++ ){
+			printf( "#%4d -|%5d|-|%s|\n", X + 1, MasterResultsBoardList[X].score, MasterResultsBoardList[X].board.c_str() );
 		}
 	}
 
