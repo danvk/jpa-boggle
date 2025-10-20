@@ -240,6 +240,14 @@ int ReadLexicon() {
 	return 1;
 }
 
+// Returns 1 if this adds board to the container
+int AddBoard(set<string>& container, char* board) {
+	if (board == NULL) return 0;
+	std::string s(board);
+	auto result = container.insert(s);
+	return result.second ? 1 : 0;
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 int main () {
@@ -477,7 +485,7 @@ int main () {
 				for ( Y = 0; Y < LIST_SIZE; Y++ ) {
 					// Because the list is sorted, once we find a board that doesn't make this evaluation round, get the fuck out.
 					if ( BOARD_DATA_THE_BOARD_SCORE((WorkingBoardScoreTallies[TheReturn])[Y]) > TopEvaluationBoardScores[EVALUATE_LIST_SIZE - 1] ) {
-						if ( MinBoardTrieAddBoard(CurrentBoardsConsideredThisRound, BOARD_DATA_THE_BOARD_STRING((WorkingBoardScoreTallies[TheReturn])[Y])) == 1 ) {
+						if ( AddBoard(CurrentBoardsConsideredThisRound, BOARD_DATA_THE_BOARD_STRING((WorkingBoardScoreTallies[TheReturn])[Y])) == 1 ) {
 							if ( AllEvaluatedBoards.find(BOARD_DATA_THE_BOARD_STRING((WorkingBoardScoreTallies[TheReturn])[Y])) == AllEvaluatedBoards.end()) {
 								InsertBoardStringIntoEvaluateList(TopEvaluationBoardList, TopEvaluationBoardScores, BOARD_DATA_THE_BOARD_STRING((WorkingBoardScoreTallies[TheReturn])[Y]), BOARD_DATA_THE_BOARD_SCORE((WorkingBoardScoreTallies[TheReturn])[Y]));
 							}
@@ -542,7 +550,11 @@ int main () {
 
 	// Produce a list of the boards used as seeds when done, and wait for the user to look at, and store the results if they want to.
 	printf( "The boards used as seed boards are as follows:..\n" );
-	MinBoardTrieOutput( ChosenSeedBoards );
+	printf( "This Min Board Trie Contains |%d| Boards.\n", ChosenSeedBoards.size());
+	for (const auto& board : ChosenSeedBoards) {
+		printf( "|%s|\n", board.c_str());
+	}
+
 	free( InitialWorkingBoard );
 	// printf( "Done... Press enter to exit...:");
 	// if ( fgets(ExitString, BOARD_STRING_SIZE - 1, stdin ) == NULL ) return 0;
