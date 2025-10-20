@@ -19,4 +19,4 @@ unsigned long int *PartTwoArray;
 unsigned int *PartThreeArray;
 unsigned int PartThreeFourTransition;
 
-#endif // ADTDAWG_H
+#endif  // ADTDAWG_H

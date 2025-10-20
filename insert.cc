@@ -1,31 +1,39 @@
-#include <algorithm>
+#include "insert.h"
+
 #include <string.h>
+
+#include <algorithm>
+#include <cstdio>
 #include <vector>
 
 #include "const.h"
-#include "insert.h"
-#include <cstdio>
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Vector-based implementations
 
-static void InsertIntoSortedVector(std::vector<BoardScore> &list,
-                                   unsigned int max_size, unsigned int score,
-                                   const char *board) {
+static void InsertIntoSortedVector(
+    std::vector<BoardScore> &list,
+    unsigned int max_size,
+    unsigned int score,
+    const char *board
+) {
   // If list is not full yet, always insert
   if (list.size() < max_size) {
     // Find insertion point using binary search (list is sorted in descending
     // order)
     auto it = std::lower_bound(
-        list.begin(), list.end(), score,
-        [](const BoardScore &bs, unsigned int s) { return bs.score > s; });
+        list.begin(),
+        list.end(),
+        score,
+        [](const BoardScore &bs, unsigned int s) { return bs.score > s; }
+    );
     list.insert(it, BoardScore(score, board));
     return;
   }
 
   // List is full - check if score is high enough
   if (score <= list.back().score) {
-    return; // Score too low
+    return;  // Score too low
   }
 
   // Remove the last (lowest) element
@@ -33,17 +41,22 @@ static void InsertIntoSortedVector(std::vector<BoardScore> &list,
 
   // Find insertion point and insert
   auto it = std::lower_bound(
-      list.begin(), list.end(), score,
-      [](const BoardScore &bs, unsigned int s) { return bs.score > s; });
+      list.begin(),
+      list.end(),
+      score,
+      [](const BoardScore &bs, unsigned int s) { return bs.score > s; }
+  );
   list.insert(it, BoardScore(score, board));
 }
 
-void InsertIntoMasterList(std::vector<BoardScore> &list, unsigned int score,
-                          const char *board) {
+void InsertIntoMasterList(
+    std::vector<BoardScore> &list, unsigned int score, const char *board
+) {
   InsertIntoSortedVector(list, MASTER_LIST_SIZE, score, board);
 }
 
-void InsertIntoEvaluateList(std::vector<BoardScore> &list, unsigned int score,
-                            const char *board) {
+void InsertIntoEvaluateList(
+    std::vector<BoardScore> &list, unsigned int score, const char *board
+) {
   InsertIntoSortedVector(list, EVALUATE_LIST_SIZE, score, board);
 }

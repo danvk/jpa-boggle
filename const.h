@@ -56,4 +56,4 @@ void ConvertSquareNumberToString(char *TheThreeString, int X);
 }
 #endif
 
-#endif // CONST_H
+#endif  // CONST_H

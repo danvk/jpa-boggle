@@ -58,22 +58,24 @@ typedef DiscoveryStackNode *DiscoveryStackNodePtr;
 // The discovery stack, allocated in the main function before work starts.
 DiscoveryStackNodePtr TheDiscoveryStack;
 
-inline char SquareLetterIndex(SquarePtr ThisSquare) {
-  return ThisSquare->LetterIndex;
-}
+inline char SquareLetterIndex(SquarePtr ThisSquare) { return ThisSquare->LetterIndex; }
 
-void SquareInit(SquarePtr ThisSquare, unsigned int RowPosition,
-                unsigned int ColPosition);
+void SquareInit(
+    SquarePtr ThisSquare, unsigned int RowPosition, unsigned int ColPosition
+);
 void BoardInit(BoardPtr ThisBoard);
 void BoardPopulate(BoardPtr ThisBoard, char *BoardString);
 void BoardOutput(BoardPtr ThisBoard);
-int SquareWordDiscoverStack(SquarePtr BeginSquare, unsigned int BeginIndex,
-                            unsigned int BeginMarker, unsigned int NowTime);
-unsigned int BoardSquareWordDiscover(BoardPtr ThisBoard,
-                                     unsigned int TheTimeNow);
+int SquareWordDiscoverStack(
+    SquarePtr BeginSquare,
+    unsigned int BeginIndex,
+    unsigned int BeginMarker,
+    unsigned int NowTime
+);
+unsigned int BoardSquareWordDiscover(BoardPtr ThisBoard, unsigned int TheTimeNow);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif // BOARD_EVALUTE_H
+#endif  // BOARD_EVALUTE_H

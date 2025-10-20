@@ -29,4 +29,4 @@ BoardDataPtr *WorkingBoardScoreTally;
 }
 #endif
 
-#endif // BOARD_DATA_H
+#endif  // BOARD_DATA_H

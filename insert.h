@@ -1,10 +1,10 @@
 #ifndef INSERT_H
 #define INSERT_H
 
-#include "const.h"
-
 #include <string>
 #include <vector>
+
+#include "const.h"
 
 struct BoardScore {
   unsigned int score;
@@ -22,9 +22,11 @@ struct BoardScore {
 #define EVALUATE_LIST_SIZE 66
 #define MASTER_LIST_SIZE 1026
 
-void InsertIntoMasterList(std::vector<BoardScore> &list, unsigned int score,
-                          const char *board);
-void InsertIntoEvaluateList(std::vector<BoardScore> &list, unsigned int score,
-                            const char *board);
+void InsertIntoMasterList(
+    std::vector<BoardScore> &list, unsigned int score, const char *board
+);
+void InsertIntoEvaluateList(
+    std::vector<BoardScore> &list, unsigned int score, const char *board
+);
 
-#endif // INSERT_H
+#endif  // INSERT_H

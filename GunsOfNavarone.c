@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h> // Ensure this is included for clock()
+#include <time.h>  // Ensure this is included for clock()
 
 // The ADTDAWG for Lexicon_14, a subset of TWL06, is located in the 4 data files
 // listed below.
@@ -20,8 +20,8 @@
 #define SIZE_OF_CHARACTER_SET 14
 #define MAX_STRING_LENGTH 15
 #define BOGUS -99
-#define NUMBER_OF_DOUBLE_DEVIATIONS                                            \
-  (SQUARE_COUNT * (SQUARE_COUNT - 1) * (SIZE_OF_CHARACTER_SET - 1) *           \
+#define NUMBER_OF_DOUBLE_DEVIATIONS                                  \
+  (SQUARE_COUNT * (SQUARE_COUNT - 1) * (SIZE_OF_CHARACTER_SET - 1) * \
    (SIZE_OF_CHARACTER_SET - 1) / 2)
 
 // Constants that are lexicon specific.
@@ -35,14 +35,17 @@
 #define NUMBER_OF_WORKER_THREADS 1
 
 unsigned int THE_SCORE_CARD[MAX_STRING_LENGTH + 1] = {
-    0, 0, 0, 1, 1, 2, 3, 5, 11, 11, 11, 11, 11, 11, 11, 11};
+    0, 0, 0, 1, 1, 2, 3, 5, 11, 11, 11, 11, 11, 11, 11, 11
+};
 
 // These constant array's define the lexicon contained in the ADTDAWG.
 unsigned int CHARACTER_SET[SIZE_OF_CHARACTER_SET + 1] = {
-    'A', 'C', 'D', 'E', 'G', 'I', 'L', 'M', 'N', 'O', 'P', 'R', 'S', 'T', ' '};
+    'A', 'C', 'D', 'E', 'G', 'I', 'L', 'M', 'N', 'O', 'P', 'R', 'S', 'T', ' '
+};
 unsigned int CHARACTER_LOCATIONS[NUMBER_OF_ENGLISH_LETTERS] = {
-    0,  BOGUS, 1,  2,  3,  BOGUS, 4,     BOGUS, 5,     BOGUS, BOGUS, 6, 7, 8, 9,
-    10, BOGUS, 11, 12, 13, BOGUS, BOGUS, BOGUS, BOGUS, BOGUS, BOGUS};
+    0, BOGUS, 1,  2,     3,  BOGUS, 4,  BOGUS, 5,     BOGUS, BOGUS, 6,     7,
+    8, 9,     10, BOGUS, 11, 12,    13, BOGUS, BOGUS, BOGUS, BOGUS, BOGUS, BOGUS
+};
 unsigned long int CHILD_LETTER_BIT_MASKS[SIZE_OF_CHARACTER_SET] = {
     1,
     6,
@@ -57,9 +60,11 @@ unsigned long int CHILD_LETTER_BIT_MASKS[SIZE_OF_CHARACTER_SET] = {
     8053063680,
     128849018880,
     2061584302080,
-    32985348833280};
+    32985348833280
+};
 unsigned int CHILD_LETTER_BIT_SHIFTS[SIZE_OF_CHARACTER_SET] = {
-    0, 1, 3, 5, 8, 11, 14, 17, 21, 25, 29, 33, 37, 41};
+    0, 1, 3, 5, 8, 11, 14, 17, 21, 25, 29, 33, 37, 41
+};
 
 typedef enum { FALSE = 0, TRUE = 1 } Bool;
 typedef Bool *BoolPtr;
@@ -89,8 +94,9 @@ typedef Square *SquarePtr;
 // on the board. Important note:  The function is going to use the low level C
 // concept of pointer arithmatic to fill the LivingNeighbourSquarePointerArray,
 // which will be filled from the top-left, clockwise.
-void SquareInit(SquarePtr ThisSquare, unsigned int RowPosition,
-                unsigned int ColPosition) {
+void SquareInit(
+    SquarePtr ThisSquare, unsigned int RowPosition, unsigned int ColPosition
+) {
   unsigned int X;
   ThisSquare->LetterIndex = SIZE_OF_CHARACTER_SET;
   ThisSquare->Used = FALSE;
@@ -99,8 +105,7 @@ void SquareInit(SquarePtr ThisSquare, unsigned int RowPosition,
     if (ColPosition == 0) {
       ThisSquare->NumberOfLivingNeighbours = 3;
       (ThisSquare->LivingNeighbourSquarePointerArray)[0] = ThisSquare + 1;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[1] =
-          ThisSquare + MAX_COL + 1;
+      (ThisSquare->LivingNeighbourSquarePointerArray)[1] = ThisSquare + MAX_COL + 1;
       (ThisSquare->LivingNeighbourSquarePointerArray)[2] = ThisSquare + MAX_COL;
       (ThisSquare->LivingNeighbourSquarePointerArray)[3] = NULL;
       (ThisSquare->LivingNeighbourSquarePointerArray)[4] = NULL;
@@ -112,8 +117,7 @@ void SquareInit(SquarePtr ThisSquare, unsigned int RowPosition,
     else if (ColPosition == (MAX_COL - 1)) {
       ThisSquare->NumberOfLivingNeighbours = 3;
       (ThisSquare->LivingNeighbourSquarePointerArray)[0] = ThisSquare + MAX_COL;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[1] =
-          ThisSquare + MAX_COL - 1;
+      (ThisSquare->LivingNeighbourSquarePointerArray)[1] = ThisSquare + MAX_COL - 1;
       (ThisSquare->LivingNeighbourSquarePointerArray)[2] = ThisSquare - 1;
       (ThisSquare->LivingNeighbourSquarePointerArray)[3] = NULL;
       (ThisSquare->LivingNeighbourSquarePointerArray)[4] = NULL;
@@ -125,11 +129,9 @@ void SquareInit(SquarePtr ThisSquare, unsigned int RowPosition,
     else {
       ThisSquare->NumberOfLivingNeighbours = 5;
       (ThisSquare->LivingNeighbourSquarePointerArray)[0] = ThisSquare + 1;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[1] =
-          ThisSquare + MAX_COL + 1;
+      (ThisSquare->LivingNeighbourSquarePointerArray)[1] = ThisSquare + MAX_COL + 1;
       (ThisSquare->LivingNeighbourSquarePointerArray)[2] = ThisSquare + MAX_COL;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[3] =
-          ThisSquare + MAX_COL - 1;
+      (ThisSquare->LivingNeighbourSquarePointerArray)[3] = ThisSquare + MAX_COL - 1;
       (ThisSquare->LivingNeighbourSquarePointerArray)[4] = ThisSquare - 1;
       (ThisSquare->LivingNeighbourSquarePointerArray)[5] = NULL;
       (ThisSquare->LivingNeighbourSquarePointerArray)[6] = NULL;
@@ -140,8 +142,7 @@ void SquareInit(SquarePtr ThisSquare, unsigned int RowPosition,
     if (ColPosition == 0) {
       ThisSquare->NumberOfLivingNeighbours = 3;
       (ThisSquare->LivingNeighbourSquarePointerArray)[0] = ThisSquare - MAX_COL;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[1] =
-          ThisSquare - MAX_COL + 1;
+      (ThisSquare->LivingNeighbourSquarePointerArray)[1] = ThisSquare - MAX_COL + 1;
       (ThisSquare->LivingNeighbourSquarePointerArray)[2] = ThisSquare + 1;
       (ThisSquare->LivingNeighbourSquarePointerArray)[3] = NULL;
       (ThisSquare->LivingNeighbourSquarePointerArray)[4] = NULL;
@@ -152,8 +153,7 @@ void SquareInit(SquarePtr ThisSquare, unsigned int RowPosition,
     // ThisSquare is in the bottom-right position.
     else if (ColPosition == (MAX_COL - 1)) {
       ThisSquare->NumberOfLivingNeighbours = 3;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[0] =
-          ThisSquare - MAX_COL - 1;
+      (ThisSquare->LivingNeighbourSquarePointerArray)[0] = ThisSquare - MAX_COL - 1;
       (ThisSquare->LivingNeighbourSquarePointerArray)[1] = ThisSquare - MAX_COL;
       (ThisSquare->LivingNeighbourSquarePointerArray)[2] = ThisSquare - 1;
       (ThisSquare->LivingNeighbourSquarePointerArray)[3] = NULL;
@@ -165,11 +165,9 @@ void SquareInit(SquarePtr ThisSquare, unsigned int RowPosition,
     // ThisSquare is in a bottom-middle position.
     else {
       ThisSquare->NumberOfLivingNeighbours = 5;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[0] =
-          ThisSquare - MAX_COL - 1;
+      (ThisSquare->LivingNeighbourSquarePointerArray)[0] = ThisSquare - MAX_COL - 1;
       (ThisSquare->LivingNeighbourSquarePointerArray)[1] = ThisSquare - MAX_COL;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[2] =
-          ThisSquare - MAX_COL + 1;
+      (ThisSquare->LivingNeighbourSquarePointerArray)[2] = ThisSquare - MAX_COL + 1;
       (ThisSquare->LivingNeighbourSquarePointerArray)[3] = ThisSquare + 1;
       (ThisSquare->LivingNeighbourSquarePointerArray)[4] = ThisSquare - 1;
       (ThisSquare->LivingNeighbourSquarePointerArray)[5] = NULL;
@@ -181,11 +179,9 @@ void SquareInit(SquarePtr ThisSquare, unsigned int RowPosition,
   else if (ColPosition == 0) {
     ThisSquare->NumberOfLivingNeighbours = 5;
     (ThisSquare->LivingNeighbourSquarePointerArray)[0] = ThisSquare - MAX_COL;
-    (ThisSquare->LivingNeighbourSquarePointerArray)[1] =
-        ThisSquare - MAX_COL + 1;
+    (ThisSquare->LivingNeighbourSquarePointerArray)[1] = ThisSquare - MAX_COL + 1;
     (ThisSquare->LivingNeighbourSquarePointerArray)[2] = ThisSquare + 1;
-    (ThisSquare->LivingNeighbourSquarePointerArray)[3] =
-        ThisSquare + MAX_COL + 1;
+    (ThisSquare->LivingNeighbourSquarePointerArray)[3] = ThisSquare + MAX_COL + 1;
     (ThisSquare->LivingNeighbourSquarePointerArray)[4] = ThisSquare + MAX_COL;
     (ThisSquare->LivingNeighbourSquarePointerArray)[5] = NULL;
     (ThisSquare->LivingNeighbourSquarePointerArray)[6] = NULL;
@@ -194,12 +190,10 @@ void SquareInit(SquarePtr ThisSquare, unsigned int RowPosition,
   // ThisSquare is in a middle-right position.
   else if (ColPosition == (MAX_COL - 1)) {
     ThisSquare->NumberOfLivingNeighbours = 5;
-    (ThisSquare->LivingNeighbourSquarePointerArray)[0] =
-        ThisSquare - MAX_COL - 1;
+    (ThisSquare->LivingNeighbourSquarePointerArray)[0] = ThisSquare - MAX_COL - 1;
     (ThisSquare->LivingNeighbourSquarePointerArray)[1] = ThisSquare - MAX_COL;
     (ThisSquare->LivingNeighbourSquarePointerArray)[2] = ThisSquare + MAX_COL;
-    (ThisSquare->LivingNeighbourSquarePointerArray)[3] =
-        ThisSquare + MAX_COL - 1;
+    (ThisSquare->LivingNeighbourSquarePointerArray)[3] = ThisSquare + MAX_COL - 1;
     (ThisSquare->LivingNeighbourSquarePointerArray)[4] = ThisSquare - 1;
     (ThisSquare->LivingNeighbourSquarePointerArray)[5] = NULL;
     (ThisSquare->LivingNeighbourSquarePointerArray)[6] = NULL;
@@ -208,45 +202,44 @@ void SquareInit(SquarePtr ThisSquare, unsigned int RowPosition,
   // ThisSquare is in a middle-middle position.
   else {
     ThisSquare->NumberOfLivingNeighbours = NEIGHBOURS;
-    (ThisSquare->LivingNeighbourSquarePointerArray)[0] =
-        ThisSquare - MAX_COL - 1;
+    (ThisSquare->LivingNeighbourSquarePointerArray)[0] = ThisSquare - MAX_COL - 1;
     (ThisSquare->LivingNeighbourSquarePointerArray)[1] = ThisSquare - MAX_COL;
-    (ThisSquare->LivingNeighbourSquarePointerArray)[2] =
-        ThisSquare - MAX_COL + 1;
+    (ThisSquare->LivingNeighbourSquarePointerArray)[2] = ThisSquare - MAX_COL + 1;
     (ThisSquare->LivingNeighbourSquarePointerArray)[3] = ThisSquare + 1;
-    (ThisSquare->LivingNeighbourSquarePointerArray)[4] =
-        ThisSquare + MAX_COL + 1;
+    (ThisSquare->LivingNeighbourSquarePointerArray)[4] = ThisSquare + MAX_COL + 1;
     (ThisSquare->LivingNeighbourSquarePointerArray)[5] = ThisSquare + MAX_COL;
-    (ThisSquare->LivingNeighbourSquarePointerArray)[6] =
-        ThisSquare + MAX_COL - 1;
+    (ThisSquare->LivingNeighbourSquarePointerArray)[6] = ThisSquare + MAX_COL - 1;
     (ThisSquare->LivingNeighbourSquarePointerArray)[7] = ThisSquare - 1;
   }
 }
 
-inline char SquareLetterIndex(SquarePtr ThisSquare) {
-  return ThisSquare->LetterIndex;
-}
+inline char SquareLetterIndex(SquarePtr ThisSquare) { return ThisSquare->LetterIndex; }
 
 inline Bool SquareUsed(SquarePtr ThisSquare) { return ThisSquare->Used; }
 
 // This function has been converted into a macro, because it is used in the
 // often called "BoardPopulate" routine, and it needs to be fast.
-#define SQUARE_CHANGE_LETTER_INDEX(thissquare, newindex)                       \
+#define SQUARE_CHANGE_LETTER_INDEX(thissquare, newindex) \
   ((thissquare)->LetterIndex = (newindex))
 
 // A function used exclusively for debugging purposes, display the members of
 // "ThisSquare".
 void SquareOutput(SquarePtr ThisSquare, unsigned int Row, unsigned int Col) {
   unsigned int X;
-  printf("{%c} at [%d,%d] |TL...Clockwise Living Neighbours|-|",
-         CHARACTER_SET[ThisSquare->LetterIndex], Row, Col);
+  printf(
+      "{%c} at [%d,%d] |TL...Clockwise Living Neighbours|-|",
+      CHARACTER_SET[ThisSquare->LetterIndex],
+      Row,
+      Col
+  );
   for (X = 0; X < NEIGHBOURS; X++)
     printf(
         "%c|",
         (ThisSquare->LivingNeighbourSquarePointerArray[X] == NULL)
             ? '*'
             : (CHARACTER_SET[(ThisSquare->LivingNeighbourSquarePointerArray[X])
-                                 ->LetterIndex]));
+                                 ->LetterIndex])
+    );
   printf(" - |%s|\n", ((ThisSquare->Used) == FALSE) ? "UNUSED" : "USED");
 }
 
@@ -284,7 +277,8 @@ void BoardPopulate(BoardPtr ThisBoard, char *BoardString) {
     for (Col = MAX_COL; Col-- > 0;) {
       SQUARE_CHANGE_LETTER_INDEX(
           &((ThisBoard->Block)[Row][Col]),
-          CHARACTER_LOCATIONS[BoardString[Row * MAX_COL + Col] - 'A']);
+          CHARACTER_LOCATIONS[BoardString[Row * MAX_COL + Col] - 'A']
+      );
     }
   }
 }
@@ -345,17 +339,23 @@ typedef DiscoveryStackNode *DiscoveryStackNodePtr;
 // directly. The stack needs room for the NULL position 0, (MAX_STRING_LENGTH -
 // 1) square positions, and a buffer for the top pointer.
 #define DISCOVERY_STACK_SIZE (MAX_STRING_LENGTH + 1)
-#define DISCOVERY_STACK_PUSH(top, square, indie, fcindie, len, next, workon,   \
-                             second)                                           \
-  (((top->TheSquareNow = (square)), (top->LexiconPartOneIndex = (indie)),      \
-    (top->FirstChildIndex = (fcindie)), (top->WordLengthNow = (len)),          \
-    (top->NextMarkerNow = (next)), (top->TheChildToWorkOn = (workon)),         \
-    (top->TheSecondPartNow = (second)), ++top))
-#define DISCOVERY_STACK_POP(square, indie, fcindie, len, next, workon, second, \
-                            top)                                               \
-  ((--top, (square = top->TheSquareNow), (indie = top->LexiconPartOneIndex),   \
-    (fcindie = top->FirstChildIndex), (len = top->WordLengthNow),              \
-    (next = top->NextMarkerNow), (workon = top->TheChildToWorkOn),             \
+#define DISCOVERY_STACK_PUSH(top, square, indie, fcindie, len, next, workon, second) \
+  (((top->TheSquareNow = (square)),                                                  \
+    (top->LexiconPartOneIndex = (indie)),                                            \
+    (top->FirstChildIndex = (fcindie)),                                              \
+    (top->WordLengthNow = (len)),                                                    \
+    (top->NextMarkerNow = (next)),                                                   \
+    (top->TheChildToWorkOn = (workon)),                                              \
+    (top->TheSecondPartNow = (second)),                                              \
+    ++top))
+#define DISCOVERY_STACK_POP(square, indie, fcindie, len, next, workon, second, top) \
+  ((--top,                                                                          \
+    (square = top->TheSquareNow),                                                   \
+    (indie = top->LexiconPartOneIndex),                                             \
+    (fcindie = top->FirstChildIndex),                                               \
+    (len = top->WordLengthNow),                                                     \
+    (next = top->NextMarkerNow),                                                    \
+    (workon = top->TheChildToWorkOn),                                               \
     (second = top->TheSecondPartNow)))
 #define DISCOVERY_STACK_NOT_EMPTY (TheDiscoveryStack < TheTop)
 
@@ -371,9 +371,13 @@ DiscoveryStackNode TheDiscoveryStack[DISCOVERY_STACK_SIZE];
 // recursive, and this drawback has been excised. Every letter on the board must
 // be contained in the lexicon character set.
 
-int SquareWordDiscoverStack(SquarePtr BeginSquare, unsigned int BeginIndex,
-                            unsigned int BeginMarker, unsigned int NowTime,
-                            unsigned int ThreadIdentity) {
+int SquareWordDiscoverStack(
+    SquarePtr BeginSquare,
+    unsigned int BeginIndex,
+    unsigned int BeginMarker,
+    unsigned int NowTime,
+    unsigned int ThreadIdentity
+) {
   Bool FirstTime = TRUE;
   Bool DoWeNeedToPop;
   unsigned int X;
@@ -418,26 +422,31 @@ int SquareWordDiscoverStack(SquarePtr BeginSquare, unsigned int BeginIndex,
     if (WorkingChildIndex) {
       WorkingNeighbourList = WorkingSquare->LivingNeighbourSquarePointerArray;
       if (FirstTime == TRUE) {
-        WorkingNextMarker +=
-            (WorkingMarker - PartThreeArray[WorkingChildIndex]);
-        WorkingSecondPart =
-            PartTwoArray[(PartOneArray[WorkingIndex] & OFFSET_INDEX_MASK) >>
-                         OffSET_BIT_SHIFT];
+        WorkingNextMarker += (WorkingMarker - PartThreeArray[WorkingChildIndex]);
+        WorkingSecondPart = PartTwoArray
+            [(PartOneArray[WorkingIndex] & OFFSET_INDEX_MASK) >> OffSET_BIT_SHIFT];
         WorkOnThisChild = WorkingSquare->NumberOfLivingNeighbours;
       }
       for (X = WorkOnThisChild; X-- > 0;) {
         if ((WorkingNeighbourList[X])->Used == FALSE) {
           TheChosenLetterIndex = (WorkingNeighbourList[X])->LetterIndex;
-          if (WorkingOffset = (WorkingSecondPart &
-                               CHILD_LETTER_BIT_MASKS[TheChosenLetterIndex])) {
+          if (WorkingOffset =
+                  (WorkingSecondPart & CHILD_LETTER_BIT_MASKS[TheChosenLetterIndex])) {
             WorkingOffset >>= CHILD_LETTER_BIT_SHIFTS[TheChosenLetterIndex];
             WorkingOffset -= 1;
             // Now that we are ready to move down to the next level, push the
             // current state onto the stack if we are not on the final
             // neighbour, and update the working variables.
-            DISCOVERY_STACK_PUSH(TheTop, WorkingSquare, WorkingIndex,
-                                 WorkingChildIndex, WorkingNumberOfChars,
-                                 WorkingNextMarker, X, WorkingSecondPart);
+            DISCOVERY_STACK_PUSH(
+                TheTop,
+                WorkingSquare,
+                WorkingIndex,
+                WorkingChildIndex,
+                WorkingNumberOfChars,
+                WorkingNextMarker,
+                X,
+                WorkingSecondPart
+            );
             WorkingSquare = WorkingNeighbourList[X];
             WorkingIndex = WorkingChildIndex + (unsigned int)WorkingOffset;
             WorkingMarker =
@@ -457,9 +466,16 @@ int SquareWordDiscoverStack(SquarePtr BeginSquare, unsigned int BeginIndex,
       WorkingSquare->Used = FALSE;
       // Pop the top of the stack into the function and pick up where we left
       // off at that particular square.
-      DISCOVERY_STACK_POP(WorkingSquare, WorkingIndex, WorkingChildIndex,
-                          WorkingNumberOfChars, WorkingNextMarker,
-                          WorkOnThisChild, WorkingSecondPart, TheTop);
+      DISCOVERY_STACK_POP(
+          WorkingSquare,
+          WorkingIndex,
+          WorkingChildIndex,
+          WorkingNumberOfChars,
+          WorkingNextMarker,
+          WorkOnThisChild,
+          WorkingSecondPart,
+          TheTop
+      );
       FirstTime = FALSE;
     }
   }
@@ -468,9 +484,9 @@ int SquareWordDiscoverStack(SquarePtr BeginSquare, unsigned int BeginIndex,
 
 // The function returns the Boggle score for "ThisBoard."  I uses the global
 // time stamps.
-unsigned int BoardSquareWordDiscover(BoardPtr ThisBoard,
-                                     unsigned int TheTimeNow,
-                                     unsigned int CallingThread) {
+unsigned int BoardSquareWordDiscover(
+    BoardPtr ThisBoard, unsigned int TheTimeNow, unsigned int CallingThread
+) {
   unsigned int TheScoreTotal = 0;
   unsigned int CurrentRow;
   unsigned int CurrentCol;
@@ -481,8 +497,12 @@ unsigned int BoardSquareWordDiscover(BoardPtr ThisBoard,
       CurrentPartOneIndex =
           (((ThisBoard->Block)[CurrentRow][CurrentCol]).LetterIndex + 1);
       TheScoreTotal += SquareWordDiscoverStack(
-          &((ThisBoard->Block)[CurrentRow][CurrentCol]), CurrentPartOneIndex,
-          PartThreeArray[CurrentPartOneIndex], TheTimeNow, CallingThread);
+          &((ThisBoard->Block)[CurrentRow][CurrentCol]),
+          CurrentPartOneIndex,
+          PartThreeArray[CurrentPartOneIndex],
+          TheTimeNow,
+          CallingThread
+      );
     }
   }
   return TheScoreTotal;
@@ -507,7 +527,6 @@ void ConvertSquareNumberToString(char *TheThreeString, unsigned int X) {
 }
 
 int main() {
-
   unsigned int X;
   int Y;
   unsigned int Z;
@@ -529,8 +548,8 @@ int main() {
 
   char CurrentOffLimitsNumbers[5];
 
-  char *DoubleDeed = (char *)malloc(sizeof(char) * NUMBER_OF_DOUBLE_DEVIATIONS *
-                                    (BOARD_STRING_SIZE));
+  char *DoubleDeed =
+      (char *)malloc(sizeof(char) * NUMBER_OF_DOUBLE_DEVIATIONS * (BOARD_STRING_SIZE));
 
   BoardPtr WorkingBoard = (BoardPtr)malloc(sizeof(Board));
 
@@ -553,23 +572,21 @@ int main() {
 
   // Allocate the set of lexicon time stamps as unsigned integers.
   for (X = 0; X < NUMBER_OF_WORKER_THREADS; X++)
-    LexiconTimeStamps[X] = (unsigned int *)malloc((TOTAL_WORDS_IN_LEXICON + 1) *
-                                                  sizeof(unsigned int));
+    LexiconTimeStamps[X] =
+        (unsigned int *)malloc((TOTAL_WORDS_IN_LEXICON + 1) * sizeof(unsigned int));
 
   // Zero all of the global time stamps.  Notice how there are only time stamps
   // for each word in the lexicon and not for intermediate nodes. The memset()
   // function promises a more efficient zeroing procedure than a for loop.
   for (X = 0; X < NUMBER_OF_WORKER_THREADS; X++)
-    memset(LexiconTimeStamps[X], 0,
-           (TOTAL_WORDS_IN_LEXICON + 1) * sizeof(unsigned int));
+    memset(
+        LexiconTimeStamps[X], 0, (TOTAL_WORDS_IN_LEXICON + 1) * sizeof(unsigned int)
+    );
 
   // Read in the size of each data file.
-  if (fread(&SizeOfPartOne, 4, 1, PartOne) != 1)
-    return 0;
-  if (fread(&SizeOfPartTwo, 8, 1, PartTwo) != 1)
-    return 0;
-  if (fread(&SizeOfPartThree, 4, 1, PartThree) != 1)
-    return 0;
+  if (fread(&SizeOfPartOne, 4, 1, PartOne) != 1) return 0;
+  if (fread(&SizeOfPartTwo, 8, 1, PartTwo) != 1) return 0;
+  if (fread(&SizeOfPartThree, 4, 1, PartThree) != 1) return 0;
   PartThreeFourTransition = SizeOfPartThree + 1;
   SizeOfPartFour = SizeOfPartOne - SizeOfPartThree;
 
@@ -590,22 +607,18 @@ int main() {
   // Read in the data files into global arrays of basic integer types.
   // The zero position in "PartOneArray" is the NULL node.
   PartOneArray[0] = 0;
-  if (fread(PartOneArray + 1, 4, SizeOfPartOne, PartOne) != SizeOfPartOne)
-    return 0;
-  if (fread(PartTwoArray, 8, SizeOfPartTwo, PartTwo) != SizeOfPartTwo)
-    return 0;
+  if (fread(PartOneArray + 1, 4, SizeOfPartOne, PartOne) != SizeOfPartOne) return 0;
+  if (fread(PartTwoArray, 8, SizeOfPartTwo, PartTwo) != SizeOfPartTwo) return 0;
   // The Zero position in "PartThreeArray" maps to the NULL node in
   // "PartOneArray".
   PartThreeArray[0] = 0;
-  if (fread(PartThreeArray + 1, 4, SizeOfPartThree, PartThree) !=
-      SizeOfPartThree)
+  if (fread(PartThreeArray + 1, 4, SizeOfPartThree, PartThree) != SizeOfPartThree)
     return 0;
   // Part Four has been replaced by encoding the Part Four WTEOBL values as 32
   // bit integers for speed.  The size of the data structure is small enough as
   // it is.
   for (X = (SizeOfPartThree + 1); X <= SizeOfPartOne; X++) {
-    if (fread(&TempReadIn, 1, 1, PartFour) != 1)
-      return 0;
+    if (fread(&TempReadIn, 1, 1, PartFour) != 1) return 0;
     PartThreeArray[X] = TempReadIn;
   }
 
@@ -620,12 +633,12 @@ int main() {
   strcpy(TemporaryBoardString, SeedBoardString);
   TemporaryBoardString[SQUARE_COUNT] = '2';
 
-  printf("Create all of the champion board's double deviations, |%s|.\n",
-         SeedBoardString);
+  printf(
+      "Create all of the champion board's double deviations, |%s|.\n", SeedBoardString
+  );
   BoardPopulate(WorkingBoard, SeedBoardString);
   BoardOutput(WorkingBoard);
-  printf("The Seed Score |%d|\n\n",
-         BoardSquareWordDiscover(WorkingBoard, 1, 0));
+  printf("The Seed Score |%d|\n\n", BoardSquareWordDiscover(WorkingBoard, 1, 0));
 
   // Fill a large array with all of the champion board's double deviations.
   for (X = 0; X < SQUARE_COUNT; X++) {
@@ -633,23 +646,20 @@ int main() {
       // Now we are in a position where X and Y represent the two locations to
       // be deviated.
       FirstOffLimitsLetterIndex = CHARACTER_LOCATIONS[SeedBoardString[X] - 'A'];
-      SecondOffLimitsLetterIndex =
-          CHARACTER_LOCATIONS[SeedBoardString[Y] - 'A'];
+      SecondOffLimitsLetterIndex = CHARACTER_LOCATIONS[SeedBoardString[Y] - 'A'];
       // Set the trailing, off limits numbers here.
       ConvertSquareNumberToString(CurrentOffLimitsNumbers, X);
       ConvertSquareNumberToString(&(CurrentOffLimitsNumbers[2]), Y);
-      strcpy(&(TemporaryBoardString[SQUARE_COUNT + 1]),
-             CurrentOffLimitsNumbers);
+      strcpy(&(TemporaryBoardString[SQUARE_COUNT + 1]), CurrentOffLimitsNumbers);
       for (Z = 0; Z < SIZE_OF_CHARACTER_SET; Z++) {
-        if (Z == FirstOffLimitsLetterIndex)
-          continue;
+        if (Z == FirstOffLimitsLetterIndex) continue;
         TemporaryBoardString[X] = CHARACTER_SET[Z];
         for (W = 0; W < SIZE_OF_CHARACTER_SET; W++) {
-          if (W == SecondOffLimitsLetterIndex)
-            continue;
+          if (W == SecondOffLimitsLetterIndex) continue;
           TemporaryBoardString[Y] = CHARACTER_SET[W];
-          strcpy(&(DoubleDeed[InsertionSpot * (BOARD_STRING_SIZE)]),
-                 TemporaryBoardString);
+          strcpy(
+              &(DoubleDeed[InsertionSpot * (BOARD_STRING_SIZE)]), TemporaryBoardString
+          );
           // printf("%s\n", TemporaryBoardString);
           InsertionSpot += 1;
         }
@@ -659,9 +669,11 @@ int main() {
     }
   }
 
-  printf("Total Number Of Good Boards Being Evaluated Now = |%d|, so please "
-         "wait.\n",
-         InsertionSpot);
+  printf(
+      "Total Number Of Good Boards Being Evaluated Now = |%d|, so please "
+      "wait.\n",
+      InsertionSpot
+  );
 
   BeginWorkTime = (double)clock() / CLOCKS_PER_SEC;
   // The boards inside of "DoubleDeed" get evaluated inside of this loop.
@@ -676,39 +688,48 @@ int main() {
   EndWorkTime = (double)clock() / CLOCKS_PER_SEC;
   TheRunTime = EndWorkTime - BeginWorkTime;
 
-  BoardPopulate(WorkingBoard,
-                &(DoubleDeed[TheBestBoardIndex * (BOARD_STRING_SIZE)]));
-  printf("The Best Score Found Is|%d| At Position |%d| - |%s|\n\n", BestScore,
-         TheBestBoardIndex,
-         &(DoubleDeed[TheBestBoardIndex * (BOARD_STRING_SIZE)]));
-  printf("The Running time for this operation is |%g| seconds. |%g| Boards per "
-         "second.\n\n",
-         TheRunTime, InsertionSpot / TheRunTime);
+  BoardPopulate(WorkingBoard, &(DoubleDeed[TheBestBoardIndex * (BOARD_STRING_SIZE)]));
+  printf(
+      "The Best Score Found Is|%d| At Position |%d| - |%s|\n\n",
+      BestScore,
+      TheBestBoardIndex,
+      &(DoubleDeed[TheBestBoardIndex * (BOARD_STRING_SIZE)])
+  );
+  printf(
+      "The Running time for this operation is |%g| seconds. |%g| Boards per "
+      "second.\n\n",
+      TheRunTime,
+      InsertionSpot / TheRunTime
+  );
   BoardOutput(WorkingBoard);
 
-  printf("\n-------------------------------------------------------------------"
-         "----\n");
+  printf(
+      "\n-------------------------------------------------------------------"
+      "----\n"
+  );
   printf("\nAnalyze a random board batch of the same size.\n");
   InsertionSpot = 0;
   for (X = 0; X < NUMBER_OF_DOUBLE_DEVIATIONS; X++) {
     for (Y = 0; Y < SQUARE_COUNT; Y++)
       TemporaryBoardString[Y] = CHARACTER_SET[rand() % SIZE_OF_CHARACTER_SET];
     TemporaryBoardString[SQUARE_COUNT] = '\0';
-    strcpy(&(DoubleDeed[InsertionSpot * (BOARD_STRING_SIZE)]),
-           TemporaryBoardString);
+    strcpy(&(DoubleDeed[InsertionSpot * (BOARD_STRING_SIZE)]), TemporaryBoardString);
     InsertionSpot += 1;
   }
 
-  printf("Total Number Of Random Boards Being Evaluated Now = |%d|, so please "
-         "wait.\n",
-         InsertionSpot);
+  printf(
+      "Total Number Of Random Boards Being Evaluated Now = |%d|, so please "
+      "wait.\n",
+      InsertionSpot
+  );
 
   BeginWorkTime = (double)clock() / CLOCKS_PER_SEC;
   // Evaluate the random boards.
   // Zero the timestamps.
   for (X = 0; X < NUMBER_OF_WORKER_THREADS; X++)
-    memset(LexiconTimeStamps[X], 0,
-           (TOTAL_WORDS_IN_LEXICON + 1) * sizeof(unsigned int));
+    memset(
+        LexiconTimeStamps[X], 0, (TOTAL_WORDS_IN_LEXICON + 1) * sizeof(unsigned int)
+    );
   BestScore = 0;
   for (WhatTime = 0; WhatTime < InsertionSpot; WhatTime++) {
     BoardPopulate(WorkingBoard, &(DoubleDeed[WhatTime * (BOARD_STRING_SIZE)]));
@@ -722,14 +743,19 @@ int main() {
   EndWorkTime = (double)clock() / CLOCKS_PER_SEC;
   TheRunTime = EndWorkTime - BeginWorkTime;
 
-  BoardPopulate(WorkingBoard,
-                &(DoubleDeed[TheBestBoardIndex * (BOARD_STRING_SIZE)]));
-  printf("The Best Random Score Found Is|%d| At Position |%d| - |%s|\n\n",
-         BestScore, TheBestBoardIndex,
-         &(DoubleDeed[TheBestBoardIndex * (BOARD_STRING_SIZE)]));
-  printf("The Running time for this operation is |%g| seconds. |%g| Boards per "
-         "second.\n\n",
-         TheRunTime, InsertionSpot / TheRunTime);
+  BoardPopulate(WorkingBoard, &(DoubleDeed[TheBestBoardIndex * (BOARD_STRING_SIZE)]));
+  printf(
+      "The Best Random Score Found Is|%d| At Position |%d| - |%s|\n\n",
+      BestScore,
+      TheBestBoardIndex,
+      &(DoubleDeed[TheBestBoardIndex * (BOARD_STRING_SIZE)])
+  );
+  printf(
+      "The Running time for this operation is |%g| seconds. |%g| Boards per "
+      "second.\n\n",
+      TheRunTime,
+      InsertionSpot / TheRunTime
+  );
   BoardOutput(WorkingBoard);
 
   return 0;
