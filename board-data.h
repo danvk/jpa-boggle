@@ -8,13 +8,6 @@ extern "C"
 {
 #endif
 
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// This section is dedicated to sorting large lists of evaluated boards and
-	// scores.  It represents an adaptation of the GLIBC qsort code and an explicit
-	// stack documented here http://www.corpit.ru/mjt/qsort.html I will thank
-	// Michael Tokarev for an excellent web page, and a very useful recursion
-	// elimination technique.
-
 	// The BoardData pseudo-class will use macros for its associated functionality.
 	struct boarddata
 	{
@@ -25,15 +18,15 @@ extern "C"
 	typedef struct boarddata BoardData;
 	typedef BoardData *BoardDataPtr;
 
-#define BOARD_DATA_SET_THE_BOARD_STRING(thisboarddata, newstring) \
-	(strcpy(thisboarddata->board, newstring))
-
-#define BOARD_DATA_SET_THE_BOARD_SCORE(thisboarddata, newscore) \
-	(thisboarddata->score = (newscore))
-
 // define the size of the list being sorted.  This number represents the total
 // number of boards analyzed per thread, per round.
 #define LIST_SIZE (BOARDS_PER_THREAD * SINGLE_DEVIATIONS)
+
+	// The Global array of pointers to arrays of "BoardDataPtr"s.  All of the
+	// associated "BoardData" with this array will thus never move around. The Main
+	// thread will allocate the space required to store the actual "BoardData". The
+	// thread identities and attributes are also defined here.
+	BoardDataPtr *WorkingBoardScoreTallies[NUMBER_OF_WORKER_THREADS];
 
 #ifdef __cplusplus
 }

@@ -3,7 +3,7 @@ CXX = g++
 CFLAGS = -O3
 CXXFLAGS = -O3 -std=c++20
 TARGET = deepsearch
-SRCS = DeepSearch.cc board-evaluate.c const.c insert.cc board-data.c
+SRCS = DeepSearch.cc board-evaluate.c const.c insert.cc
 OBJS = $(patsubst %.cc,%.o,$(patsubst %.c,%.o,$(SRCS)))
 
 all: $(TARGET)
