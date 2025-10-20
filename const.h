@@ -1,6 +1,10 @@
 #ifndef CONST_H
 #define CONST_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // General "Boggle" Constants.
 #define MAX_ROW 5
 #define MAX_COL 5
@@ -17,13 +21,13 @@ typedef enum { TRUE = 1, FALSE = 0} Bool;
 typedef Bool* BoolPtr;
 
 // Provides the Boggle score associated with words of length equal to the array index.  Fifteen is the maximum word length of the TWL06 Tournament Scrabble Word List.
-unsigned int THE_SCORE_CARD[MAX_STRING_LENGTH + 1];
+extern unsigned int THE_SCORE_CARD[MAX_STRING_LENGTH + 1];
 
 // These constant arrays define the lexicon contained in the ADTDAWG.
-char CHARACTER_SET[SIZE_OF_CHARACTER_SET + 1];
-unsigned int CHARACTER_LOCATIONS[NUMBER_OF_ENGLISH_LETTERS];
-unsigned long int CHILD_LETTER_BIT_MASKS[SIZE_OF_CHARACTER_SET];
-unsigned int CHILD_LETTER_BIT_SHIFTS[SIZE_OF_CHARACTER_SET];
+extern char CHARACTER_SET[SIZE_OF_CHARACTER_SET + 1];
+extern unsigned int CHARACTER_LOCATIONS[NUMBER_OF_ENGLISH_LETTERS];
+extern unsigned long int CHILD_LETTER_BIT_MASKS[SIZE_OF_CHARACTER_SET];
+extern unsigned int CHILD_LETTER_BIT_SHIFTS[SIZE_OF_CHARACTER_SET];
 
 // Constants that define the high level "DeepSearch.c" algorithm.
 // #define NUMBER_OF_WORKER_THREADS	4
@@ -43,5 +47,9 @@ unsigned int CHILD_LETTER_BIT_SHIFTS[SIZE_OF_CHARACTER_SET];
 // This function assumes that "TheNumberNotYet" is a 2 char string of digits between [0,9].  Do not pass it anything else.  It will return the integer equivalent.
 unsigned int TwoCharStringToInt(char* TheNumberNotYet);
 void ConvertSquareNumberToString( char *TheThreeString, int X );
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // CONST_H

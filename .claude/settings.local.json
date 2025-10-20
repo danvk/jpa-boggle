@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(sed:*)",
-      "Bash(./postprocess.py /tmp/run-main-1.txt)"
+      "Bash(./postprocess.py /tmp/run-main-1.txt)",
+      "Bash(make:*)"
     ],
     "deny": [],
     "ask": []

@@ -3,6 +3,10 @@
 
 #include "const.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // The structure for a Boggle board is defined in this section.  This structure needs to be initialized only once.  The alphabetical order of a "Square"s neighbours is of no consequence.
 
@@ -56,5 +60,9 @@ void BoardPopulate(BoardPtr ThisBoard, char *BoardString);
 void BoardOutput(BoardPtr ThisBoard);
 int SquareWordDiscoverStack(SquarePtr BeginSquare, unsigned int BeginIndex, unsigned int BeginMarker, unsigned int NowTime, unsigned int ThreadIdentity);
 unsigned int BoardSquareWordDiscover(BoardPtr ThisBoard, unsigned int TheTimeNow, unsigned int CallingThread);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // BOARD_EVALUTE_H

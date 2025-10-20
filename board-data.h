@@ -5,6 +5,10 @@
 
 #include "const.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // This section is dedicated to sorting large lists of evaluated boards and scores.  It represents an adaptation of the GLIBC qsort code and an explicit stack documented here http://www.corpit.ru/mjt/qsort.html
 // I will thank Michael Tokarev for an excellent web page, and a very useful recursion elimination technique.
@@ -71,5 +75,9 @@ pthread_attr_t ThreadAttribute;
 char ThreadBoardStringsToAnalyze[NUMBER_OF_WORKER_THREADS][BOARDS_PER_ROUND/NUMBER_OF_WORKER_THREADS][BOARD_STRING_SIZE];
 
 void BoardDataExplicitStackQuickSort(BoardDataPtr *Base, unsigned int Size, unsigned int CallingThread);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  // BOARD_DATA_H

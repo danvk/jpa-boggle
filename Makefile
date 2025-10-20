@@ -1,16 +1,21 @@
 CC = gcc
+CXX = g++
 CFLAGS = -O3
+CXXFLAGS = -O3 -std=c++20
 TARGET = deepsearch
-SRCS = DeepSearch.c board-evaluate.c const.c insert.c min-board-trie.c board-data.c
-OBJS = $(SRCS:.c=.o)
+SRCS = DeepSearch.cc board-evaluate.c const.c insert.c min-board-trie.c board-data.c
+OBJS = $(patsubst %.cc,%.o,$(patsubst %.c,%.o,$(SRCS)))
 
 all: $(TARGET)
 
 $(TARGET): $(OBJS)
-	$(CC) $(CFLAGS) -o $@ $^
+	$(CXX) $(CXXFLAGS) -o $@ $^
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c -o $@ $<
+
+%.o: %.cc
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 clean:
 	rm -f $(OBJS) $(TARGET)
