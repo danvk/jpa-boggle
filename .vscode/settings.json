@@ -5,6 +5,8 @@
         "board-evaluate.h": "c",
         "insert.h": "c",
         "min-board-trie.h": "c",
-        "unistd.h": "c"
+        "unistd.h": "c",
+        "bitset": "c",
+        "set": "cpp"
     }
 }

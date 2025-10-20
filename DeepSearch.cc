@@ -8,12 +8,15 @@
 #include <pthread.h>
 #include <unistd.h>
 
+#include <set>
+#include <string>
+#include <vector>
+
 #include "adtdawg.h"
 #include "board-data.h"
 #include "board-evaluate.h"
 #include "const.h"
 #include "insert.h"
-#include "min-board-trie.h"
 
 // The ADTDAWG for Lexicon_14, a subset of TWL06, is located in the 4 data files listed below.
 #define FOUR_PART_DTDAWG_14_PART_ONE "Four_Part_1_DTDAWG_For_Lexicon_14.dat"
@@ -28,6 +31,7 @@
 #define ROUNDS 25
 #define BOARDS_PER_THREAD (BOARDS_PER_ROUND/NUMBER_OF_WORKER_THREADS)
 
+using namespace std;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // The POSIX thread inter-thread communication section.
@@ -275,10 +279,10 @@ int main () {
 	unsigned int TheCurrentTime = 0;
 
 	// These "MinBoardTrie"s will maintain information about the search so that new boards will continue to be evaluated.  This is an important construct to a search algorithm.
-	MinBoardTriePtr CurrentBoardsConsideredThisRound;
-	MinBoardTriePtr AllEvaluatedBoards = MinBoardTrieInit();
-	MinBoardTriePtr ChosenSeedBoards = MinBoardTrieInit();
-	MinBoardTriePtr WhatMadeTheMasterList = MinBoardTrieInit();
+	set<string> CurrentBoardsConsideredThisRound;
+	set<string> AllEvaluatedBoards;
+	set<string> ChosenSeedBoards;
+	set<string> WhatMadeTheMasterList;
 
 	if (ReadLexicon() == 0) {
 		return 0;
@@ -338,7 +342,7 @@ int main () {
 	// The very first task is to insert the original seed board into the master list.
 	TheCurrentTime += 1;
 	TemporaryBoardScore = BoardSquareWordDiscover(InitialWorkingBoard, TheCurrentTime, UseTheseTimeStamps);
-	MinBoardTrieAddBoard(WhatMadeTheMasterList, SeedBoard);
+	WhatMadeTheMasterList.insert(SeedBoard);
 	InsertBoardStringIntoMasterList(MasterResultsBoardList, MasterResultsBoardScores, SeedBoard, TemporaryBoardScore);
 
 	printf( "This is the original seed board that will be used...  It is worth |%d| points.  Sleep for 2 seconds to look at it\n\n", TemporaryBoardScore );
@@ -367,7 +371,7 @@ int main () {
 		memset(TopEvaluationBoardScores, 0, EVALUATE_LIST_SIZE*sizeof(unsigned int));
 
 		for ( X = 0; X < MASTER_LIST_SIZE; X++ ) {
-			if ( MinBoardTrieBoardSearch( ChosenSeedBoards, MasterResultsBoardList[X] ) == FALSE ) {
+			if ( ChosenSeedBoards.find(MasterResultsBoardList[X]) == ChosenSeedBoards.end()) {
 				strcpy( SeedBoard, MasterResultsBoardList[X] );
 				TemporaryBoardScore = MasterResultsBoardScores[X];
 				break;
@@ -376,8 +380,8 @@ int main () {
 
 		SeedBoard[SQUARE_COUNT] = '\0';
 		printf( "For the |%d|'th run the seed board is |%s| worth |%d| points.\n", S + 1, SeedBoard, TemporaryBoardScore );
-		MinBoardTrieAddBoard( ChosenSeedBoards, SeedBoard );
-		MinBoardTrieAddBoard( AllEvaluatedBoards, SeedBoard );
+		ChosenSeedBoards.insert(SeedBoard);
+		AllEvaluatedBoards.insert(SeedBoard);
 
 		// Populate the evaluate list for the first round of boards based on the best solitary deviations of the current seed board.  Add these boards to the Evaluate and Master lists.  They Have not been fully evaluated yet.
 		// These boards will not get evaluated in the threads, so evaluate them here.  Add them to the master list if they qualify.
@@ -395,20 +399,22 @@ int main () {
 				TheCurrentTime += 1;
 				TemporaryBoardScore = BoardSquareWordDiscover(InitialWorkingBoard, TheCurrentTime, UseTheseTimeStamps);
 				// Try to add each board to the "MasterResultsBoardList", and the "TopEvaluationBoardList".  Do this in sequence.  Only the "WhatMadeTheMasterList" MinBoardTrie will be augmented.
-				if ( MinBoardTrieBoardSearch(WhatMadeTheMasterList, TemporaryBoardString) == FALSE ) {
+				if ( WhatMadeTheMasterList.find(TemporaryBoardString) == WhatMadeTheMasterList.end()) {
 					if ( InsertBoardStringIntoMasterList(MasterResultsBoardList, MasterResultsBoardScores, TemporaryBoardString, TemporaryBoardScore) == TRUE ) {
-						MinBoardTrieAddBoard(WhatMadeTheMasterList, TemporaryBoardString);
+						WhatMadeTheMasterList.insert(TemporaryBoardString);
 						// printf("Round |%d|Pop - New On Master |%s| Score |%d|\n", 0, TemporaryBoardString, TemporaryBoardScore);
 					}
 				}
-				if ( MinBoardTrieBoardSearch(AllEvaluatedBoards, TemporaryBoardString) == FALSE ) InsertBoardStringIntoEvaluateList(TopEvaluationBoardList, TopEvaluationBoardScores, TemporaryBoardString, TemporaryBoardScore);
+				if ( AllEvaluatedBoards.find(TemporaryBoardString) == AllEvaluatedBoards.end() ) {
+					InsertBoardStringIntoEvaluateList(TopEvaluationBoardList, TopEvaluationBoardScores, TemporaryBoardString, TemporaryBoardScore);
+				}
 			}
 		}
 
 		// This Loop Represents the rounds cascade.
 		for ( T = 0; T < ROUNDS; T++ ) {
 			// Initiate a "MinBoardTrie" to keep track of the round returns.
-			CurrentBoardsConsideredThisRound = MinBoardTrieInit();
+			set<string> CurrentBoardsConsideredThisRound;
 			// Lock the "StartWorkMutex" to set the global work coordination variables.  Be sure to hand off "TheCurrentTime" to the right thread.
 			pthread_mutex_lock(&StartWorkMutex);
 			// Set the WorkOn to TRUE, the current Round, and "TheCurrentTime" HandOff to the right thread.
@@ -428,15 +434,15 @@ int main () {
 			}
 			// Now that the "TopEvaluationBoardList" has been sent over to the global array, add the board strings to the "AllEvaluatedBoards" trie.
 			for ( X = 0; X < BOARDS_PER_ROUND; X++) {
-				MinBoardTrieAddBoard(AllEvaluatedBoards, TopEvaluationBoardList[X]);
+				AllEvaluatedBoards.insert(TopEvaluationBoardList[X]);
 			}
 			// The boards on the evaluate list in round zero have already been added to the master list.
 			if ( T != 0 ) {
 				for ( X = 0; X < EVALUATE_LIST_SIZE; X++ ) {
 					if ( TopEvaluationBoardScores[X] > MasterResultsBoardScores[MASTER_LIST_SIZE - 1]) {
-						if ( MinBoardTrieBoardSearch( WhatMadeTheMasterList, TopEvaluationBoardList[X] ) == FALSE ) {
+						if ( WhatMadeTheMasterList.find(TopEvaluationBoardList[X]) == WhatMadeTheMasterList.end() ) {
 							InsertBoardStringIntoMasterList(MasterResultsBoardList, MasterResultsBoardScores, TopEvaluationBoardList[X], TopEvaluationBoardScores[X]);
-							MinBoardTrieAddBoard( WhatMadeTheMasterList, TopEvaluationBoardList[X] );
+							WhatMadeTheMasterList.insert(TopEvaluationBoardList[X]);
 							// printf("Round |%d|Pop - New On Master |%s| Score |%d|\n", T, TopEvaluationBoardList[X], TopEvaluationBoardScores[X]);
 						}
 					}
@@ -472,7 +478,7 @@ int main () {
 					// Because the list is sorted, once we find a board that doesn't make this evaluation round, get the fuck out.
 					if ( BOARD_DATA_THE_BOARD_SCORE((WorkingBoardScoreTallies[TheReturn])[Y]) > TopEvaluationBoardScores[EVALUATE_LIST_SIZE - 1] ) {
 						if ( MinBoardTrieAddBoard(CurrentBoardsConsideredThisRound, BOARD_DATA_THE_BOARD_STRING((WorkingBoardScoreTallies[TheReturn])[Y])) == 1 ) {
-							if ( MinBoardTrieBoardSearch(AllEvaluatedBoards, BOARD_DATA_THE_BOARD_STRING((WorkingBoardScoreTallies[TheReturn])[Y])) == FALSE ) {
+							if ( AllEvaluatedBoards.find(BOARD_DATA_THE_BOARD_STRING((WorkingBoardScoreTallies[TheReturn])[Y])) == AllEvaluatedBoards.end()) {
 								InsertBoardStringIntoEvaluateList(TopEvaluationBoardList, TopEvaluationBoardScores, BOARD_DATA_THE_BOARD_STRING((WorkingBoardScoreTallies[TheReturn])[Y]), BOARD_DATA_THE_BOARD_SCORE((WorkingBoardScoreTallies[TheReturn])[Y]));
 							}
 						}
@@ -482,17 +488,14 @@ int main () {
 
 			}
 			pthread_mutex_unlock(&CompleteMutex);
-
-			// This Point represents the end of the current round so the current boards min trie needs to be freed.
-			FreeMinBoardTrie( CurrentBoardsConsideredThisRound );
 		}
 
 		// Print to screen all of the new boards that qualified for the "MasterResultsBoardList" on the final round.
 		for ( X = 0; X < EVALUATE_LIST_SIZE; X++ ) {
 			if ( TopEvaluationBoardScores[X] > MasterResultsBoardScores[MASTER_LIST_SIZE - 1]) {
-				if ( MinBoardTrieBoardSearch(WhatMadeTheMasterList, TopEvaluationBoardList[X]) == FALSE ) {
+				if (WhatMadeTheMasterList.find(TopEvaluationBoardList[X]) == WhatMadeTheMasterList.end()) {
 					InsertBoardStringIntoMasterList(MasterResultsBoardList, MasterResultsBoardScores, TopEvaluationBoardList[X], TopEvaluationBoardScores[X]);
-					MinBoardTrieAddBoard(WhatMadeTheMasterList, TopEvaluationBoardList[X]);
+					WhatMadeTheMasterList.insert(TopEvaluationBoardList[X]);
 					// printf("Round |%d|Pop - New On Master |%s| Score |%d|\n", T, TopEvaluationBoardList[X], TopEvaluationBoardScores[X]);
 				}
 			}
@@ -508,14 +511,14 @@ int main () {
 		}
 		printf("\n");
 
-		printf( "At this point, |%d| boards have been placed on the evaluation queue, and have been singularly deviated.\n", MinBoardTrieSize ( AllEvaluatedBoards ) );
+		printf( "At this point, |%d| boards have been placed on the evaluation queue, and have been singularly deviated.\n", AllEvaluatedBoards.size() );
 
 		// Print the current time and date.
-		time_t now = time(NULL);
-		struct tm *local = localtime(&now);
-		printf("%02d-%02d-%04d %02d:%02d:%02d\n",
-			   local->tm_mday, local->tm_mon + 1, local->tm_year + 1900,
-			   local->tm_hour, local->tm_min, local->tm_sec);
+		// time_t now = time(NULL);
+		// struct tm *local = localtime(&now);
+		// printf("%02d-%02d-%04d %02d:%02d:%02d\n",
+		// 	   local->tm_mday, local->tm_mon + 1, local->tm_year + 1900,
+		// 	   local->tm_hour, local->tm_min, local->tm_sec);
 
 		// Print out everything on the master results list after running each chain seed.
 		printf( "\nThe Master List After Seed |%d|.\n", S + 1 );
@@ -541,9 +544,6 @@ int main () {
 	printf( "The boards used as seed boards are as follows:..\n" );
 	MinBoardTrieOutput( ChosenSeedBoards );
 	free( InitialWorkingBoard );
-	FreeMinBoardTrie( AllEvaluatedBoards );
-	FreeMinBoardTrie( ChosenSeedBoards );
-	FreeMinBoardTrie( WhatMadeTheMasterList );
 	// printf( "Done... Press enter to exit...:");
 	// if ( fgets(ExitString, BOARD_STRING_SIZE - 1, stdin ) == NULL ) return 0;
 	// Clean up and exit.
