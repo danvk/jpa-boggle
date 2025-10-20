@@ -9,7 +9,15 @@
         "bitset": "c",
         "set": "cpp",
         "vector": "cpp",
-        "string": "cpp"
+        "string": "cpp",
+        "__node_handle": "cpp",
+        "__split_buffer": "cpp",
+        "array": "cpp",
+        "deque": "cpp",
+        "queue": "cpp",
+        "stack": "cpp",
+        "string_view": "cpp",
+        "unordered_map": "cpp"
     },
     "C_Cpp.default.cppStandard": "c++20",
     "C_Cpp.formatting": "clangFormat",

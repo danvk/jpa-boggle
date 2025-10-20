@@ -113,7 +113,7 @@ int ReadLexicon() {
 }
 
 // Returns 1 if this adds board to the container
-int AddBoard(set<string, BoardComparator> &container, char *board) {
+int AddBoard(set<string, BoardComparator> &container, const char *board) {
   if (board == NULL) return 0;
   std::string s(board);
   auto result = container.insert(s);
@@ -123,6 +123,17 @@ int AddBoard(set<string, BoardComparator> &container, char *board) {
 void PrintBoardList(const vector<BoardScore> &list, int num_to_print = 10'000) {
   for (int i = 0; i < num_to_print && i < list.size(); i++) {
     printf("#%4d -|%5d|-|%s|\n", i + 1, list[i].score, list[i].board.c_str());
+  }
+}
+
+void PrintBestBoard(int round, const vector<BoardScore> &list) {
+  if (!list.empty()) {
+    printf(
+        "\nRound|%d|, Best Board|%s|, Best Score|%d|\n",
+        round,
+        list[0].board.c_str(),
+        list[0].score
+    );
   }
 }
 
@@ -325,9 +336,6 @@ int main() {
             if (WhatMadeTheMasterList.find(board) == WhatMadeTheMasterList.end()) {
               InsertIntoMasterList(MasterResults, score, board.c_str());
               WhatMadeTheMasterList.insert(board);
-              // printf("Round |%d|Pop - New On Master |%s| Score |%d|\n", T,
-              // TopEvaluationBoardList[X].board.c_str(),
-              // TopEvaluationBoardList[X].score);
             }
           }
           // As soon as a board is reached that doesn't make the master list,
@@ -338,14 +346,7 @@ int main() {
       }
       // Even if nothing qualifies for the master list on this round, print out
       // the best result for the round to keep track of the progress.
-      if (!TopEvaluationBoardList.empty()) {
-        printf(
-            "\nRound|%d|, Best Board|%s|, Best Score|%d|\n",
-            T,
-            TopEvaluationBoardList[0].board.c_str(),
-            TopEvaluationBoardList[0].score
-        );
-      }
+      PrintBestBoard(T, TopEvaluationBoardList);
       printf("\nThe Top 10 Off The Master List After Round |%d|.\n", T);
       PrintBoardList(MasterResults, 10);
 
@@ -409,10 +410,7 @@ int main() {
                 : 0;
         const auto &board = WorkingBoardScoreTally[Y];
         if (board->score > min_eval_score) {
-          if (AddBoard(
-                  CurrentBoardsConsideredThisRound,
-                  const_cast<char *>(board->board.c_str())
-              ) == 1) {
+          if (AddBoard(CurrentBoardsConsideredThisRound, board->board.c_str()) == 1) {
             if (AllEvaluatedBoards.find(board->board) == AllEvaluatedBoards.end()) {
               InsertIntoEvaluateList(
                   TopEvaluationBoardList, board->score, board->board.c_str()
@@ -435,9 +433,6 @@ int main() {
         if (WhatMadeTheMasterList.find(board) == WhatMadeTheMasterList.end()) {
           InsertIntoMasterList(MasterResults, score, board.c_str());
           WhatMadeTheMasterList.insert(board);
-          // printf("Round |%d|Pop - New On Master |%s| Score |%d|\n", T,
-          // TopEvaluationBoardList[X].board.c_str(),
-          // TopEvaluationBoardList[X].score);
         }
       }
       // As soon as a board is reached that doesn't make the master list, get
@@ -447,14 +442,8 @@ int main() {
     }
     // Even if nothing qualifies for the master list on this round, print out
     // the best result for the round to keep track of the progress.
-    if (!TopEvaluationBoardList.empty()) {
-      printf(
-          "\nRound|%d|, Best Board|%s|, Best Score|%d|\n",
-          T,
-          TopEvaluationBoardList[0].board.c_str(),
-          TopEvaluationBoardList[0].score
-      );
-    }
+    PrintBestBoard(T, TopEvaluationBoardList);
+
     // The last round is now complete, so we have to get ready for the next
     // seed.
     printf("\nThe Top 10 Off The Master List After Round |%d|.\n", T);
