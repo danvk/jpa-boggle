@@ -16,23 +16,23 @@ extern "C" {
 
 // The BoardData pseudo-class will use macros for its associated functionality.
 struct boarddata {
-  char TheBoardString[SQUARE_COUNT + 2 + 1];
-  unsigned int TheBoardScore;
+  char board[SQUARE_COUNT + 2 + 1];
+  unsigned int score;
 };
 
 typedef struct boarddata BoardData;
 typedef BoardData *BoardDataPtr;
 
 #define BOARD_DATA_SET_THE_BOARD_STRING(thisboarddata, newstring)              \
-  (strcpy(thisboarddata->TheBoardString, newstring))
+  (strcpy(thisboarddata->board, newstring))
 
 #define BOARD_DATA_SET_THE_BOARD_SCORE(thisboarddata, newscore)                \
-  (thisboarddata->TheBoardScore = (newscore))
+  (thisboarddata->score = (newscore))
 
 // This statement evaluates to TRUE when the board at "First" has a higher score
 // than the board at "Second".
 #define COMPARE_BOARD_DATA(First, Second)                                      \
-  ((*First)->TheBoardScore > (*Second)->TheBoardScore) ? TRUE : FALSE
+  ((*First)->score > (*Second)->score) ? TRUE : FALSE
 
 // Swap two items pointed to by "a" and "b" using temporary buffer "T".
 #define BOARD_DATA_SWAP(a, b, T) ((void)((T = *a), (*a = *b), (*b = T)))

@@ -396,7 +396,7 @@ int main() {
       // Evaluate all of the single deviation boards and store the scores
       for (X = 0; X < LIST_SIZE; X++) {
         TheCurrentTime += 1;
-        BoardPopulate(WorkingBoard, WorkingBoardScoreTally[X]->TheBoardString);
+        BoardPopulate(WorkingBoard, WorkingBoardScoreTally[X]->board);
         // Insert the board score into the "WorkingBoardScoreTally" array.
         BOARD_DATA_SET_THE_BOARD_SCORE(
             WorkingBoardScoreTally[X],
@@ -416,14 +416,14 @@ int main() {
                 ? TopEvaluationBoardList.back().score
                 : 0;
         const auto &board = WorkingBoardScoreTally[Y];
-        if (board->TheBoardScore > min_eval_score) {
+        if (board->score > min_eval_score) {
           if (AddBoard(CurrentBoardsConsideredThisRound,
-                       board->TheBoardString) == 1) {
-            if (AllEvaluatedBoards.find(board->TheBoardString) ==
+                       board->board) == 1) {
+            if (AllEvaluatedBoards.find(board->board) ==
                 AllEvaluatedBoards.end()) {
               InsertIntoEvaluateList(TopEvaluationBoardList,
-                                     board->TheBoardScore,
-                                     board->TheBoardString);
+                                     board->score,
+                                     board->board);
             }
           }
         } else

@@ -10,5 +10,11 @@
         "set": "cpp",
         "vector": "cpp",
         "string": "cpp"
+    },
+    "C_Cpp.default.cppStandard": "c++20",
+    "C_Cpp.formatting": "clangFormat",
+    "C_Cpp.clang_format_path": "/opt/homebrew/bin/clang-format",
+    "[cpp]": {
+        "editor.formatOnSave": true
     }
 }
