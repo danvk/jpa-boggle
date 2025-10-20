@@ -315,7 +315,7 @@ int main () {
 			// Evaluate all of the single deviation boards and store the scores
 			for ( X = 0; X < LIST_SIZE; X++ ) {
 				TheCurrentTime += 1;
-				BoardPopulate(WorkingBoard, BOARD_DATA_THE_BOARD_STRING(WorkingBoardScoreTally[X]));
+				BoardPopulate(WorkingBoard, WorkingBoardScoreTally[X]->TheBoardString);
 				// Insert the board score into the "WorkingBoardScoreTally" array.
 				BOARD_DATA_SET_THE_BOARD_SCORE(WorkingBoardScoreTally[X], BoardSquareWordDiscover(WorkingBoard, TheCurrentTime, 0));
 			}

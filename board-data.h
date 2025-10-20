@@ -1,8 +1,6 @@
 #ifndef BOARD_DATA_H
 #define BOARD_DATA_H
 
-#include <pthread.h>
-
 #include "const.h"
 
 #ifdef __cplusplus
@@ -22,15 +20,9 @@ struct boarddata {
 typedef struct boarddata BoardData;
 typedef BoardData* BoardDataPtr;
 
-#define BOARD_DATA_THE_BOARD_STRING(thisboarddata) ((thisboarddata)->TheBoardString)
-
-#define BOARD_DATA_THE_BOARD_SCORE(thisboarddata) (thisboarddata->TheBoardScore)
-
 #define BOARD_DATA_SET_THE_BOARD_STRING(thisboarddata, newstring) (strcpy(thisboarddata->TheBoardString, newstring))
 
 #define BOARD_DATA_SET_THE_BOARD_SCORE(thisboarddata, newscore) (thisboarddata->TheBoardScore = (newscore))
-
-#define BOARD_DATA_SET(thisboarddata, string, score) ((strcpy(thisboarddata->TheBoardString, string)),(thisboarddata->TheBoardScore = (score)))
 
 // This statement evaluates to TRUE when the board at "First" has a higher score than the board at "Second".
 #define COMPARE_BOARD_DATA(First, Second) ( (*First)->TheBoardScore > (*Second)->TheBoardScore )? TRUE: FALSE
@@ -70,8 +62,6 @@ QsortStackNode *TheQsortStacks[NUMBER_OF_WORKER_THREADS];
 // The Main thread will allocate the space required to store the actual "BoardData".
 // The thread identities and attributes are also defined here.
 BoardDataPtr *WorkingBoardScoreTallies[NUMBER_OF_WORKER_THREADS];
-pthread_t Threads[NUMBER_OF_WORKER_THREADS];
-pthread_attr_t ThreadAttribute;
 char ThreadBoardStringsToAnalyze[NUMBER_OF_WORKER_THREADS][BOARDS_PER_ROUND/NUMBER_OF_WORKER_THREADS][BOARD_STRING_SIZE];
 
 void BoardDataExplicitStackQuickSort(BoardDataPtr *Base, unsigned int Size, unsigned int CallingThread);
