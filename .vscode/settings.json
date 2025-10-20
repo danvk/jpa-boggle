@@ -8,6 +8,7 @@
         "unistd.h": "c",
         "bitset": "c",
         "set": "cpp",
-        "vector": "cpp"
+        "vector": "cpp",
+        "string": "cpp"
     }
 }

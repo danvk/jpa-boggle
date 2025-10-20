@@ -33,10 +33,10 @@ static void InsertIntoSortedVector(std::vector<BoardScore>& list, unsigned int m
 	list.insert(it, BoardScore(score, board));
 }
 
-void InsertBoardScoreIntoMasterList(std::vector<BoardScore>& list, unsigned int score, const char* board) {
+void InsertIntoMasterList(std::vector<BoardScore>& list, unsigned int score, const char* board) {
 	InsertIntoSortedVector(list, MASTER_LIST_SIZE, score, board);
 }
 
-void InsertBoardScoreIntoEvaluateList(std::vector<BoardScore>& list, unsigned int score, const char* board) {
+void InsertIntoEvaluateList(std::vector<BoardScore>& list, unsigned int score, const char* board) {
 	InsertIntoSortedVector(list, EVALUATE_LIST_SIZE, score, board);
 }

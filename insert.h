@@ -19,8 +19,7 @@ struct BoardScore {
 #define EVALUATE_LIST_SIZE 66
 #define MASTER_LIST_SIZE 1026
 
-// New vector-based interface
-void InsertBoardScoreIntoMasterList(std::vector<BoardScore>& list, unsigned int score, const char* board);
-void InsertBoardScoreIntoEvaluateList(std::vector<BoardScore>& list, unsigned int score, const char* board);
+void InsertIntoMasterList(std::vector<BoardScore>& list, unsigned int score, const char* board);
+void InsertIntoEvaluateList(std::vector<BoardScore>& list, unsigned int score, const char* board);
 
 #endif // INSERT_H
