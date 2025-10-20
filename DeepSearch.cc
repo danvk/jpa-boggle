@@ -231,7 +231,6 @@ int main() {
       TemporaryBoardScore
   );
   BoardOutput(InitialWorkingBoard);
-  sleep(2);
 
   // This loop represents the chain seeds cascade.
   for (S = 0; S < NUMBER_OF_SEEDS_TO_RUN; S++) {
