@@ -161,7 +161,6 @@ int main()
   // rounds begin.
   BoardPtr InitialWorkingBoard;
   BoardPtr WorkingBoard;
-  unsigned int UseTheseTimeStamps = 0;
   char TemporaryBoardString[BOARD_STRING_SIZE];
   char TempBoardString[BOARD_STRING_SIZE];
   char TheNewOffLimitSquareString[3];
@@ -185,28 +184,22 @@ int main()
     return 0;
   }
 
-  // The global variables required by the worker threads to do their work are
-  // allocated here.
+  // Allocate the global variables for board processing
 
-  // Allocate the arrays of "BoardDataPtr"s.
-  for (X = 0; X < NUMBER_OF_WORKER_THREADS; X++)
-    WorkingBoardScoreTallies[X] =
-        (BoardDataPtr *)malloc(LIST_SIZE * sizeof(BoardDataPtr));
+  // Allocate the array of "BoardDataPtr"s.
+  WorkingBoardScoreTally = (BoardDataPtr *)malloc(LIST_SIZE * sizeof(BoardDataPtr));
 
-  // Allocate the actual "BoardData" that the arrays of pointers will point to.
-  for (X = 0; X < NUMBER_OF_WORKER_THREADS; X++)
-    for (Y = 0; Y < LIST_SIZE; Y++)
-      (WorkingBoardScoreTallies[X])[Y] = (BoardData *)malloc(sizeof(BoardData));
+  // Allocate the actual "BoardData" that the pointers will point to.
+  for (Y = 0; Y < LIST_SIZE; Y++)
+    WorkingBoardScoreTally[Y] = (BoardData *)malloc(sizeof(BoardData));
 
-  // Allocate the explicit discovery stacks for each worker thread.
-  for (X = 0; X < NUMBER_OF_WORKER_THREADS; X++)
-    TheDiscoveryStacks[X] = (DiscoveryStackNode *)malloc(
-        (DISCOVERY_STACK_SIZE) * sizeof(DiscoveryStackNode));
+  // Allocate the explicit discovery stack.
+  TheDiscoveryStack = (DiscoveryStackNode *)malloc(
+      (DISCOVERY_STACK_SIZE) * sizeof(DiscoveryStackNode));
 
   // Allocate the set of lexicon time stamps as unsigned integers.
-  for (X = 0; X < NUMBER_OF_WORKER_THREADS; X++)
-    LexiconTimeStamps[X] = (unsigned int *)malloc((TOTAL_WORDS_IN_LEXICON + 1) *
-                                                  sizeof(unsigned int));
+  LexiconTimeStamps = (unsigned int *)malloc((TOTAL_WORDS_IN_LEXICON + 1) *
+                                              sizeof(unsigned int));
 
   printf("DoubleUp.c Variables - Chain Seeds |%d|, Single Deviation Rounds "
          "|%d|, Full Evaluations Per Round |%d|.\n\n",
@@ -221,18 +214,15 @@ int main()
   WorkingBoard = (Board *)malloc(sizeof(Board));
   BoardInit(WorkingBoard);
 
-  // Zero all of the time stamps for the words - only using thread 0 now
-  memset(LexiconTimeStamps[0], 0,
+  // Zero all of the time stamps for the words
+  memset(LexiconTimeStamps, 0,
          (TOTAL_WORDS_IN_LEXICON + 1) * sizeof(unsigned int));
-
-  // Vectors are already initialized and reserved above
-  BoardDataPtr *WorkingBoardScoreTally = WorkingBoardScoreTallies[0];
 
   // The very first task is to insert the original seed board into the master
   // list.
   TheCurrentTime += 1;
   TemporaryBoardScore = BoardSquareWordDiscover(
-      InitialWorkingBoard, TheCurrentTime, UseTheseTimeStamps);
+      InitialWorkingBoard, TheCurrentTime);
   WhatMadeTheMasterList.insert(SeedBoard);
   InsertIntoMasterList(MasterResults, TemporaryBoardScore, SeedBoard);
 
@@ -245,9 +235,6 @@ int main()
   // This loop represents the chain seeds cascade.
   for (S = 0; S < NUMBER_OF_SEEDS_TO_RUN; S++)
   {
-    // Only using thread 0 now
-    UseTheseTimeStamps = 0;
-
     // Before checking the "AllEvaluatedBoards" Trie, test if the score is high
     // enough to make the list. The scores attached to this list needs to be
     // reset every time that we start a new seed, the important remaining list
@@ -295,7 +282,7 @@ int main()
         BoardPopulate(InitialWorkingBoard, TemporaryBoardString);
         TheCurrentTime += 1;
         TemporaryBoardScore = BoardSquareWordDiscover(
-            InitialWorkingBoard, TheCurrentTime, UseTheseTimeStamps);
+            InitialWorkingBoard, TheCurrentTime);
         // Try to add each board to the "MasterResultsBoardList", and the
         // "TopEvaluationBoardList".  Do this in sequence.  Only the
         // "WhatMadeTheMasterList" MinBoardTrie will be augmented.
@@ -425,7 +412,7 @@ int main()
         // Insert the board score into the "WorkingBoardScoreTally" array.
         BoardPopulate(WorkingBoard, WorkingBoardScoreTally[X]->board);
         WorkingBoardScoreTally[X]->score =
-            BoardSquareWordDiscover(WorkingBoard, TheCurrentTime, 0);
+            BoardSquareWordDiscover(WorkingBoard, TheCurrentTime);
       }
 
       // Sort the results in descending order by score using std::sort

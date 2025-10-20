@@ -7,9 +7,8 @@
 // These are the global variables needed for the immutable lexicon, and for the
 // solution to the duplicate word problem.
 
-// Each worker thread will have it's own time stamping array for all of the
-// words in the lexicon.
-unsigned int *LexiconTimeStamps[NUMBER_OF_WORKER_THREADS];
+// Time stamping array for all of the words in the lexicon.
+unsigned int *LexiconTimeStamps;
 
 // These are the pointers to the global immutable lexicon data structure.  The
 // ADTDAWG is well advanced and beyond the scope of the high level search

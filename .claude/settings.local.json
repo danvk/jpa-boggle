@@ -10,7 +10,8 @@
       "Bash(wc)",
       "Bash(python3:*)",
       "Bash(awk:*)",
-      "Read(///**)"
+      "Read(///**)",
+      "./deepsearch"
     ],
     "deny": [],
     "ask": []

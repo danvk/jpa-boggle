@@ -55,9 +55,8 @@ struct discoverystacknode {
 typedef struct discoverystacknode DiscoveryStackNode;
 typedef DiscoveryStackNode *DiscoveryStackNodePtr;
 
-// Each worker thread requires its own stack, and the memory will be allocated
-// inside of the main function before work starts.
-DiscoveryStackNodePtr TheDiscoveryStacks[NUMBER_OF_WORKER_THREADS];
+// The discovery stack, allocated in the main function before work starts.
+DiscoveryStackNodePtr TheDiscoveryStack;
 
 inline char SquareLetterIndex(SquarePtr ThisSquare) {
   return ThisSquare->LetterIndex;
@@ -69,11 +68,9 @@ void BoardInit(BoardPtr ThisBoard);
 void BoardPopulate(BoardPtr ThisBoard, char *BoardString);
 void BoardOutput(BoardPtr ThisBoard);
 int SquareWordDiscoverStack(SquarePtr BeginSquare, unsigned int BeginIndex,
-                            unsigned int BeginMarker, unsigned int NowTime,
-                            unsigned int ThreadIdentity);
+                            unsigned int BeginMarker, unsigned int NowTime);
 unsigned int BoardSquareWordDiscover(BoardPtr ThisBoard,
-                                     unsigned int TheTimeNow,
-                                     unsigned int CallingThread);
+                                     unsigned int TheTimeNow);
 
 #ifdef __cplusplus
 }

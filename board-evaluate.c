@@ -217,8 +217,8 @@ void BoardOutput(BoardPtr ThisBoard) {
     (fcindie = top->FirstChildIndex), (len = top->WordLengthNow),              \
     (next = top->NextMarkerNow), (workon = top->TheChildToWorkOn),             \
     (second = top->TheSecondPartNow)))
-#define DISCOVERY_STACK_NOT_EMPTY(ThreadID, TipTop)                            \
-  (TheDiscoveryStacks[ThreadID] < TipTop)
+#define DISCOVERY_STACK_NOT_EMPTY(TipTop)                                      \
+  (TheDiscoveryStack < TipTop)
 
 // This is the central piece of code in the "BIGS.c" Boggle board analysis
 // scheme. An explicit stack is used to traverse the neighbours of
@@ -229,8 +229,7 @@ void BoardOutput(BoardPtr ThisBoard) {
 // enforce because the user is not involved.
 
 int SquareWordDiscoverStack(SquarePtr BeginSquare, unsigned int BeginIndex,
-                            unsigned int BeginMarker, unsigned int NowTime,
-                            unsigned int ThreadIdentity) {
+                            unsigned int BeginMarker, unsigned int NowTime) {
   Bool FirstTime = TRUE;
   Bool DoWeNeedToPop;
   unsigned int X;
@@ -246,9 +245,9 @@ int SquareWordDiscoverStack(SquarePtr BeginSquare, unsigned int BeginIndex,
   SquarePtr *WorkingNeighbourList;
   unsigned long int WorkingOffset;
   int WorkingNextMarker;
-  DiscoveryStackNodePtr TheTop = TheDiscoveryStacks[ThreadIdentity] + 1;
+  DiscoveryStackNodePtr TheTop = TheDiscoveryStack + 1;
   // printf("In\n");
-  while (DISCOVERY_STACK_NOT_EMPTY(ThreadIdentity, TheTop)) {
+  while (DISCOVERY_STACK_NOT_EMPTY(TheTop)) {
     // printf("1\n");
     //  The first time that we land on a square, set it to used, and check if it
     //  represents a word, and then a new word.
@@ -261,9 +260,9 @@ int SquareWordDiscoverStack(SquarePtr BeginSquare, unsigned int BeginIndex,
       // correct score to the result.
       if (PartOneArray[WorkingIndex] & END_OF_WORD_FLAG) {
         // printf("Bingo Word At |%u|\n", WorkingMarker);
-        if ((LexiconTimeStamps[ThreadIdentity])[WorkingMarker] < NowTime) {
+        if (LexiconTimeStamps[WorkingMarker] < NowTime) {
           Result += THE_SCORE_CARD[WorkingNumberOfChars];
-          (LexiconTimeStamps[ThreadIdentity])[WorkingMarker] = NowTime;
+          LexiconTimeStamps[WorkingMarker] = NowTime;
         }
         // No matter what, we need to reduce the "WorkingNextMarker"
         WorkingNextMarker -= 1;
@@ -333,10 +332,9 @@ int SquareWordDiscoverStack(SquarePtr BeginSquare, unsigned int BeginIndex,
 }
 
 // This function returns the Boggle score for "ThisBoard".  It will stamp the
-// "LexiconTimeStamps[CallingThread]" with "TheTimeNow".
+// "LexiconTimeStamps" with "TheTimeNow".
 unsigned int BoardSquareWordDiscover(BoardPtr ThisBoard,
-                                     unsigned int TheTimeNow,
-                                     unsigned int CallingThread) {
+                                     unsigned int TheTimeNow) {
   unsigned int TheScoreTotal = 0;
   unsigned int CurrentRow;
   unsigned int CurrentCol;
@@ -347,7 +345,7 @@ unsigned int BoardSquareWordDiscover(BoardPtr ThisBoard,
           (((ThisBoard->Block)[CurrentRow][CurrentCol]).LetterIndex + 1);
       TheScoreTotal += SquareWordDiscoverStack(
           &((ThisBoard->Block)[CurrentRow][CurrentCol]), CurrentPartOneIndex,
-          PartThreeArray[CurrentPartOneIndex], TheTimeNow, CallingThread);
+          PartThreeArray[CurrentPartOneIndex], TheTimeNow);
     }
   }
   return TheScoreTotal;

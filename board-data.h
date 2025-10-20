@@ -19,14 +19,13 @@ extern "C"
 	typedef BoardData *BoardDataPtr;
 
 // define the size of the list being sorted.  This number represents the total
-// number of boards analyzed per thread, per round.
+// number of boards analyzed per round.
 #define LIST_SIZE (BOARDS_PER_THREAD * SINGLE_DEVIATIONS)
 
-	// The Global array of pointers to arrays of "BoardDataPtr"s.  All of the
-	// associated "BoardData" with this array will thus never move around. The Main
-	// thread will allocate the space required to store the actual "BoardData". The
-	// thread identities and attributes are also defined here.
-	BoardDataPtr *WorkingBoardScoreTallies[NUMBER_OF_WORKER_THREADS];
+	// The global array of "BoardDataPtr"s.  All of the associated "BoardData"
+	// will thus never move around. The main function will allocate the space
+	// required to store the actual "BoardData".
+	BoardDataPtr *WorkingBoardScoreTally;
 
 #ifdef __cplusplus
 }
