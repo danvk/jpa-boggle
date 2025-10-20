@@ -3,7 +3,11 @@
     "allow": [
       "Bash(sed:*)",
       "Bash(./postprocess.py /tmp/run-main-1.txt)",
-      "Bash(make:*)"
+      "Bash(make:*)",
+      "Bash(git stash:*)",
+      "Bash(./deepsearch)",
+      "Bash(diff)",
+      "Bash(wc)"
     ],
     "deny": [],
     "ask": []
