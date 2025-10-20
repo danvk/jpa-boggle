@@ -120,6 +120,12 @@ int AddBoard(set<string, BoardComparator> &container, char *board) {
   return result.second ? 1 : 0;
 }
 
+void PrintBoardList(const vector<BoardScore> &list, int num_to_print = 10'000) {
+  for (int i = 0; i < num_to_print && i < list.size(); i++) {
+    printf("#%4d -|%5d|-|%s|\n", i + 1, list[i].score, list[i].board.c_str());
+  }
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 int main() {
@@ -179,8 +185,7 @@ int main() {
   WorkingBoardScoreTally = (BoardScore **)malloc(LIST_SIZE * sizeof(BoardScore *));
 
   // Allocate the actual BoardScore objects that the pointers will point to.
-  for (Y = 0; Y < LIST_SIZE; Y++)
-    WorkingBoardScoreTally[Y] = new BoardScore();
+  for (Y = 0; Y < LIST_SIZE; Y++) WorkingBoardScoreTally[Y] = new BoardScore();
 
   // Allocate the explicit discovery stack.
   TheDiscoveryStack =
@@ -342,14 +347,7 @@ int main() {
         );
       }
       printf("\nThe Top 10 Off The Master List After Round |%d|.\n", T);
-      for (X = 0; X < 10 && X < MasterResults.size(); X++) {
-        printf(
-            "#%4d -|%5d|-|%s|\n",
-            X + 1,
-            MasterResults[X].score,
-            MasterResults[X].board.c_str()
-        );
-      }
+      PrintBoardList(MasterResults, 10);
 
       // Process all boards directly (no threading)
       // Save the current evaluation list before processing
@@ -386,7 +384,9 @@ int main() {
       for (X = 0; X < LIST_SIZE; X++) {
         TheCurrentTime += 1;
         // Insert the board score into the "WorkingBoardScoreTally" array.
-        BoardPopulate(WorkingBoard, const_cast<char*>(WorkingBoardScoreTally[X]->board.c_str()));
+        BoardPopulate(
+            WorkingBoard, const_cast<char *>(WorkingBoardScoreTally[X]->board.c_str())
+        );
         WorkingBoardScoreTally[X]->score =
             BoardSquareWordDiscover(WorkingBoard, TheCurrentTime);
       }
@@ -409,7 +409,10 @@ int main() {
                 : 0;
         const auto &board = WorkingBoardScoreTally[Y];
         if (board->score > min_eval_score) {
-          if (AddBoard(CurrentBoardsConsideredThisRound, const_cast<char*>(board->board.c_str())) == 1) {
+          if (AddBoard(
+                  CurrentBoardsConsideredThisRound,
+                  const_cast<char *>(board->board.c_str())
+              ) == 1) {
             if (AllEvaluatedBoards.find(board->board) == AllEvaluatedBoards.end()) {
               InsertIntoEvaluateList(
                   TopEvaluationBoardList, board->score, board->board.c_str()
@@ -455,14 +458,7 @@ int main() {
     // The last round is now complete, so we have to get ready for the next
     // seed.
     printf("\nThe Top 10 Off The Master List After Round |%d|.\n", T);
-    for (X = 0; X < 10 && X < MasterResults.size(); X++) {
-      printf(
-          "#%4d -|%5d|-|%s|\n",
-          X + 1,
-          MasterResults[X].score,
-          MasterResults[X].board.c_str()
-      );
-    }
+    PrintBoardList(MasterResults, 10);
     printf("\n");
 
     printf(
@@ -474,14 +470,7 @@ int main() {
     // Print out everything on the master results list after running each chain
     // seed.
     printf("\nThe Master List After Seed |%d|.\n", S + 1);
-    for (X = 0; X < MasterResults.size(); X++) {
-      printf(
-          "#%4d -|%5d|-|%s|\n",
-          X + 1,
-          MasterResults[X].score,
-          MasterResults[X].board.c_str()
-      );
-    }
+    PrintBoardList(MasterResults);
   }
 
   // Produce a list of the boards used as seeds when done, and wait for the user
@@ -496,8 +485,7 @@ int main() {
   free(WorkingBoard);
 
   // Clean up WorkingBoardScoreTally
-  for (Y = 0; Y < LIST_SIZE; Y++)
-    delete WorkingBoardScoreTally[Y];
+  for (Y = 0; Y < LIST_SIZE; Y++) delete WorkingBoardScoreTally[Y];
   free(WorkingBoardScoreTally);
 
   return 0;
