@@ -528,13 +528,6 @@ int main () {
 
 		printf( "At this point, |%d| boards have been placed on the evaluation queue, and have been singularly deviated.\n", AllEvaluatedBoards.size() );
 
-		// Print the current time and date.
-		// time_t now = time(NULL);
-		// struct tm *local = localtime(&now);
-		// printf("%02d-%02d-%04d %02d:%02d:%02d\n",
-		// 	   local->tm_mday, local->tm_mon + 1, local->tm_year + 1900,
-		// 	   local->tm_hour, local->tm_min, local->tm_sec);
-
 		// Print out everything on the master results list after running each chain seed.
 		printf( "\nThe Master List After Seed |%d|.\n", S + 1 );
 		for ( X = 0; X < MASTER_LIST_SIZE; X++ ){

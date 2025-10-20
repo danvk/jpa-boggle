@@ -2,8 +2,9 @@
 
 #include "insert.h"
 #include "const.h"
+#include <cstdio>
 
-Bool InsertIntoList(char **TheList, unsigned int *TheNumbers, const char *ThisBoardString, unsigned int ThisScore, unsigned int list_size, unsigned int max_loop_depth) {
+Bool InsertIntoList(char **TheList, unsigned int *TheNumbers, const char *ThisBoardString, unsigned int ThisScore, unsigned int list_size) {
 	unsigned int X;
 	unsigned int Left = 0;
 	unsigned int Right = list_size - 1;
@@ -36,7 +37,7 @@ Bool InsertIntoList(char **TheList, unsigned int *TheNumbers, const char *ThisBo
 	NextElement = Left + ((Right - Left)>>1);
 
 	// This loop will be unwound by compiler optimization.
-	for ( X = 0; X < max_loop_depth; X++ ) {
+	while (Right > Left && Right - Left > 2) {
 		// "NextElement" is the new "Left".
 		if ( TheNumbers[NextElement] >  ThisScore ) {
 			Left = NextElement;
@@ -89,12 +90,12 @@ Bool InsertIntoList(char **TheList, unsigned int *TheNumbers, const char *ThisBo
 // This function inserts "ThisBoardString" into "TheList" which must have "MASTER_LIST_SIZE" elements. "TheList" will already be sorted, and a Binary Insertion Sort will be used.
 // The return value is "TRUE" or "FALSE" depending on if "ThisScore" was high enough to make the cut.
 Bool InsertBoardStringIntoMasterList(char **TheList, unsigned int *TheNumbers, const char *ThisBoardString, unsigned int ThisScore){
-	return InsertIntoList(TheList, TheNumbers, ThisBoardString, ThisScore, MASTER_LIST_SIZE, MAX_LOOP_SEARCH_DEPTH_MASTER);
+	return InsertIntoList(TheList, TheNumbers, ThisBoardString, ThisScore, MASTER_LIST_SIZE);
 }
 
 
 // This function inserts "ThisBoardString" into "TheList" which must have "EVALUATE_LIST_SIZE" elements. "TheList" will already be sorted, and a Binary Insertion Sort will be used.
 // The return value is "TRUE" or "FALSE" depending on if "ThisScore" was high enough to make the cut.
 Bool InsertBoardStringIntoEvaluateList(char **TheList, unsigned int *TheNumbers, const char *ThisBoardString, unsigned int ThisScore){
-	return InsertIntoList(TheList, TheNumbers, ThisBoardString, ThisScore, EVALUATE_LIST_SIZE, MAX_LOOP_SEARCH_DEPTH_EVALUATE);
+	return InsertIntoList(TheList, TheNumbers, ThisBoardString, ThisScore, EVALUATE_LIST_SIZE);
 }
