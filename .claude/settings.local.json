@@ -5,9 +5,11 @@
       "Bash(./postprocess.py /tmp/run-main-1.txt)",
       "Bash(make:*)",
       "Bash(git stash:*)",
-      "Bash(./deepsearch)",
+      "Bash(./deepsearch:*)",
       "Bash(diff)",
-      "Bash(wc)"
+      "Bash(wc)",
+      "Bash(python3:*)",
+      "Bash(awk:*)"
     ],
     "deny": [],
     "ask": []

@@ -5,7 +5,6 @@
 #include <stdio.h>
 #include <limits.h>
 #include <string.h>
-#include <pthread.h>
 #include <unistd.h>
 
 #include <set>
@@ -39,155 +38,6 @@ struct BoardComparator {
 		return a.compare(0, SQUARE_COUNT, b, 0, SQUARE_COUNT) < 0;
 	}
 };
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// The POSIX thread inter-thread communication section.
-
-// Two sets of inter-thread communication variables are defined below.  Each "condition variable" requires an associated "mutex".
-// It is the responsibility of the programmer to ensure that the global variables connected to a "mutex" are only modified under a lock condition.
-
-// Set one.
-pthread_mutex_t StartWorkMutex;
-pthread_cond_t StartWorkCondition;
-
-// The "StartWorkCondition" sends a boolean flag to request the worker threads to "WorkOn" or terminate, and a value indicating the current "Round".
-Bool WorkOn = FALSE;
-// This set of variables will coordinate the dispersed use of the lexicon time stamps by the main thread during round 0, when 25x(SIZE_OF_CHARACTER_SET - 1) boards are evaluated to begin the following deviation rounds.
-unsigned int Round = 0;
-Bool HandOffRecievedByWorker = TRUE;
-unsigned int HandOffThread = 0;
-unsigned int TimeStampHandOff = 1;
-
-// Set two.
-pthread_mutex_t CompleteMutex;
-pthread_cond_t CompleteCondition;
-
-// The worker threads need to let the main thread know which one has just sent the "CompleteCondition" signal, so it can coordinate the correct data set.
-// The main thread needs to let the worker threads know when it is waiting for a signal and this is communicated using "MainThreadWaiting".
-Bool MainThreadWaiting = FALSE;
-unsigned int TheCompletedBatch = BOGUS;
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// POSIX thread function, which ends up processing large batches of computation undisturbed.
-
-// This Thread function will complete an entire round of board single-deviations and analysis when it recieves the "StartWorkCondition" broadcast.
-// Then it will wait for the next round to be coordinated.
-// It is also responsible for sorting the board analysis results.
-void *ThreadForSetOfBoardsAnalysis(void *ThreadArgument){
-	unsigned int ThreadIndex;
-	char *ThisBoardStringTwoArray;
-	char TempBoardString[BOARD_STRING_SIZE];
-	char TheNewOffLimitSquareString[3];
-	BoardPtr WorkingBoard = (Board*)malloc(sizeof(Board));
-	unsigned int X, Y, Z;
-	unsigned int OffLimitSquare;
-	unsigned int OffLimitLetterIndex;
-	unsigned int InsertionSpot;
-	unsigned int CurrentStringIndex;
-	unsigned int TheLocalTime = 0;
-
-	ThreadIndex = (unsigned long int)UINT_MAX & (unsigned long int)ThreadArgument;
-	ThisBoardStringTwoArray = &(ThreadBoardStringsToAnalyze[ThreadIndex][0][0]);
-
-	//printf( "We are now inside of Thread |%d|\n", TaskIdentity );
-	BoardDataPtr *WorkingBoardScoreTally = WorkingBoardScoreTallies[ThreadIndex];
-
-	// Zero all of the time stamps for the words associated with this "ThreadIndex".  The stamps are 32-bit integers so for now they will only need to be zeroed once.  2^32 -1 = 4,294,967,295 represents a very deep search.
-	memset(LexiconTimeStamps[ThreadIndex], 0, (TOTAL_WORDS_IN_LEXICON + 1)*sizeof(unsigned int));
-
-	BoardInit(WorkingBoard);
-
-	// Enter a waiting state for the "StartWorkCondition".
-	pthread_mutex_lock(&StartWorkMutex);
-	pthread_cond_wait(&StartWorkCondition, &StartWorkMutex);
-	while ( TRUE ) {
-		// It is necessary to unlock the "StartWorkMutex" before thread termination, so that the other worker threads can also terminate.
-		if ( WorkOn == FALSE ) {
-			pthread_mutex_unlock(&StartWorkMutex);
-			pthread_exit(NULL);
-		}
-		// When the round is zero, we have to check if the main thread has used this thread's time stamps to evaluate all the seed board deviations.
-		if ( Round == 0 ) {
-			if ( HandOffRecievedByWorker == FALSE ) {
-				// Indicate that the hand-off has now been made, and read the new value into "TheLocalTime".
-				if ( HandOffThread == ThreadIndex ) {
-					HandOffRecievedByWorker = TRUE;
-					TheLocalTime = TimeStampHandOff;
-					// Set "HandOffThread" to the next thread inline so that the main thread can adjust its local time value, after all the work is done.
-					HandOffThread = (HandOffThread + 1)%NUMBER_OF_WORKER_THREADS;
-				}
-			}
-		}
-		pthread_mutex_unlock(&StartWorkMutex);
-		// All of the work will be carried out here.
-
-		// Fill "WorkingBoardScoreTally" with all single deviations of the boards located in "ThisBoardStringTwoArray".
-		InsertionSpot = 0;
-		for ( X = 0; X < BOARDS_PER_THREAD; X++ ) {
-			strcpy(TempBoardString, &(ThisBoardStringTwoArray[X*BOARD_STRING_SIZE]));
-			OffLimitSquare = TwoCharStringToInt(&(TempBoardString[SQUARE_COUNT]));
-			for ( Y = 0; Y < SQUARE_COUNT; Y++ ) {
-				if ( Y == OffLimitSquare ) continue;
-				// Y will now represent the placement of the off limits Square so set it as such.
-				ConvertSquareNumberToString( TheNewOffLimitSquareString, Y );
-				TempBoardString[SQUARE_COUNT] = TheNewOffLimitSquareString[0];
-				TempBoardString[SQUARE_COUNT + 1] = TheNewOffLimitSquareString[1];
-				OffLimitLetterIndex = CHARACTER_LOCATIONS[TempBoardString[Y] - 'A'];
-				for ( Z = 0; Z < SIZE_OF_CHARACTER_SET; Z++ ) {
-					if ( Z == OffLimitLetterIndex ) continue;
-					TempBoardString[Y] = CHARACTER_SET[Z];
-					BOARD_DATA_SET_THE_BOARD_STRING(WorkingBoardScoreTally[InsertionSpot], TempBoardString);
-					InsertionSpot += 1;
-				}
-				TempBoardString[Y] = CHARACTER_SET[OffLimitLetterIndex];
-			}
-		}
-
-		// Evaluate all of the single deviation boards and store the scores into the BoardData in "WorkingBoardScoreTallly".
-		for ( X = 0; X < LIST_SIZE; X++ ) {
-			TheLocalTime += 1;
-			BoardPopulate(WorkingBoard, BOARD_DATA_THE_BOARD_STRING(WorkingBoardScoreTally[X]));
-			// Insert the board score into the "WorkingBoardScoreTally" array.
-			BOARD_DATA_SET_THE_BOARD_SCORE(WorkingBoardScoreTally[X], BoardSquareWordDiscover(WorkingBoard, TheLocalTime, ThreadIndex));
-		}
-
-		// We are now going to use an explicit stack, optimized qsort to arrange "WorkingBoardScoreTally.
-		BoardDataExplicitStackQuickSort(WorkingBoardScoreTally, LIST_SIZE, ThreadIndex);
-
-		// Get a lock on "CompleteMutex" and make sure that the main thread is waiting, then set "TheCompletedBatch" to "ThreadIndex".  Set "MainThreadWaiting" to "FALSE".
-		// If the main thread is not waiting, continue trying to get a lock on "CompleteMutex" unitl "MainThreadWaiting" is "TRUE".
-		while ( TRUE ) {
-			pthread_mutex_lock(&CompleteMutex);
-			if ( MainThreadWaiting == TRUE ) {
-				// While this thread still has a lock on the "CompleteMutex", set "MainThreadWaiting" to "FALSE", so that the next thread to maintain a lock will be the main thread.
-				MainThreadWaiting = FALSE;
-				break;
-			}
-			pthread_mutex_unlock(&CompleteMutex);
-		}
-		TheCompletedBatch = ThreadIndex;
-		// Lock the "StartWorkMutex" before we send out the "CompleteCondition" signal.
-		// This way, we can enter a waiting state for the next round before the main thread broadcasts the "StartWorkCondition".
-		pthread_mutex_lock(&StartWorkMutex);
-		//printf("Thread-%u: Completed Batch %d\n", ThreadIndex, Round);
-		pthread_cond_signal(&CompleteCondition);
-		pthread_mutex_unlock(&CompleteMutex);
-		// Coordinate the hand-off of the current time to the main thread if we are on the final round.
-		if ( Round == (ROUNDS - 1) ) {
-			if ( HandOffRecievedByWorker == TRUE ) {
-				// Send out this thread's "TheLocalTime" to the main thread.
-				if ( HandOffThread == ThreadIndex ) {
-					TimeStampHandOff = TheLocalTime;
-				}
-			}
-			else exit(EXIT_FAILURE);
-		}
-		// Wait for the Main thread to send us the next "StartWorkCondition" broadcast.
-		// Be sure to unlock the corresponding mutex immediately so that the other worker threads can exit their waiting state as well.
-		pthread_cond_wait(&StartWorkCondition, &StartWorkMutex);
-	}
-
-}
 
 int ReadLexicon() {
 	// The ADTDAWG lexicon is stored inside of four files, and then read into three arrays for speed.  This is the case because the data structure is extremely small.
@@ -259,15 +109,10 @@ int AddBoard(set<string, BoardComparator>& container, char* board) {
 
 int main () {
 	// for() loop counter variables.
-	unsigned int X, Y, T, S;
+	unsigned int X, Y, Z, T, S;
 
-	// Variables used in coordinating pthreads.
-	long unsigned int Identity;
-	void *Status;
-	int ReturnCode;
+	// Variables for board processing
 	unsigned int InsertionSlot;
-	unsigned int SendToThread;
-	unsigned int TheReturn;
 
 	// A string to use fgets() with at the end of the program for monitoring purposes.
 	char ExitString[BOARD_STRING_SIZE];
@@ -286,12 +131,17 @@ int main () {
 
 	// Holders used for the seed board single deviations before the deviation rounds begin.
 	BoardPtr InitialWorkingBoard;
+	BoardPtr WorkingBoard;
 	unsigned int UseTheseTimeStamps = 0;
 	char TemporaryBoardString[BOARD_STRING_SIZE];
+	char TempBoardString[BOARD_STRING_SIZE];
+	char TheNewOffLimitSquareString[3];
 	unsigned int TemporaryBoardScore;
 	char SquareNumberString[3];
 	char TheSeedLetter;
 	unsigned int TheCurrentTime = 0;
+	unsigned int OffLimitSquare;
+	unsigned int OffLimitLetterIndex;
 
 	// These "MinBoardTrie"s will maintain information about the search so that new boards will continue to be evaluated.  This is an important construct to a search algorithm.
 	set<string, BoardComparator> CurrentBoardsConsideredThisRound;
@@ -318,33 +168,19 @@ int main () {
 
 	printf("DoubleUp.c Variables - Chain Seeds |%d|, Single Deviation Rounds |%d|, Full Evaluations Per Round |%d|.\n\n", NUMBER_OF_SEEDS_TO_RUN, ROUNDS, BOARDS_PER_ROUND);
 
-	// Populate the "InitialWorkingBoard" with the original seed board.
+	// Populate the "InitialWorkingBoard" and "WorkingBoard" with the original seed board.
 	InitialWorkingBoard = (Board*)malloc(sizeof(Board));
 	BoardInit(InitialWorkingBoard);
 	BoardPopulate(InitialWorkingBoard, SeedBoard);
 
+	WorkingBoard = (Board*)malloc(sizeof(Board));
+	BoardInit(WorkingBoard);
+
+	// Zero all of the time stamps for the words - only using thread 0 now
+	memset(LexiconTimeStamps[0], 0, (TOTAL_WORDS_IN_LEXICON + 1)*sizeof(unsigned int));
+
 	// Vectors are already initialized and reserved above
-
-	// Initialize all of the thread related objects.
-	pthread_t Threads[NUMBER_OF_WORKER_THREADS];
-	pthread_attr_t attr;
-
-	pthread_mutex_init(&CompleteMutex, NULL);
-	pthread_cond_init (&CompleteCondition, NULL);
-
-	pthread_mutex_init(&StartWorkMutex, NULL);
-	pthread_cond_init (&StartWorkCondition, NULL);
-
-	/* For portability, explicitly create threads in a joinable state */
-	pthread_attr_init(&ThreadAttribute);
-	pthread_attr_setdetachstate(&ThreadAttribute, PTHREAD_CREATE_JOINABLE);
-
-	// Create all of the worker threads here.
-	for ( Identity = 0; Identity < NUMBER_OF_WORKER_THREADS; Identity++ ) pthread_create(&Threads[Identity], &ThreadAttribute, ThreadForSetOfBoardsAnalysis, (void *)Identity);
-
-	// Allow time for the worker threads to start up and wait for the signal that is going to be sent out soon.
-	printf("Wait for 3 second for the %d worker threads to enter a waiting state.\n\n", NUMBER_OF_WORKER_THREADS);
-	sleep(3);
+	BoardDataPtr *WorkingBoardScoreTally = WorkingBoardScoreTallies[0];
 
 	// The very first task is to insert the original seed board into the master list.
 	TheCurrentTime += 1;
@@ -359,19 +195,8 @@ int main () {
 
 	// This loop represents the chain seeds cascade.
 	for( S = 0; S < NUMBER_OF_SEEDS_TO_RUN; S++ ) {
-		// The main thread will alternate its use of the time stamps so that the time stamps get equal use, and the most evaluation can be run on "NUMBER_OF_WORKER_THREADS"xMax(unsigned 32-bit int), without timestamp zeroing.
-		UseTheseTimeStamps = S%NUMBER_OF_WORKER_THREADS;
-
-		pthread_mutex_lock(&StartWorkMutex);
-		// Inherit the "TimeStampHandOff" from the "UseTheseTimeStamps" worker thread.
-		if ( HandOffRecievedByWorker == TRUE ) {
-			// Pick up the "UseTheseTimeStamps" thread time value.
-			if ( HandOffThread == UseTheseTimeStamps ) {
-				TheCurrentTime = TimeStampHandOff;
-			}
-		}
-		else exit(EXIT_FAILURE);
-		pthread_mutex_unlock(&StartWorkMutex);
+		// Only using thread 0 now
+		UseTheseTimeStamps = 0;
 
 		// Before checking the "AllEvaluatedBoards" Trie, test if the score is high enough to make the list.
 		// The scores attached to this list needs to be reset every time that we start a new seed, the important remaining list is the master list.
@@ -426,24 +251,8 @@ int main () {
 		for ( T = 0; T < ROUNDS; T++ ) {
 			// Initiate a "MinBoardTrie" to keep track of the round returns.
 			set<string, BoardComparator> CurrentBoardsConsideredThisRound;
-			// Lock the "StartWorkMutex" to set the global work coordination variables.  Be sure to hand off "TheCurrentTime" to the right thread.
-			pthread_mutex_lock(&StartWorkMutex);
-			// Set the WorkOn to TRUE, the current Round, and "TheCurrentTime" HandOff to the right thread.
-			WorkOn = TRUE;
-			Round = T;
-			if ( T == 0 ) {
-				HandOffRecievedByWorker = FALSE;
-				HandOffThread = UseTheseTimeStamps;
-				TimeStampHandOff = TheCurrentTime;
-			}
-			// Here is where we have to transcripe the board strings in "TopEvaluationBoardList" into the global "ThreadBoardStringsToAnalyze".
-			InsertionSlot = 0;
-			for( X = 0; X < BOARDS_PER_ROUND && X < TopEvaluationBoardList.size(); X++ ) {
-					InsertionSlot = X/NUMBER_OF_WORKER_THREADS;
-					SendToThread = X%NUMBER_OF_WORKER_THREADS;
-					strcpy(&(ThreadBoardStringsToAnalyze[SendToThread][InsertionSlot][0]), TopEvaluationBoardList[X].board.c_str());
-			}
-			// Now that the "TopEvaluationBoardList" has been sent over to the global array, add the board strings to the "AllEvaluatedBoards" trie.
+
+			// Add the board strings from TopEvaluationBoardList to the "AllEvaluatedBoards" trie.
 			for ( X = 0; X < BOARDS_PER_ROUND && X < TopEvaluationBoardList.size(); X++) {
 				AllEvaluatedBoards.insert(TopEvaluationBoardList[X].board);
 			}
@@ -474,41 +283,61 @@ int main () {
 			for ( X = 0; X < 10 && X < MasterResults.size(); X++ ) {
 				printf("#%4d -|%5d|-|%s|\n", X + 1, MasterResults[X].score, MasterResults[X].board.c_str());
 			}
+
+			// Process all boards directly (no threading)
+			// Save the current evaluation list before processing
+			std::vector<BoardScore> CurrentEvaluationList = TopEvaluationBoardList;
 			// Clear the evaluation board list so we can fill it with the next round boards.
 			TopEvaluationBoardList.clear();
-			// The Work broadcast signal is now ready to be sent out to the worker threads.
-			//printf("Main: Broadcast Signal To Start Batch |%d|\n", Round);
-			// Lock the "CompleteMutex" so we can start waiting for completion before any of the worker threads finish their batch.
-			pthread_mutex_lock(&CompleteMutex);
-			pthread_cond_broadcast(&StartWorkCondition);
-			pthread_mutex_unlock(&StartWorkMutex);
 
-			// This construct is to recieve and coordinate the results as they come in, one by one.
-			for ( X = 0; X < NUMBER_OF_WORKER_THREADS; X++ ) {
-				// Before entering a waiting state, set "MainThreadWaiting" to "TRUE" while we still have a lock on the "CompleteMutex".
-				// Worker threads will be waiting for this condition to be met before sending "CompleteCondition" signals.
-				MainThreadWaiting = TRUE;
-				pthread_cond_wait(&CompleteCondition, &CompleteMutex);
-				TheReturn = TheCompletedBatch;
-				//printf("Main: Complete Signal Recieved From Thread-%d\n", TheCompletedBatch);
-				// This is where partial work on the batch data coordination will happen.  All of the worker threads will have to finish before we can start the next batch.
-				for ( Y = 0; Y < LIST_SIZE; Y++ ) {
-					// Because the list is sorted, once we find a board that doesn't make this evaluation round, get the fuck out.
-					unsigned int min_eval_score = TopEvaluationBoardList.size() == EVALUATE_LIST_SIZE ?
-					                               TopEvaluationBoardList.back().score : 0;
-					const auto& board = (WorkingBoardScoreTallies[TheReturn])[Y];
-					if ( board->TheBoardScore > min_eval_score ) {
-						if ( AddBoard(CurrentBoardsConsideredThisRound, board->TheBoardString) == 1 ) {
-							if ( AllEvaluatedBoards.find(board->TheBoardString) == AllEvaluatedBoards.end()) {
-								InsertIntoEvaluateList(TopEvaluationBoardList, board->TheBoardScore, board->TheBoardString);
-							}
+			// Fill "WorkingBoardScoreTally" with all single deviations of the boards in CurrentEvaluationList
+			InsertionSlot = 0;
+			for ( X = 0; X < BOARDS_PER_ROUND && X < CurrentEvaluationList.size(); X++ ) {
+				strcpy(TempBoardString, CurrentEvaluationList[X].board.c_str());
+				OffLimitSquare = TwoCharStringToInt(&(TempBoardString[SQUARE_COUNT]));
+				for ( Y = 0; Y < SQUARE_COUNT; Y++ ) {
+					if ( Y == OffLimitSquare ) continue;
+					// Y will now represent the placement of the off limits Square so set it as such.
+					ConvertSquareNumberToString( TheNewOffLimitSquareString, Y );
+					TempBoardString[SQUARE_COUNT] = TheNewOffLimitSquareString[0];
+					TempBoardString[SQUARE_COUNT + 1] = TheNewOffLimitSquareString[1];
+					OffLimitLetterIndex = CHARACTER_LOCATIONS[TempBoardString[Y] - 'A'];
+					for ( Z = 0; Z < SIZE_OF_CHARACTER_SET; Z++ ) {
+						if ( Z == OffLimitLetterIndex ) continue;
+						TempBoardString[Y] = CHARACTER_SET[Z];
+						BOARD_DATA_SET_THE_BOARD_STRING(WorkingBoardScoreTally[InsertionSlot], TempBoardString);
+						InsertionSlot += 1;
+					}
+					TempBoardString[Y] = CHARACTER_SET[OffLimitLetterIndex];
+				}
+			}
+
+			// Evaluate all of the single deviation boards and store the scores
+			for ( X = 0; X < LIST_SIZE; X++ ) {
+				TheCurrentTime += 1;
+				BoardPopulate(WorkingBoard, BOARD_DATA_THE_BOARD_STRING(WorkingBoardScoreTally[X]));
+				// Insert the board score into the "WorkingBoardScoreTally" array.
+				BOARD_DATA_SET_THE_BOARD_SCORE(WorkingBoardScoreTally[X], BoardSquareWordDiscover(WorkingBoard, TheCurrentTime, 0));
+			}
+
+			// Sort the results using explicit stack qsort
+			BoardDataExplicitStackQuickSort(WorkingBoardScoreTally, LIST_SIZE, 0);
+
+			// Process the results - add qualifying boards to the evaluation list for the next round
+			for ( Y = 0; Y < LIST_SIZE; Y++ ) {
+				// Because the list is sorted, once we find a board that doesn't make this evaluation round, get the fuck out.
+				unsigned int min_eval_score = TopEvaluationBoardList.size() == EVALUATE_LIST_SIZE ?
+				                               TopEvaluationBoardList.back().score : 0;
+				const auto& board = WorkingBoardScoreTally[Y];
+				if ( board->TheBoardScore > min_eval_score ) {
+					if ( AddBoard(CurrentBoardsConsideredThisRound, board->TheBoardString) == 1 ) {
+						if ( AllEvaluatedBoards.find(board->TheBoardString) == AllEvaluatedBoards.end()) {
+							InsertIntoEvaluateList(TopEvaluationBoardList, board->TheBoardScore, board->TheBoardString);
 						}
 					}
-					else break;
 				}
-
+				else break;
 			}
-			pthread_mutex_unlock(&CompleteMutex);
 		}
 
 		// Print to screen all of the new boards that qualified for the "MasterResults" on the final round.
@@ -547,19 +376,6 @@ int main () {
 		}
 	}
 
-	pthread_mutex_lock(&StartWorkMutex);
-	// Set the GAME OVER condition.
-	WorkOn = FALSE;
-	printf("Main: Broadcast The Termination Signal\n");
-	pthread_cond_broadcast(&StartWorkCondition);
-	pthread_mutex_unlock(&StartWorkMutex);
-
-	// Wait for all threads to complete, and then join with them.
-	for ( X = 0; X < NUMBER_OF_WORKER_THREADS; X++ ) {
-		pthread_join(Threads[X], NULL);
-		printf("Main: Thread[%d] Has Been Joined And Terminated.\n", X);
-	}
-
 	// Produce a list of the boards used as seeds when done, and wait for the user to look at, and store the results if they want to.
 	printf( "The boards used as seed boards are as follows:..\n" );
 	printf( "This Min Board Trie Contains |%zu| Boards.\n", ChosenSeedBoards.size());
@@ -568,15 +384,10 @@ int main () {
 	}
 
 	free( InitialWorkingBoard );
+	free( WorkingBoard );
 	// printf( "Done... Press enter to exit...:");
 	// if ( fgets(ExitString, BOARD_STRING_SIZE - 1, stdin ) == NULL ) return 0;
-	// Clean up and exit.
-	pthread_attr_destroy(&ThreadAttribute);
-	pthread_mutex_destroy(&CompleteMutex);
-	pthread_cond_destroy(&CompleteCondition);
-	pthread_mutex_destroy(&StartWorkMutex);
-	pthread_cond_destroy(&StartWorkCondition);
-	pthread_exit (NULL);
+	return 0;
 }
 
 // This is a deterministic way to find the top 10 Boggle boards beyond a reasonable doubt.  This is one solution that works.  That is all.

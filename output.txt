@@ -9,8 +9,6 @@ ADTDAWG Read of Lexicon_14 is Complete.
 
 DoubleUp.c Variables - Chain Seeds |2|, Single Deviation Rounds |25|, Full Evaluations Per Round |64|.
 
-Wait for 3 second for the 1 worker threads to enter a waiting state.
-
 This is the original seed board that will be used...  It is worth |1013| points.  Sleep for 2 seconds to look at it
 
 -----------
@@ -2814,8 +2812,6 @@ The Master List After Seed |2|.
 #1024 -| 8696|-|DPLGOSEAINRTNTSEIAEDSMCRS19|
 #1025 -| 8696|-|DPLGOSEAINRTNTSOIAEEPLCRD19|
 #1026 -| 8695|-|DCLGOSEAINRMNTSEIAEIDSTRD01|
-Main: Broadcast The Termination Signal
-Main: Thread[0] Has Been Joined And Terminated.
 The boards used as seed boards are as follows:..
 This Min Board Trie Contains |2| Boards.
 |AGRIMODAOLSTECETISMNGPART|
