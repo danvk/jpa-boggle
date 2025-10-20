@@ -3,7 +3,6 @@
 
 #include "const.h"
 
-#ifdef __cplusplus
 #include <vector>
 #include <string>
 
@@ -23,16 +22,5 @@ struct BoardScore {
 // New vector-based interface
 void InsertBoardScoreIntoMasterList(std::vector<BoardScore>& list, unsigned int score, const char* board);
 void InsertBoardScoreIntoEvaluateList(std::vector<BoardScore>& list, unsigned int score, const char* board);
-
-extern "C" {
-#endif
-
-// Legacy C interface (for compatibility)
-Bool InsertBoardStringIntoMasterList(char **TheList, unsigned int *TheNumbers, const char *ThisBoardString, unsigned int ThisScore);
-Bool InsertBoardStringIntoEvaluateList(char **TheList, unsigned int *TheNumbers, const char *ThisBoardString, unsigned int ThisScore);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif // INSERT_H
