@@ -15,7 +15,6 @@
 #include <vector>
 
 #include "adtdawg.h"
-#include "board-data.h"
 #include "board-evaluate.h"
 #include "const.h"
 #include "insert.h"
@@ -32,7 +31,19 @@
 #define SINGLE_DEVIATIONS 312
 #define NUMBER_OF_SEEDS_TO_RUN 2
 #define ROUNDS 25
-#define BOARDS_PER_THREAD (BOARDS_PER_ROUND / NUMBER_OF_WORKER_THREADS)
+#define BOARDS_PER_THREAD BOARDS_PER_ROUND
+
+// define the size of the list being sorted.  This number represents the total
+// number of boards analyzed per round.
+#define LIST_SIZE (BOARDS_PER_THREAD * SINGLE_DEVIATIONS)
+
+// The BoardData pseudo-class will use macros for its associated functionality.
+struct boarddata {
+  char board[SQUARE_COUNT + 2 + 1];
+  unsigned int score;
+};
+
+typedef struct boarddata BoardData;
 
 using namespace std;
 
@@ -126,10 +137,6 @@ int main() {
   // Variables for board processing
   unsigned int InsertionSlot;
 
-  // A string to use fgets() with at the end of the program for monitoring
-  // purposes.
-  char ExitString[BOARD_STRING_SIZE];
-
   // The seed board selection process is beyond the scope of this program.
   // For now, choose seeds that are as different as possible and verify that
   // they all produce the same results.
@@ -171,8 +178,13 @@ int main() {
 
   // Allocate the global variables for board processing
 
+  // The global array of "BoardDataPtr"s.  All of the associated "BoardData"
+  // will thus never move around. The main function will allocate the space
+  // required to store the actual "BoardData".
+  BoardData **WorkingBoardScoreTally;
+
   // Allocate the array of "BoardDataPtr"s.
-  WorkingBoardScoreTally = (BoardDataPtr *)malloc(LIST_SIZE * sizeof(BoardDataPtr));
+  WorkingBoardScoreTally = (BoardData **)malloc(LIST_SIZE * sizeof(BoardData *));
 
   // Allocate the actual "BoardData" that the pointers will point to.
   for (Y = 0; Y < LIST_SIZE; Y++)
@@ -392,9 +404,7 @@ int main() {
       std::sort(
           WorkingBoardScoreTally,
           WorkingBoardScoreTally + LIST_SIZE,
-          [](const BoardDataPtr &a, const BoardDataPtr &b) {
-            return a->score > b->score;
-          }
+          [](const BoardData *a, const BoardData *b) { return a->score > b->score; }
       );
 
       // Process the results - add qualifying boards to the evaluation list for
@@ -493,8 +503,6 @@ int main() {
 
   free(InitialWorkingBoard);
   free(WorkingBoard);
-  // printf( "Done... Press enter to exit...:");
-  // if ( fgets(ExitString, BOARD_STRING_SIZE - 1, stdin ) == NULL ) return 0;
   return 0;
 }
 

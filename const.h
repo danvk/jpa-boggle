@@ -31,10 +31,6 @@ extern unsigned int CHARACTER_LOCATIONS[NUMBER_OF_ENGLISH_LETTERS];
 extern unsigned long int CHILD_LETTER_BIT_MASKS[SIZE_OF_CHARACTER_SET];
 extern unsigned int CHILD_LETTER_BIT_SHIFTS[SIZE_OF_CHARACTER_SET];
 
-// Constants that define the high level "DeepSearch.c" algorithm.
-// #define NUMBER_OF_WORKER_THREADS	4
-#define NUMBER_OF_WORKER_THREADS 1
-
 // Constants that are lexicon specific.
 #define TOTAL_WORDS_IN_LEXICON 44220
 #define END_OF_WORD_FLAG 67108864
