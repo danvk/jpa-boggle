@@ -33,6 +33,13 @@
 
 using namespace std;
 
+// Custom comparator for set<string> that only compares first SQUARE_COUNT characters
+struct BoardComparator {
+	bool operator()(const string& a, const string& b) const {
+		return a.compare(0, SQUARE_COUNT, b, 0, SQUARE_COUNT) < 0;
+	}
+};
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // The POSIX thread inter-thread communication section.
 
@@ -241,7 +248,7 @@ int ReadLexicon() {
 }
 
 // Returns 1 if this adds board to the container
-int AddBoard(set<string>& container, char* board) {
+int AddBoard(set<string, BoardComparator>& container, char* board) {
 	if (board == NULL) return 0;
 	std::string s(board);
 	auto result = container.insert(s);
@@ -287,10 +294,10 @@ int main () {
 	unsigned int TheCurrentTime = 0;
 
 	// These "MinBoardTrie"s will maintain information about the search so that new boards will continue to be evaluated.  This is an important construct to a search algorithm.
-	set<string> CurrentBoardsConsideredThisRound;
-	set<string> AllEvaluatedBoards;
-	set<string> ChosenSeedBoards;
-	set<string> WhatMadeTheMasterList;
+	set<string, BoardComparator> CurrentBoardsConsideredThisRound;
+	set<string, BoardComparator> AllEvaluatedBoards;
+	set<string, BoardComparator> ChosenSeedBoards;
+	set<string, BoardComparator> WhatMadeTheMasterList;
 
 	if (ReadLexicon() == 0) {
 		return 0;
@@ -422,7 +429,7 @@ int main () {
 		// This Loop Represents the rounds cascade.
 		for ( T = 0; T < ROUNDS; T++ ) {
 			// Initiate a "MinBoardTrie" to keep track of the round returns.
-			set<string> CurrentBoardsConsideredThisRound;
+			set<string, BoardComparator> CurrentBoardsConsideredThisRound;
 			// Lock the "StartWorkMutex" to set the global work coordination variables.  Be sure to hand off "TheCurrentTime" to the right thread.
 			pthread_mutex_lock(&StartWorkMutex);
 			// Set the WorkOn to TRUE, the current Round, and "TheCurrentTime" HandOff to the right thread.

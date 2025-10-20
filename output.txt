@@ -391,7 +391,6 @@ The Top 10 Off The Master List After Round |25|.
 #  10 -| 8301|-|DILSGSEAINRTNTOAISECMPERD20|
 
 At this point, |1601| boards have been placed on the evaluation queue, and have been singularly deviated.
-20-10-2025 09:42:11
 
 The Master List After Seed |1|.
 #   1 -| 8430|-|DPLSGSEAINRTNTCAISEAMPERD14|
@@ -1787,7 +1786,6 @@ The Top 10 Off The Master List After Round |25|.
 #  10 -|10069|-|DPLMDSEAIERTNTSOIAESSNGRD24|
 
 At this point, |3202| boards have been placed on the evaluation queue, and have been singularly deviated.
-20-10-2025 09:43:29
 
 The Master List After Seed |2|.
 #   1 -|10440|-|DPLMDSEAIERTNTSOIAETSNGRS24|
