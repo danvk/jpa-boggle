@@ -24,7 +24,7 @@
 // Constants that define the high level "DeepSearch.c" algorithm.
 #define MASTER_SEED_BOARD "AGRIMODAOLSTECETISMNGPART"
 #define SINGLE_DEVIATIONS 312
-#define NUMBER_OF_SEEDS_TO_RUN 1000
+#define NUMBER_OF_SEEDS_TO_RUN 2
 #define ROUNDS 25
 #define BOARDS_PER_THREAD (BOARDS_PER_ROUND/NUMBER_OF_WORKER_THREADS)
 
@@ -544,8 +544,8 @@ int main () {
 	FreeMinBoardTrie( AllEvaluatedBoards );
 	FreeMinBoardTrie( ChosenSeedBoards );
 	FreeMinBoardTrie( WhatMadeTheMasterList );
-	printf( "Done... Press enter to exit...:");
-	if ( fgets(ExitString, BOARD_STRING_SIZE - 1, stdin ) == NULL ) return 0;
+	// printf( "Done... Press enter to exit...:");
+	// if ( fgets(ExitString, BOARD_STRING_SIZE - 1, stdin ) == NULL ) return 0;
 	// Clean up and exit.
 	pthread_attr_destroy(&ThreadAttribute);
 	pthread_mutex_destroy(&CompleteMutex);
