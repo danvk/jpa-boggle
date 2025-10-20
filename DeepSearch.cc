@@ -37,14 +37,6 @@
 // number of boards analyzed per round.
 #define LIST_SIZE (BOARDS_PER_THREAD * SINGLE_DEVIATIONS)
 
-// The BoardData pseudo-class will use macros for its associated functionality.
-struct boarddata {
-  char board[SQUARE_COUNT + 2 + 1];
-  unsigned int score;
-};
-
-typedef struct boarddata BoardData;
-
 using namespace std;
 
 // Custom comparator for set<string> that only compares first SQUARE_COUNT
@@ -178,17 +170,17 @@ int main() {
 
   // Allocate the global variables for board processing
 
-  // The global array of "BoardDataPtr"s.  All of the associated "BoardData"
-  // will thus never move around. The main function will allocate the space
-  // required to store the actual "BoardData".
-  BoardData **WorkingBoardScoreTally;
+  // The global array of BoardScore pointers. All of the associated BoardScore
+  // objects will thus never move around. The main function will allocate the space
+  // required to store the actual BoardScore objects.
+  BoardScore **WorkingBoardScoreTally;
 
-  // Allocate the array of "BoardDataPtr"s.
-  WorkingBoardScoreTally = (BoardData **)malloc(LIST_SIZE * sizeof(BoardData *));
+  // Allocate the array of BoardScore pointers.
+  WorkingBoardScoreTally = (BoardScore **)malloc(LIST_SIZE * sizeof(BoardScore *));
 
-  // Allocate the actual "BoardData" that the pointers will point to.
+  // Allocate the actual BoardScore objects that the pointers will point to.
   for (Y = 0; Y < LIST_SIZE; Y++)
-    WorkingBoardScoreTally[Y] = (BoardData *)malloc(sizeof(BoardData));
+    WorkingBoardScoreTally[Y] = new BoardScore();
 
   // Allocate the explicit discovery stack.
   TheDiscoveryStack =
@@ -383,7 +375,7 @@ int main() {
           for (Z = 0; Z < SIZE_OF_CHARACTER_SET; Z++) {
             if (Z == OffLimitLetterIndex) continue;
             TempBoardString[Y] = CHARACTER_SET[Z];
-            strcpy(WorkingBoardScoreTally[InsertionSlot]->board, TempBoardString);
+            WorkingBoardScoreTally[InsertionSlot]->board = TempBoardString;
             InsertionSlot += 1;
           }
           TempBoardString[Y] = CHARACTER_SET[OffLimitLetterIndex];
@@ -394,7 +386,7 @@ int main() {
       for (X = 0; X < LIST_SIZE; X++) {
         TheCurrentTime += 1;
         // Insert the board score into the "WorkingBoardScoreTally" array.
-        BoardPopulate(WorkingBoard, WorkingBoardScoreTally[X]->board);
+        BoardPopulate(WorkingBoard, const_cast<char*>(WorkingBoardScoreTally[X]->board.c_str()));
         WorkingBoardScoreTally[X]->score =
             BoardSquareWordDiscover(WorkingBoard, TheCurrentTime);
       }
@@ -403,7 +395,7 @@ int main() {
       std::sort(
           WorkingBoardScoreTally,
           WorkingBoardScoreTally + LIST_SIZE,
-          [](const BoardData *a, const BoardData *b) { return a->score > b->score; }
+          [](const BoardScore *a, const BoardScore *b) { return a->score > b->score; }
       );
 
       // Process the results - add qualifying boards to the evaluation list for
@@ -417,10 +409,10 @@ int main() {
                 : 0;
         const auto &board = WorkingBoardScoreTally[Y];
         if (board->score > min_eval_score) {
-          if (AddBoard(CurrentBoardsConsideredThisRound, board->board) == 1) {
+          if (AddBoard(CurrentBoardsConsideredThisRound, const_cast<char*>(board->board.c_str())) == 1) {
             if (AllEvaluatedBoards.find(board->board) == AllEvaluatedBoards.end()) {
               InsertIntoEvaluateList(
-                  TopEvaluationBoardList, board->score, board->board
+                  TopEvaluationBoardList, board->score, board->board.c_str()
               );
             }
           }
@@ -502,6 +494,12 @@ int main() {
 
   free(InitialWorkingBoard);
   free(WorkingBoard);
+
+  // Clean up WorkingBoardScoreTally
+  for (Y = 0; Y < LIST_SIZE; Y++)
+    delete WorkingBoardScoreTally[Y];
+  free(WorkingBoardScoreTally);
+
   return 0;
 }
 
