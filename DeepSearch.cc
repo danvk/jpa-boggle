@@ -78,8 +78,7 @@ std::vector<BoardScore> RunOneSeed(
     Boggler<5, 5> *boggler,
     std::vector<BoardScore> &MasterResults,
     set<string, BoardComparator> &WhatMadeTheMasterList,
-    set<string, BoardComparator> &AllEvaluatedBoards,
-    std::vector<BoardScore> &WorkingBoardScoreTally
+    set<string, BoardComparator> &AllEvaluatedBoards
 ) {
   // Before checking the "AllEvaluatedBoards" Trie, test if the score is high
   // enough to make the list. The scores attached to this list needs to be
@@ -87,6 +86,9 @@ std::vector<BoardScore> RunOneSeed(
   // is the master list.
   std::vector<BoardScore> TopEvaluationBoardList;
   TopEvaluationBoardList.reserve(EVALUATE_LIST_SIZE);
+
+  // Vector of BoardScore objects for working board tallies
+  std::vector<BoardScore> WorkingBoardScoreTally(LIST_SIZE);
 
   // Populate the evaluate list for the first round of boards based on the
   // best solitary deviations of the current seed board.  Add these boards to
@@ -282,9 +284,6 @@ int main() {
 
   // Allocate the global variables for board processing
 
-  // Vector of BoardScore objects for working board tallies
-  std::vector<BoardScore> WorkingBoardScoreTally(LIST_SIZE);
-
   printf(
       "DoubleUp.c Variables - Chain Seeds |%d|, Single Deviation Rounds "
       "|%d|, Full Evaluations Per Round |%d|.\n\n",
@@ -336,12 +335,7 @@ int main() {
     AllEvaluatedBoards.insert(SeedBoard);
 
     auto TopEvaluationBoardList = RunOneSeed(
-        SeedBoard,
-        boggler,
-        MasterResults,
-        WhatMadeTheMasterList,
-        AllEvaluatedBoards,
-        WorkingBoardScoreTally
+        SeedBoard, boggler, MasterResults, WhatMadeTheMasterList, AllEvaluatedBoards
     );
 
     // Even if nothing qualifies for the master list on this round, print out
