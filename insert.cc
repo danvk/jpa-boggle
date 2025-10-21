@@ -11,7 +11,7 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Vector-based implementations
 
-static void InsertIntoSortedVector(
+static bool InsertIntoSortedVector(
     std::vector<BoardScore> &list,
     unsigned int max_size,
     unsigned int score,
@@ -28,12 +28,12 @@ static void InsertIntoSortedVector(
         [](const BoardScore &bs, unsigned int s) { return bs.score > s; }
     );
     list.insert(it, BoardScore(score, board));
-    return;
+    return true;
   }
 
   // List is full - check if score is high enough
   if (score <= list.back().score) {
-    return;  // Score too low
+    return false;  // Score too low
   }
 
   // Remove the last (lowest) element
@@ -47,16 +47,17 @@ static void InsertIntoSortedVector(
       [](const BoardScore &bs, unsigned int s) { return bs.score > s; }
   );
   list.insert(it, BoardScore(score, board));
+  return true;
 }
 
-void InsertIntoMasterList(
+bool InsertIntoMasterList(
     std::vector<BoardScore> &list, unsigned int score, const std::string &board
 ) {
-  InsertIntoSortedVector(list, MASTER_LIST_SIZE, score, board);
+  return InsertIntoSortedVector(list, MASTER_LIST_SIZE, score, board);
 }
 
-void InsertIntoEvaluateList(
+bool InsertIntoEvaluateList(
     std::vector<BoardScore> &list, unsigned int score, const std::string &board
 ) {
-  InsertIntoSortedVector(list, EVALUATE_LIST_SIZE, score, board);
+  return InsertIntoSortedVector(list, EVALUATE_LIST_SIZE, score, board);
 }

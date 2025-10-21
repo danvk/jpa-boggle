@@ -22,10 +22,11 @@ struct BoardScore {
 #define EVALUATE_LIST_SIZE 66
 #define MASTER_LIST_SIZE 1026
 
-void InsertIntoMasterList(
+// Returns whether the item was inserted into the list.
+bool InsertIntoMasterList(
     std::vector<BoardScore> &list, unsigned int score, const std::string &board
 );
-void InsertIntoEvaluateList(
+bool InsertIntoEvaluateList(
     std::vector<BoardScore> &list, unsigned int score, const std::string &board
 );
 

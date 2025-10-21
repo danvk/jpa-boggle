@@ -93,19 +93,17 @@ std::vector<BoardScore> RunOneSeed(
   // the Evaluate and Master lists.  They Have not been fully evaluated yet.
   // These boards will not get evaluated in the threads, so evaluate them
   // here.  Add them to the master list if they qualify.
-  string TemporaryBoardString = SeedBoard;
-  if (SeedBoard.length() == SQUARE_COUNT) {
-    TemporaryBoardString += "00";
-  }
-  assert(TemporaryBoardString.length() == SQUARE_COUNT + 2);
 
   for (int X = 0; X < SQUARE_COUNT; X++) {
-    if (X > 0) TemporaryBoardString[X - 1] = SeedBoard[X - 1];
+    string bd = SeedBoard;
+    if (bd.length() == SQUARE_COUNT) {
+      bd += "00";
+    }
+    assert(bd.length() == SQUARE_COUNT + 2);
     char buf[3];
     snprintf(buf, 3, "%02d", X);
-
-    TemporaryBoardString[SQUARE_COUNT] = buf[0];
-    TemporaryBoardString[SQUARE_COUNT + 1] = buf[1];
+    bd[SQUARE_COUNT] = buf[0];
+    bd[SQUARE_COUNT + 1] = buf[1];
     char TheSeedLetter = SeedBoard[X];
 
     for (int Y = 0; Y < SIZE_OF_CHARACTER_SET; Y++) {
@@ -113,30 +111,23 @@ std::vector<BoardScore> RunOneSeed(
       // evaluation board, as in one square will be off limits.  This is how
       // we arrive at the number "SOLITARY_DEVIATIONS".
       if (TheSeedLetter == CHARACTER_SET[Y]) continue;
-      TemporaryBoardString[X] = CHARACTER_SET[Y];
+      bd[X] = CHARACTER_SET[Y];
 
-      int TemporaryBoardScore = boggler->Score(TemporaryBoardString.c_str());
-      assert(TemporaryBoardScore >= 0);
+      int score = boggler->Score(bd.c_str());
+      assert(score >= 0);
 
       // Try to add each board to the "MasterResultsBoardList", and the
       // "TopEvaluationBoardList".  Do this in sequence.  Only the
       // "WhatMadeTheMasterList" MinBoardTrie will be augmented.
-      if (WhatMadeTheMasterList.find(TemporaryBoardString) ==
-          WhatMadeTheMasterList.end()) {
+      if (WhatMadeTheMasterList.find(bd) == WhatMadeTheMasterList.end()) {
         size_t old_size = MasterResults.size();
-        InsertIntoMasterList(MasterResults, TemporaryBoardScore, TemporaryBoardString);
-        if (MasterResults.size() > old_size ||
-            (MasterResults.size() == MASTER_LIST_SIZE &&
-             TemporaryBoardScore > MasterResults.back().score)) {
-          WhatMadeTheMasterList.insert(TemporaryBoardString);
-          // printf("Round |%d|Pop - New On Master |%s| Score |%d|\n", 0,
-          // TemporaryBoardString, TemporaryBoardScore);
+        auto was_inserted = InsertIntoMasterList(MasterResults, score, bd);
+        if (was_inserted) {
+          WhatMadeTheMasterList.insert(bd);
         }
       }
-      if (AllEvaluatedBoards.find(TemporaryBoardString) == AllEvaluatedBoards.end()) {
-        InsertIntoEvaluateList(
-            TopEvaluationBoardList, TemporaryBoardScore, TemporaryBoardString
-        );
+      if (AllEvaluatedBoards.find(bd) == AllEvaluatedBoards.end()) {
+        InsertIntoEvaluateList(TopEvaluationBoardList, score, bd);
       }
     }
   }
@@ -272,9 +263,6 @@ std::vector<BoardScore> RunOneSeed(
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 int main() {
-  // for() loop counter variables.
-  unsigned int X, Y, Z, S;
-
   // The seed board selection process is beyond the scope of this program.
   // For now, choose seeds that are as different as possible and verify that
   // they all produce the same results.
@@ -328,7 +316,7 @@ int main() {
   PrintBoard(SeedBoard);
 
   // This loop represents the chain seeds cascade.
-  for (S = 0; S < NUMBER_OF_SEEDS_TO_RUN; S++) {
+  for (int S = 0; S < NUMBER_OF_SEEDS_TO_RUN; S++) {
     for (const auto &result : MasterResults) {
       const auto &board = result.board;
       if (ChosenSeedBoards.find(board) == ChosenSeedBoards.end()) {
