@@ -187,16 +187,8 @@ int main() {
 
   // Allocate the global variables for board processing
 
-  // The global array of BoardScore pointers. All of the associated BoardScore
-  // objects will thus never move around. The main function will allocate the space
-  // required to store the actual BoardScore objects.
-  BoardScore **WorkingBoardScoreTally;
-
-  // Allocate the array of BoardScore pointers.
-  WorkingBoardScoreTally = (BoardScore **)malloc(LIST_SIZE * sizeof(BoardScore *));
-
-  // Allocate the actual BoardScore objects that the pointers will point to.
-  for (Y = 0; Y < LIST_SIZE; Y++) WorkingBoardScoreTally[Y] = new BoardScore();
+  // Vector of BoardScore objects for working board tallies
+  std::vector<BoardScore> WorkingBoardScoreTally(LIST_SIZE);
 
   // Allocate the explicit discovery stack.
   TheDiscoveryStack =
@@ -374,7 +366,7 @@ int main() {
           for (Z = 0; Z < SIZE_OF_CHARACTER_SET; Z++) {
             if (Z == OffLimitLetterIndex) continue;
             TempBoardString[Y] = CHARACTER_SET[Z];
-            WorkingBoardScoreTally[InsertionSlot]->board = TempBoardString;
+            WorkingBoardScoreTally[InsertionSlot].board = TempBoardString;
             InsertionSlot += 1;
           }
           TempBoardString[Y] = CHARACTER_SET[OffLimitLetterIndex];
@@ -386,17 +378,17 @@ int main() {
         TheCurrentTime += 1;
         // Insert the board score into the "WorkingBoardScoreTally" array.
         BoardPopulate(
-            WorkingBoard, const_cast<char *>(WorkingBoardScoreTally[X]->board.c_str())
+            WorkingBoard, const_cast<char *>(WorkingBoardScoreTally[X].board.c_str())
         );
-        WorkingBoardScoreTally[X]->score =
+        WorkingBoardScoreTally[X].score =
             BoardSquareWordDiscover(WorkingBoard, TheCurrentTime);
       }
 
       // Sort the results in descending order by score using std::sort
       std::sort(
-          WorkingBoardScoreTally,
-          WorkingBoardScoreTally + LIST_SIZE,
-          [](const BoardScore *a, const BoardScore *b) { return a->score > b->score; }
+          WorkingBoardScoreTally.begin(),
+          WorkingBoardScoreTally.end(),
+          [](const BoardScore &a, const BoardScore &b) { return a.score > b.score; }
       );
 
       // Process the results - add qualifying boards to the evaluation list for
@@ -409,11 +401,11 @@ int main() {
                 ? TopEvaluationBoardList.back().score
                 : 0;
         const auto &board = WorkingBoardScoreTally[Y];
-        if (board->score > min_eval_score) {
-          if (AddBoard(CurrentBoardsConsideredThisRound, board->board.c_str()) == 1) {
-            if (AllEvaluatedBoards.find(board->board) == AllEvaluatedBoards.end()) {
+        if (board.score > min_eval_score) {
+          if (AddBoard(CurrentBoardsConsideredThisRound, board.board.c_str()) == 1) {
+            if (AllEvaluatedBoards.find(board.board) == AllEvaluatedBoards.end()) {
               InsertIntoEvaluateList(
-                  TopEvaluationBoardList, board->score, board->board.c_str()
+                  TopEvaluationBoardList, board.score, board.board.c_str()
               );
             }
           }
@@ -472,10 +464,6 @@ int main() {
 
   free(InitialWorkingBoard);
   free(WorkingBoard);
-
-  // Clean up WorkingBoardScoreTally
-  for (Y = 0; Y < LIST_SIZE; Y++) delete WorkingBoardScoreTally[Y];
-  free(WorkingBoardScoreTally);
 
   return 0;
 }
