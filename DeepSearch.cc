@@ -14,8 +14,12 @@
 #include <string>
 #include <vector>
 
-#include "adtdawg.h"
-#include "board-evaluate.h"
+// #include "adtdawg.h"
+#include "boggler.h"
+#include "trie.h"
+// #include "board-evaluate.h"
+#include <format>
+
 #include "const.h"
 #include "insert.h"
 
@@ -47,71 +51,6 @@ struct BoardComparator {
   }
 };
 
-int ReadLexicon() {
-  // The ADTDAWG lexicon is stored inside of four files, and then read into
-  // three arrays for speed.  This is the case because the data structure is
-  // extremely small.
-  FILE *PartOne = fopen(FOUR_PART_DTDAWG_14_PART_ONE, "rb");
-  FILE *PartTwo = fopen(FOUR_PART_DTDAWG_14_PART_TWO, "rb");
-  FILE *PartThree = fopen(FOUR_PART_DTDAWG_14_PART_THREE, "rb");
-  FILE *PartFour = fopen(FOUR_PART_DTDAWG_14_PART_FOUR, "rb");
-  unsigned int SizeOfPartOne;
-  unsigned long int SizeOfPartTwo;
-  unsigned int SizeOfPartThree;
-  unsigned int SizeOfPartFour;
-  unsigned char TempReadIn;
-
-  // Read in the size of each data file.
-  if (fread(&SizeOfPartOne, 4, 1, PartOne) != 1) return 0;
-  if (fread(&SizeOfPartTwo, 8, 1, PartTwo) != 1) return 0;
-  if (fread(&SizeOfPartThree, 4, 1, PartThree) != 1) return 0;
-  PartThreeFourTransition = SizeOfPartThree + 1;
-  SizeOfPartFour = SizeOfPartOne - SizeOfPartThree;
-
-  // Print out the lexicon size values.
-  printf("\n");
-  printf("SizeOfPartOne |%d|\n", SizeOfPartOne);
-  printf("SizeOfPartTwo |%ld|\n", SizeOfPartTwo);
-  printf("SizeOfPartThree |%d|\n", SizeOfPartThree);
-  printf("Transition |%d|\n", PartThreeFourTransition);
-  printf("SizeOfPartFour |%d|\n", SizeOfPartFour);
-  printf("\n");
-
-  // Allocate memory for the ADTDAWG.
-  PartOneArray = (unsigned int *)malloc((SizeOfPartOne + 1) * sizeof(int));
-  PartTwoArray = (unsigned long int *)malloc(SizeOfPartTwo * sizeof(long int));
-  PartThreeArray = (unsigned int *)malloc((SizeOfPartOne + 1) * sizeof(int));
-
-  // Read in the data files into global arrays of basic integer types.
-  // The zero position in "PartOneArray" is the NULL node.
-  PartOneArray[0] = 0;
-  if (fread(PartOneArray + 1, 4, SizeOfPartOne, PartOne) != SizeOfPartOne) return 0;
-  if (fread(PartTwoArray, 8, SizeOfPartTwo, PartTwo) != SizeOfPartTwo) return 0;
-  // The Zero position in "PartThreeArray" maps to the NULL node in
-  // "PartOneArray".
-  PartThreeArray[0] = 0;
-  if (fread(PartThreeArray + 1, 4, SizeOfPartThree, PartThree) != SizeOfPartThree)
-    return 0;
-  // Part Four has been replaced by encoding the Part Four WTEOBL values as 32
-  // bit integers for speed.  The size of the data structure is small enough as
-  // it is.
-  for (unsigned int X = (SizeOfPartThree + 1); X <= SizeOfPartOne; X++) {
-    if (fread(&TempReadIn, 1, 1, PartFour) != 1) return 0;
-    PartThreeArray[X] = TempReadIn;
-  }
-
-  // Close the four files.
-  fclose(PartOne);
-  fclose(PartTwo);
-  fclose(PartThree);
-  fclose(PartFour);
-
-  // Print out the high level algorithm variables for this run of the
-  // DeepSearch.
-  printf("ADTDAWG Read of Lexicon_14 is Complete.\n\n");
-  return 1;
-}
-
 // Returns 1 if this adds board to the container
 int AddBoard(set<string, BoardComparator> &container, const char *board) {
   if (board == NULL) return 0;
@@ -137,6 +76,12 @@ void PrintBestBoard(int round, const vector<BoardScore> &list) {
   }
 }
 
+void PrintBoard(const string &board) {
+  printf("-----------\n");
+  printf("%s\n", board.c_str());
+  printf("-----------\n");
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 int main() {
@@ -149,7 +94,7 @@ int main() {
   // The seed board selection process is beyond the scope of this program.
   // For now, choose seeds that are as different as possible and verify that
   // they all produce the same results.
-  char SeedBoard[BOARD_STRING_SIZE] = MASTER_SEED_BOARD;
+  string SeedBoard(MASTER_SEED_BOARD);
 
   // The evaluation lists - now using vector
   std::vector<BoardScore> TopEvaluationBoardList;
@@ -161,15 +106,13 @@ int main() {
 
   // Holders used for the seed board single deviations before the deviation
   // rounds begin.
-  BoardPtr InitialWorkingBoard;
-  BoardPtr WorkingBoard;
-  char TemporaryBoardString[BOARD_STRING_SIZE];
-  char TempBoardString[BOARD_STRING_SIZE];
+  string InitialWorkingBoard;
+  string WorkingBoard;
+  string TemporaryBoardString;
+  string TempBoardString;
   char TheNewOffLimitSquareString[3];
   unsigned int TemporaryBoardScore;
-  char SquareNumberString[3];
   char TheSeedLetter;
-  unsigned int TheCurrentTime = 0;
   unsigned int OffLimitSquare;
   unsigned int OffLimitLetterIndex;
 
@@ -181,22 +124,10 @@ int main() {
   set<string, BoardComparator> ChosenSeedBoards;
   set<string, BoardComparator> WhatMadeTheMasterList;
 
-  if (ReadLexicon() == 0) {
-    return 0;
-  }
-
   // Allocate the global variables for board processing
 
   // Vector of BoardScore objects for working board tallies
   std::vector<BoardScore> WorkingBoardScoreTally(LIST_SIZE);
-
-  // Allocate the explicit discovery stack.
-  TheDiscoveryStack =
-      (DiscoveryStackNode *)malloc((DISCOVERY_STACK_SIZE) * sizeof(DiscoveryStackNode));
-
-  // Allocate the set of lexicon time stamps as unsigned integers.
-  LexiconTimeStamps =
-      (unsigned int *)malloc((TOTAL_WORDS_IN_LEXICON + 1) * sizeof(unsigned int));
 
   printf(
       "DoubleUp.c Variables - Chain Seeds |%d|, Single Deviation Rounds "
@@ -206,22 +137,15 @@ int main() {
       BOARDS_PER_ROUND
   );
 
-  // Populate the "InitialWorkingBoard" and "WorkingBoard" with the original
-  // seed board.
-  InitialWorkingBoard = (Board *)malloc(sizeof(Board));
-  BoardInit(InitialWorkingBoard);
-  BoardPopulate(InitialWorkingBoard, SeedBoard);
-
-  WorkingBoard = (Board *)malloc(sizeof(Board));
-  BoardInit(WorkingBoard);
-
-  // Zero all of the time stamps for the words
-  memset(LexiconTimeStamps, 0, (TOTAL_WORDS_IN_LEXICON + 1) * sizeof(unsigned int));
+  auto trie = Trie::CreateFromFile("enable2k.txt");
+  if (!trie.get()) {
+    fprintf(stderr, "Unable to load dictionary\n");
+    return 1;
+  }
+  auto boggler = new Boggler<5, 5>(trie.get());
 
   // The very first task is to insert the original seed board into the master
   // list.
-  TheCurrentTime += 1;
-  TemporaryBoardScore = BoardSquareWordDiscover(InitialWorkingBoard, TheCurrentTime);
   WhatMadeTheMasterList.insert(SeedBoard);
   InsertIntoMasterList(MasterResults, TemporaryBoardScore, SeedBoard);
 
@@ -230,7 +154,7 @@ int main() {
       "|%d| points.  Sleep for 2 seconds to look at it\n\n",
       TemporaryBoardScore
   );
-  BoardOutput(InitialWorkingBoard);
+  PrintBoard(InitialWorkingBoard);
 
   // This loop represents the chain seeds cascade.
   for (S = 0; S < NUMBER_OF_SEEDS_TO_RUN; S++) {
@@ -243,17 +167,16 @@ int main() {
     for (const auto &result : MasterResults) {
       const auto &board = result.board;
       if (ChosenSeedBoards.find(board) == ChosenSeedBoards.end()) {
-        strcpy(SeedBoard, board.c_str());
+        SeedBoard = board;
         TemporaryBoardScore = result.score;
         break;
       }
     }
 
-    SeedBoard[SQUARE_COUNT] = '\0';
     printf(
         "For the |%d|'th run the seed board is |%s| worth |%d| points.\n",
         S + 1,
-        SeedBoard,
+        SeedBoard.c_str(),
         TemporaryBoardScore
     );
     ChosenSeedBoards.insert(SeedBoard);
@@ -264,22 +187,25 @@ int main() {
     // the Evaluate and Master lists.  They Have not been fully evaluated yet.
     // These boards will not get evaluated in the threads, so evaluate them
     // here.  Add them to the master list if they qualify.
-    strcpy(TemporaryBoardString, SeedBoard);
+    TemporaryBoardString = SeedBoard + "00";
     for (X = 0; X < SQUARE_COUNT; X++) {
       if (X > 0) TemporaryBoardString[X - 1] = SeedBoard[X - 1];
-      ConvertSquareNumberToString(SquareNumberString, X);
-      strcpy(TemporaryBoardString + SQUARE_COUNT, SquareNumberString);
+      char buf[3];
+      snprintf(buf, 3, "%02d", X);
+
+      TemporaryBoardString[SQUARE_COUNT] = buf[0];
+      TemporaryBoardString[SQUARE_COUNT + 1] = buf[1];
       TheSeedLetter = SeedBoard[X];
+
       for (Y = 0; Y < SIZE_OF_CHARACTER_SET; Y++) {
         // This statement indicates that less new boards are generated for each
         // evaluation board, as in one square will be off limits.  This is how
         // we arrive at the number "SOLITARY_DEVIATIONS".
         if (TheSeedLetter == CHARACTER_SET[Y]) continue;
         TemporaryBoardString[X] = CHARACTER_SET[Y];
-        BoardPopulate(InitialWorkingBoard, TemporaryBoardString);
-        TheCurrentTime += 1;
-        TemporaryBoardScore =
-            BoardSquareWordDiscover(InitialWorkingBoard, TheCurrentTime);
+
+        TemporaryBoardScore = boggler->Score(TemporaryBoardString.c_str());
+
         // Try to add each board to the "MasterResultsBoardList", and the
         // "TopEvaluationBoardList".  Do this in sequence.  Only the
         // "WhatMadeTheMasterList" MinBoardTrie will be augmented.
@@ -353,15 +279,16 @@ int main() {
       // in CurrentEvaluationList
       InsertionSlot = 0;
       for (X = 0; X < BOARDS_PER_ROUND && X < CurrentEvaluationList.size(); X++) {
-        strcpy(TempBoardString, CurrentEvaluationList[X].board.c_str());
-        OffLimitSquare = TwoCharStringToInt(&(TempBoardString[SQUARE_COUNT]));
+        TempBoardString = CurrentEvaluationList[X].board;
+        OffLimitSquare = atoi(TempBoardString.c_str() + SQUARE_COUNT);
         for (Y = 0; Y < SQUARE_COUNT; Y++) {
           if (Y == OffLimitSquare) continue;
           // Y will now represent the placement of the off limits Square so set
           // it as such.
-          ConvertSquareNumberToString(TheNewOffLimitSquareString, Y);
-          TempBoardString[SQUARE_COUNT] = TheNewOffLimitSquareString[0];
-          TempBoardString[SQUARE_COUNT + 1] = TheNewOffLimitSquareString[1];
+          char buf[3];
+          snprintf(buf, 3, "%02d", Y);
+          TempBoardString[SQUARE_COUNT] = buf[0];
+          TempBoardString[SQUARE_COUNT + 1] = buf[1];
           OffLimitLetterIndex = CHARACTER_LOCATIONS[TempBoardString[Y] - 'A'];
           for (Z = 0; Z < SIZE_OF_CHARACTER_SET; Z++) {
             if (Z == OffLimitLetterIndex) continue;
@@ -375,13 +302,8 @@ int main() {
 
       // Evaluate all of the single deviation boards and store the scores
       for (X = 0; X < LIST_SIZE; X++) {
-        TheCurrentTime += 1;
-        // Insert the board score into the "WorkingBoardScoreTally" array.
-        BoardPopulate(
-            WorkingBoard, const_cast<char *>(WorkingBoardScoreTally[X].board.c_str())
-        );
-        WorkingBoardScoreTally[X].score =
-            BoardSquareWordDiscover(WorkingBoard, TheCurrentTime);
+        auto score = boggler->Score(WorkingBoardScoreTally[X].board.c_str());
+        WorkingBoardScoreTally[X].score = score;
       }
 
       // Sort the results in descending order by score using std::sort
@@ -461,9 +383,6 @@ int main() {
   for (const auto &board : ChosenSeedBoards) {
     printf("|%s|\n", board.c_str());
   }
-
-  free(InitialWorkingBoard);
-  free(WorkingBoard);
 
   return 0;
 }

@@ -15,7 +15,7 @@ static void InsertIntoSortedVector(
     std::vector<BoardScore> &list,
     unsigned int max_size,
     unsigned int score,
-    const char *board
+    const std::string &board
 ) {
   // If list is not full yet, always insert
   if (list.size() < max_size) {
@@ -50,13 +50,13 @@ static void InsertIntoSortedVector(
 }
 
 void InsertIntoMasterList(
-    std::vector<BoardScore> &list, unsigned int score, const char *board
+    std::vector<BoardScore> &list, unsigned int score, const std::string &board
 ) {
   InsertIntoSortedVector(list, MASTER_LIST_SIZE, score, board);
 }
 
 void InsertIntoEvaluateList(
-    std::vector<BoardScore> &list, unsigned int score, const char *board
+    std::vector<BoardScore> &list, unsigned int score, const std::string &board
 ) {
   InsertIntoSortedVector(list, EVALUATE_LIST_SIZE, score, board);
 }

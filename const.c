@@ -34,24 +34,3 @@ unsigned int CHILD_LETTER_BIT_SHIFTS[SIZE_OF_CHARACTER_SET] = {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Basic constructs and functions that will be useful.
-
-inline unsigned int TwoCharStringToInt(char *TheNumberNotYet) {
-  return (TheNumberNotYet[0] - '0') * 10 + (TheNumberNotYet[1] - '0');
-}
-
-// Converts the two digit integer X into the string "TheThreeString" that tacks
-// onto board strings to indicate the last altered square.  This reduces
-// redundant element consideration.
-void ConvertSquareNumberToString(char *TheThreeString, int X) {
-  if (X < 10) {
-    TheThreeString[0] = '0';
-    TheThreeString[1] = '0' + X;
-  } else if (X < 20) {
-    TheThreeString[0] = '1';
-    TheThreeString[1] = ('0' + (X - 10));
-  } else {
-    TheThreeString[0] = '2';
-    TheThreeString[1] = ('0' + (X - 20));
-  }
-  TheThreeString[2] = '\0';
-}

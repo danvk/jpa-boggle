@@ -23,10 +23,10 @@ struct BoardScore {
 #define MASTER_LIST_SIZE 1026
 
 void InsertIntoMasterList(
-    std::vector<BoardScore> &list, unsigned int score, const char *board
+    std::vector<BoardScore> &list, unsigned int score, const std::string &board
 );
 void InsertIntoEvaluateList(
-    std::vector<BoardScore> &list, unsigned int score, const char *board
+    std::vector<BoardScore> &list, unsigned int score, const std::string &board
 );
 
 #endif  // INSERT_H

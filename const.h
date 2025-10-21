@@ -42,12 +42,6 @@ extern unsigned int CHILD_LETTER_BIT_SHIFTS[SIZE_OF_CHARACTER_SET];
 
 #define BOARDS_PER_ROUND 64
 
-// This function assumes that "TheNumberNotYet" is a 2 char string of digits
-// between [0,9].  Do not pass it anything else.  It will return the integer
-// equivalent.
-unsigned int TwoCharStringToInt(char *TheNumberNotYet);
-void ConvertSquareNumberToString(char *TheThreeString, int X);
-
 #ifdef __cplusplus
 }
 #endif
