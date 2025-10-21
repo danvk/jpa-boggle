@@ -21,13 +21,6 @@
 #include "insert.h"
 #include "trie.h"
 
-// The ADTDAWG for Lexicon_14, a subset of TWL06, is located in the 4 data files
-// listed below.
-#define FOUR_PART_DTDAWG_14_PART_ONE "Four_Part_1_DTDAWG_For_Lexicon_14.dat"
-#define FOUR_PART_DTDAWG_14_PART_TWO "Four_Part_2_DTDAWG_For_Lexicon_14.dat"
-#define FOUR_PART_DTDAWG_14_PART_THREE "Four_Part_3_DTDAWG_For_Lexicon_14.dat"
-#define FOUR_PART_DTDAWG_14_PART_FOUR "Four_Part_4_DTDAWG_For_Lexicon_14.dat"
-
 // Constants that define the high level "DeepSearch.c" algorithm.
 #define MASTER_SEED_BOARD "AGRIMODAOLSTECETISMNGPART"
 #define SINGLE_DEVIATIONS 312

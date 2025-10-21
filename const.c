@@ -1,9 +1,5 @@
 #include "const.h"
 
-unsigned int THE_SCORE_CARD[MAX_STRING_LENGTH + 1] = {
-    0, 0, 0, 1, 1, 2, 3, 5, 11, 11, 11, 11, 11, 11, 11, 11
-};
-
 char CHARACTER_SET[SIZE_OF_CHARACTER_SET + 1] = {
     'A', 'C', 'D', 'E', 'G', 'I', 'L', 'M', 'N', 'O', 'P', 'R', 'S', 'T', ' '
 };
@@ -11,25 +7,6 @@ char CHARACTER_SET[SIZE_OF_CHARACTER_SET + 1] = {
 unsigned int CHARACTER_LOCATIONS[NUMBER_OF_ENGLISH_LETTERS] = {
     0, BOGUS, 1,  2,     3,  BOGUS, 4,  BOGUS, 5,     BOGUS, BOGUS, 6,     7,
     8, 9,     10, BOGUS, 11, 12,    13, BOGUS, BOGUS, BOGUS, BOGUS, BOGUS, BOGUS
-};
-unsigned long int CHILD_LETTER_BIT_MASKS[SIZE_OF_CHARACTER_SET] = {
-    1,
-    6,
-    24,
-    224,
-    1792,
-    14336,
-    114688,
-    1966080,
-    31457280,
-    503316480,
-    8053063680,
-    128849018880,
-    2061584302080,
-    32985348833280
-};
-unsigned int CHILD_LETTER_BIT_SHIFTS[SIZE_OF_CHARACTER_SET] = {
-    0, 1, 3, 5, 8, 11, 14, 17, 21, 25, 29, 33, 37, 41
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
