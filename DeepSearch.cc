@@ -3,6 +3,7 @@
 // define the depth of the search...  NUMBER_OF_SEEDS_TO_RUN, ROUNDS,
 // BOARDS_PER_ROUND
 
+#include <assert.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -10,18 +11,15 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <format>
 #include <set>
 #include <string>
 #include <vector>
 
-// #include "adtdawg.h"
 #include "boggler.h"
-#include "trie.h"
-// #include "board-evaluate.h"
-#include <format>
-
 #include "const.h"
 #include "insert.h"
+#include "trie.h"
 
 // The ADTDAWG for Lexicon_14, a subset of TWL06, is located in the 4 data files
 // listed below.
@@ -106,11 +104,9 @@ int main() {
 
   // Holders used for the seed board single deviations before the deviation
   // rounds begin.
-  string InitialWorkingBoard;
   string WorkingBoard;
   string TemporaryBoardString;
   string TempBoardString;
-  char TheNewOffLimitSquareString[3];
   unsigned int TemporaryBoardScore;
   char TheSeedLetter;
   unsigned int OffLimitSquare;
@@ -137,12 +133,15 @@ int main() {
       BOARDS_PER_ROUND
   );
 
-  auto trie = Trie::CreateFromFile("enable2k.txt");
+  auto trie = Trie::CreateFromFile("twl06.txt");
   if (!trie.get()) {
     fprintf(stderr, "Unable to load dictionary\n");
     return 1;
   }
   auto boggler = new Boggler<5, 5>(trie.get());
+
+  TemporaryBoardScore = boggler->Score(SeedBoard.c_str());
+  assert(TemporaryBoardScore >= 0);
 
   // The very first task is to insert the original seed board into the master
   // list.
@@ -154,7 +153,7 @@ int main() {
       "|%d| points.  Sleep for 2 seconds to look at it\n\n",
       TemporaryBoardScore
   );
-  PrintBoard(InitialWorkingBoard);
+  PrintBoard(SeedBoard);
 
   // This loop represents the chain seeds cascade.
   for (S = 0; S < NUMBER_OF_SEEDS_TO_RUN; S++) {
@@ -176,7 +175,7 @@ int main() {
     printf(
         "For the |%d|'th run the seed board is |%s| worth |%d| points.\n",
         S + 1,
-        SeedBoard.c_str(),
+        SeedBoard.substr(0, SQUARE_COUNT).c_str(),
         TemporaryBoardScore
     );
     ChosenSeedBoards.insert(SeedBoard);
@@ -187,7 +186,12 @@ int main() {
     // the Evaluate and Master lists.  They Have not been fully evaluated yet.
     // These boards will not get evaluated in the threads, so evaluate them
     // here.  Add them to the master list if they qualify.
-    TemporaryBoardString = SeedBoard + "00";
+    TemporaryBoardString = SeedBoard;
+    if (SeedBoard.length() == SQUARE_COUNT) {
+      TemporaryBoardString += "00";
+    }
+    assert(TemporaryBoardString.length() == SQUARE_COUNT + 2);
+
     for (X = 0; X < SQUARE_COUNT; X++) {
       if (X > 0) TemporaryBoardString[X - 1] = SeedBoard[X - 1];
       char buf[3];
@@ -205,6 +209,7 @@ int main() {
         TemporaryBoardString[X] = CHARACTER_SET[Y];
 
         TemporaryBoardScore = boggler->Score(TemporaryBoardString.c_str());
+        assert(TemporaryBoardScore >= 0);
 
         // Try to add each board to the "MasterResultsBoardList", and the
         // "TopEvaluationBoardList".  Do this in sequence.  Only the
@@ -303,6 +308,7 @@ int main() {
       // Evaluate all of the single deviation boards and store the scores
       for (X = 0; X < LIST_SIZE; X++) {
         auto score = boggler->Score(WorkingBoardScoreTally[X].board.c_str());
+        assert(score >= 0);
         WorkingBoardScoreTally[X].score = score;
       }
 
@@ -381,7 +387,7 @@ int main() {
   printf("The boards used as seed boards are as follows:..\n");
   printf("This Min Board Trie Contains |%zu| Boards.\n", ChosenSeedBoards.size());
   for (const auto &board : ChosenSeedBoards) {
-    printf("|%s|\n", board.c_str());
+    printf("|%s|\n", board.substr(0, SQUARE_COUNT).c_str());
   }
 
   return 0;

@@ -1,26 +1,9 @@
-
-SizeOfPartOne |29797|
-SizeOfPartTwo |1505|
-SizeOfPartThree |1009|
-Transition |1010|
-SizeOfPartFour |28788|
-
-ADTDAWG Read of Lexicon_14 is Complete.
-
 DoubleUp.c Variables - Chain Seeds |2|, Single Deviation Rounds |25|, Full Evaluations Per Round |64|.
 
 This is the original seed board that will be used...  It is worth |1013| points.  Sleep for 2 seconds to look at it
 
 -----------
-|A|G|R|I|M|
------------
-|O|D|A|O|L|
------------
-|S|T|E|C|E|
------------
-|T|I|S|M|N|
------------
-|G|P|A|R|T|
+AGRIMODAOLSTECETISMNGPART
 -----------
 For the |1|'th run the seed board is |AGRIMODAOLSTECETISMNGPART| worth |1013| points.
 
