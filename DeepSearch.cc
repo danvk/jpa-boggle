@@ -167,21 +167,12 @@ vector<BoardScore> RunOneSeed(
     printf("\nThe Top 10 Off The Master List After Round |%d|.\n", T);
     PrintBoardList(MasterResults, 10);
 
-    // Process all boards directly (no threading)
-    // Save the current evaluation list before processing
-    vector<BoardScore> current_eval_list = evaluate_list;
-    // Clear the evaluation board list so we can fill it with the next round
-    // boards.
-    evaluate_list.clear();
-
     vector<BoardWithCell> sources;
     sources.reserve(BOARDS_PER_ROUND);
-    for (int X = 0; X < BOARDS_PER_ROUND && X < current_eval_list.size(); X++) {
-      sources.push_back(current_eval_list[X].board);
+    for (int X = 0; X < BOARDS_PER_ROUND && X < evaluate_list.size(); X++) {
+      sources.push_back(evaluate_list[X].board);
     }
     auto deviations = GenerateSingleDeviations(sources, boggler);
-
-    // Sort the results in descending order by score.
     std::sort(
         deviations.begin(),
         deviations.end(),
@@ -190,19 +181,21 @@ vector<BoardScore> RunOneSeed(
 
     // Process the results - add qualifying boards to the evaluation list for
     // the next round
+    vector<BoardScore> next_eval_list;
     set<BoardWithCell, BoardComparator> round_boards;
     for (const auto &board : deviations) {
       auto min_score =
-          evaluate_list.size() == EVALUATE_LIST_SIZE ? evaluate_list.back().score : 0;
+          next_eval_list.size() == EVALUATE_LIST_SIZE ? next_eval_list.back().score : 0;
       if (board.score <= min_score) {
         break;
       }
       if (AddBoard(round_boards, board.board) == 1) {
         if (AllEvaluatedBoards.find(board.board) == AllEvaluatedBoards.end()) {
-          InsertIntoEvaluateList(evaluate_list, board);
+          InsertIntoEvaluateList(next_eval_list, board);
         }
       }
     }
+    evaluate_list = next_eval_list;
   }
 
   AddBoardsToMasterList(MasterResults, evaluate_list);
