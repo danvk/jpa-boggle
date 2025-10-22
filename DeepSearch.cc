@@ -140,81 +140,78 @@ vector<BoardScore> RunOneSeed(
   // enough to make the list. The scores attached to this list needs to be
   // reset every time that we start a new seed, the important remaining list
   // is the master list.
-  std::vector<BoardScore> TopEvaluationBoardList;
-  TopEvaluationBoardList.reserve(EVALUATE_LIST_SIZE);
+  vector<BoardScore> evaluate_list;
+  evaluate_list.reserve(EVALUATE_LIST_SIZE);
 
-  auto SeedVariations = GenerateSingleDeviations({{SeedBoard.board, -1}}, boggler);
-  for (const auto &board_score : SeedVariations) {
+  auto seed_variations = GenerateSingleDeviations({{SeedBoard.board, -1}}, boggler);
+  for (const auto &board_score : seed_variations) {
     InsertIntoMasterList(MasterResults, board_score);
     if (AllEvaluatedBoards.find(board_score.board) == AllEvaluatedBoards.end()) {
-      InsertIntoEvaluateList(TopEvaluationBoardList, board_score);
+      InsertIntoEvaluateList(evaluate_list, board_score);
     }
   }
 
   // This Loop Represents the rounds cascade.
   for (int T = 0; T < ROUNDS; T++) {
-    // Initiate a "MinBoardTrie" to keep track of the round returns.
-    set<BoardWithCell, BoardComparator> CurrentBoardsConsideredThisRound;
-
     // Add the board strings from TopEvaluationBoardList to the
     // "AllEvaluatedBoards" trie.
-    for (int X = 0; X < BOARDS_PER_ROUND && X < TopEvaluationBoardList.size(); X++) {
-      AllEvaluatedBoards.insert(TopEvaluationBoardList[X].board);
+    for (int X = 0; X < BOARDS_PER_ROUND && X < evaluate_list.size(); X++) {
+      AllEvaluatedBoards.insert(evaluate_list[X].board);
     }
 
     // The boards on the evaluate list in round zero have already been added
     // to the master list.
     if (T != 0) {
-      AddBoardsToMasterList(MasterResults, TopEvaluationBoardList);
+      AddBoardsToMasterList(MasterResults, evaluate_list);
     }
 
     // Even if nothing qualifies for the master list on this round, print out
     // the best result for the round to keep track of the progress.
-    PrintBestBoard(T, TopEvaluationBoardList);
+    PrintBestBoard(T, evaluate_list);
     printf("\nThe Top 10 Off The Master List After Round |%d|.\n", T);
     PrintBoardList(MasterResults, 10);
 
     // Process all boards directly (no threading)
     // Save the current evaluation list before processing
-    std::vector<BoardScore> CurrentEvaluationList = TopEvaluationBoardList;
+    vector<BoardScore> current_eval_list = evaluate_list;
     // Clear the evaluation board list so we can fill it with the next round
     // boards.
-    TopEvaluationBoardList.clear();
+    evaluate_list.clear();
 
     vector<BoardWithCell> sources;
     sources.reserve(BOARDS_PER_ROUND);
-    for (int X = 0; X < BOARDS_PER_ROUND && X < CurrentEvaluationList.size(); X++) {
-      sources.push_back(CurrentEvaluationList[X].board);
+    for (int X = 0; X < BOARDS_PER_ROUND && X < current_eval_list.size(); X++) {
+      sources.push_back(current_eval_list[X].board);
     }
-    auto WorkingBoardScoreTally = GenerateSingleDeviations(sources, boggler);
+    auto deviations = GenerateSingleDeviations(sources, boggler);
 
     // Sort the results in descending order by score.
     std::sort(
-        WorkingBoardScoreTally.begin(),
-        WorkingBoardScoreTally.end(),
+        deviations.begin(),
+        deviations.end(),
         [](const BoardScore &a, const BoardScore &b) { return a.score > b.score; }
     );
 
     // Process the results - add qualifying boards to the evaluation list for
     // the next round
-    for (const auto &board : WorkingBoardScoreTally) {
-      auto min_score = TopEvaluationBoardList.size() == EVALUATE_LIST_SIZE
-                           ? TopEvaluationBoardList.back().score
-                           : 0;
+    set<BoardWithCell, BoardComparator> round_boards;
+    for (const auto &board : deviations) {
+      auto min_score =
+          evaluate_list.size() == EVALUATE_LIST_SIZE ? evaluate_list.back().score : 0;
       if (board.score <= min_score) {
         break;
       }
-      if (AddBoard(CurrentBoardsConsideredThisRound, board.board) == 1) {
+      if (AddBoard(round_boards, board.board) == 1) {
         if (AllEvaluatedBoards.find(board.board) == AllEvaluatedBoards.end()) {
-          InsertIntoEvaluateList(TopEvaluationBoardList, board);
+          InsertIntoEvaluateList(evaluate_list, board);
         }
       }
     }
   }
 
-  AddBoardsToMasterList(MasterResults, TopEvaluationBoardList);
+  AddBoardsToMasterList(MasterResults, evaluate_list);
 
-  return TopEvaluationBoardList;
+  return evaluate_list;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -253,39 +250,40 @@ int main() {
   auto boggler = new Boggler<5, 5>(trie.get());
 
   // TODO: reduce scope of this variable
-  unsigned int TemporaryBoardScore = boggler->Score(SeedBoard.c_str());
-  assert(TemporaryBoardScore >= 0);
+  unsigned int init_score = boggler->Score(SeedBoard.c_str());
+  assert(init_score >= 0);
 
   // The very first task is to insert the original seed board into the master
   // list.
-  BoardWithCell seed(SeedBoard, 0);
-  InsertIntoMasterList(MasterResults, {TemporaryBoardScore, seed});
+  InsertIntoMasterList(MasterResults, {init_score, {SeedBoard, 0}});
 
   printf(
       "This is the original seed board that will be used...  It is worth "
       "|%d| points.  Sleep for 2 seconds to look at it\n\n",
-      TemporaryBoardScore
+      init_score
   );
   PrintBoard(SeedBoard);
 
   // This loop represents the chain seeds cascade.
   for (int S = 0; S < NUMBER_OF_SEEDS_TO_RUN; S++) {
+    BoardScore seed_score;
+    seed_score.score = -1;
     for (const auto &result : MasterResults) {
-      const auto &board = result.board;
-      if (ChosenSeedBoards.find(board) == ChosenSeedBoards.end()) {
-        seed = board;
-        TemporaryBoardScore = result.score;
+      if (ChosenSeedBoards.find(result.board) == ChosenSeedBoards.end()) {
+        seed_score = result;
         break;
       }
     }
+    assert(seed_score.score >= 0);
+    auto seed = seed_score.board;
+    ChosenSeedBoards.insert(seed);
 
     printf(
         "For the |%d|'th run the seed board is |%s| worth |%d| points.\n",
         S + 1,
         seed.board.c_str(),
-        TemporaryBoardScore
+        seed_score.score
     );
-    ChosenSeedBoards.insert(seed);
     AllEvaluatedBoards.insert(seed);
 
     auto TopEvaluationBoardList =
