@@ -145,7 +145,7 @@ vector<BoardScore> GenerateSingleDeviations(
 }
 
 vector<BoardScore> RunOneSeed(
-    const BoardWithCell &SeedBoard,
+    const string &seed_board,
     Boggler<5, 5> *boggler,
     vector<BoardScore> &MasterResults,
     set<string> &AllEvaluatedBoards
@@ -158,7 +158,8 @@ vector<BoardScore> RunOneSeed(
   evaluate_list.reserve(EVALUATE_LIST_SIZE);
 
   auto seed_variations =
-      GenerateSingleDeviations({{SeedBoard.board, -1}}, boggler, MasterResults);
+      GenerateSingleDeviations({{seed_board, -1}}, boggler, MasterResults);
+  AllEvaluatedBoards.insert(seed_board);
   for (const auto &board_score : seed_variations) {
     if (AllEvaluatedBoards.find(board_score.board.board) == AllEvaluatedBoards.end()) {
       InsertIntoEvaluateList(evaluate_list, board_score);
@@ -271,10 +272,9 @@ int main() {
         seed.board.c_str(),
         seed_score.score
     );
-    AllEvaluatedBoards.insert(seed.board);
 
     auto TopEvaluationBoardList =
-        RunOneSeed(seed, boggler, MasterResults, AllEvaluatedBoards);
+        RunOneSeed(seed.board, boggler, MasterResults, AllEvaluatedBoards);
 
     // Even if nothing qualifies for the master list on this round, print out
     // the best result for the round to keep track of the progress.
