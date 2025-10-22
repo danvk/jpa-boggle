@@ -133,7 +133,7 @@ vector<BoardScore> RunOneSeed(
   std::vector<BoardScore> TopEvaluationBoardList;
   TopEvaluationBoardList.reserve(EVALUATE_LIST_SIZE);
 
-  auto SeedVariations = GenerateSingleDeviations({SeedBoard}, boggler);
+  auto SeedVariations = GenerateSingleDeviations({{SeedBoard.board, -1}}, boggler);
   for (const auto &board_score : SeedVariations) {
     InsertIntoMasterList(MasterResults, board_score);
     if (AllEvaluatedBoards.find(board_score.board) == AllEvaluatedBoards.end()) {
