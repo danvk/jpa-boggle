@@ -4,8 +4,6 @@
 #include <string>
 #include <vector>
 
-#include "const.h"
-
 struct BoardWithCell {
   std::string board;
   int off_limit_cell;

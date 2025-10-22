@@ -17,9 +17,20 @@
 #include <vector>
 
 #include "boggler.h"
-#include "const.h"
 #include "insert.h"
 #include "trie.h"
+
+// General "Boggle" Constants.
+#define SQUARE_COUNT 25
+#define NUMBER_OF_ENGLISH_LETTERS 26
+#define SIZE_OF_CHARACTER_SET 14
+
+// These constant arrays define the lexicon contained in the ADTDAWG.
+char CHARACTER_SET[SIZE_OF_CHARACTER_SET + 1] = {
+    'A', 'C', 'D', 'E', 'G', 'I', 'L', 'M', 'N', 'O', 'P', 'R', 'S', 'T', ' '
+};
+
+#define BOARDS_PER_ROUND 64
 
 // Constants that define the high level "DeepSearch.c" algorithm.
 #define MASTER_SEED_BOARD "AGRIMODAOLSTECETISMNGPART"
