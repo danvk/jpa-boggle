@@ -104,10 +104,11 @@ vector<BoardScore> GenerateSingleDeviations(
     for (int cell = 0; cell < SQUARE_COUNT; cell++) {
       if (cell == off_limit_cell) continue;
       BoardWithCell temp_board(board.board, cell);
-      unsigned int OffLimitLetterIndex = CHARACTER_LOCATIONS[board.board[cell] - 'A'];
+      auto orig_char = board.board[cell];
       for (int i = 0; i < SIZE_OF_CHARACTER_SET; i++) {
-        if (i == OffLimitLetterIndex) continue;
-        temp_board.board[cell] = CHARACTER_SET[i];
+        auto ch = CHARACTER_SET[i];
+        if (ch == orig_char) continue;
+        temp_board.board[cell] = ch;
         auto score = boggler->Score(temp_board.board.c_str());
         assert(score >= 0);
         deviations.push_back(BoardScore(score, temp_board));
