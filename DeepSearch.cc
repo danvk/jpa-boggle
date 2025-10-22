@@ -104,8 +104,21 @@ void AddBoardsToMasterList(
   }
 }
 
+int ScoreBoard(
+    const BoardWithCell &board,
+    Boggler<5, 5> *boggler,
+    vector<BoardScore> &MasterResults
+) {
+  auto score = boggler->Score(board.board.c_str());
+  assert(score >= 0);
+  InsertIntoMasterList(MasterResults, {static_cast<unsigned int>(score), board});
+  return score;
+}
+
 vector<BoardScore> GenerateSingleDeviations(
-    const vector<BoardWithCell> &boards, Boggler<5, 5> *boggler
+    const vector<BoardWithCell> &boards,
+    Boggler<5, 5> *boggler,
+    vector<BoardScore> &MasterResults
 ) {
   vector<BoardScore> deviations;
   deviations.reserve(boards.size() * (SQUARE_COUNT - 1) * (SIZE_OF_CHARACTER_SET - 1));
@@ -120,8 +133,7 @@ vector<BoardScore> GenerateSingleDeviations(
         auto ch = CHARACTER_SET[i];
         if (ch == orig_char) continue;
         temp_board.board[cell] = ch;
-        auto score = boggler->Score(temp_board.board.c_str());
-        assert(score >= 0);
+        auto score = ScoreBoard(temp_board, boggler, MasterResults);
         deviations.push_back(BoardScore(score, temp_board));
       }
     }
@@ -143,9 +155,9 @@ vector<BoardScore> RunOneSeed(
   vector<BoardScore> evaluate_list;
   evaluate_list.reserve(EVALUATE_LIST_SIZE);
 
-  auto seed_variations = GenerateSingleDeviations({{SeedBoard.board, -1}}, boggler);
+  auto seed_variations =
+      GenerateSingleDeviations({{SeedBoard.board, -1}}, boggler, MasterResults);
   for (const auto &board_score : seed_variations) {
-    InsertIntoMasterList(MasterResults, board_score);
     if (AllEvaluatedBoards.find(board_score.board) == AllEvaluatedBoards.end()) {
       InsertIntoEvaluateList(evaluate_list, board_score);
     }
@@ -159,8 +171,6 @@ vector<BoardScore> RunOneSeed(
       AllEvaluatedBoards.insert(evaluate_list[X].board);
     }
 
-    AddBoardsToMasterList(MasterResults, evaluate_list);
-
     // Even if nothing qualifies for the master list on this round, print out
     // the best result for the round to keep track of the progress.
     PrintBestBoard(T, evaluate_list);
@@ -172,7 +182,7 @@ vector<BoardScore> RunOneSeed(
     for (int X = 0; X < BOARDS_PER_ROUND && X < evaluate_list.size(); X++) {
       sources.push_back(evaluate_list[X].board);
     }
-    auto deviations = GenerateSingleDeviations(sources, boggler);
+    auto deviations = GenerateSingleDeviations(sources, boggler, MasterResults);
     std::sort(
         deviations.begin(),
         deviations.end(),
@@ -194,8 +204,6 @@ vector<BoardScore> RunOneSeed(
     }
     evaluate_list = next_eval_list;
   }
-
-  AddBoardsToMasterList(MasterResults, evaluate_list);
 
   return evaluate_list;
 }
@@ -235,13 +243,7 @@ int main() {
   }
   auto boggler = new Boggler<5, 5>(trie.get());
 
-  // TODO: reduce scope of this variable
-  unsigned int init_score = boggler->Score(SeedBoard.c_str());
-  assert(init_score >= 0);
-
-  // The very first task is to insert the original seed board into the master
-  // list.
-  InsertIntoMasterList(MasterResults, {init_score, {SeedBoard, 0}});
+  auto init_score = ScoreBoard({SeedBoard, 0}, boggler, MasterResults);
 
   printf(
       "This is the original seed board that will be used...  It is worth "
