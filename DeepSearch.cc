@@ -80,10 +80,23 @@ void PrintBoard(const string &board) {
   printf("-----------\n");
 }
 
-std::vector<BoardScore> RunOneSeed(
+void AddBoardsToMasterList(
+    vector<BoardScore> &MasterResults, const vector<BoardScore> &boards
+) {
+  unsigned int min_score =
+      MasterResults.size() == MASTER_LIST_SIZE ? MasterResults.back().score : 0;
+  for (const auto &result : boards) {
+    if (result.score <= min_score) {
+      break;
+    }
+    InsertIntoMasterList(MasterResults, result);
+  }
+}
+
+vector<BoardScore> RunOneSeed(
     const BoardWithCell &SeedBoard,
     Boggler<5, 5> *boggler,
-    std::vector<BoardScore> &MasterResults,
+    vector<BoardScore> &MasterResults,
     set<BoardWithCell, BoardComparator> &AllEvaluatedBoards
 ) {
   // Before checking the "AllEvaluatedBoards" Trie, test if the score is high
@@ -142,14 +155,7 @@ std::vector<BoardScore> RunOneSeed(
     // The boards on the evaluate list in round zero have already been added
     // to the master list.
     if (T != 0) {
-      unsigned int min_master_score =
-          MasterResults.size() == MASTER_LIST_SIZE ? MasterResults.back().score : 0;
-      for (const auto &result : TopEvaluationBoardList) {
-        if (result.score <= min_master_score) {
-          break;
-        }
-        InsertIntoMasterList(MasterResults, result);
-      }
+      AddBoardsToMasterList(MasterResults, TopEvaluationBoardList);
     }
 
     // Even if nothing qualifies for the master list on this round, print out
@@ -220,16 +226,7 @@ std::vector<BoardScore> RunOneSeed(
     }
   }
 
-  // Print to screen all of the new boards that qualified for the
-  // "MasterResults" on the final round.
-  unsigned int min_master_score_final =
-      MasterResults.size() == MASTER_LIST_SIZE ? MasterResults.back().score : 0;
-  for (const auto &result : TopEvaluationBoardList) {
-    if (result.score <= min_master_score_final) {
-      break;
-    }
-    InsertIntoMasterList(MasterResults, result);
-  }
+  AddBoardsToMasterList(MasterResults, TopEvaluationBoardList);
 
   return TopEvaluationBoardList;
 }
