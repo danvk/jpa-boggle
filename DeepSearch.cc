@@ -37,7 +37,7 @@ char CHARACTER_SET[SIZE_OF_CHARACTER_SET + 1] = {
 // Constants that define the high level "DeepSearch.c" algorithm.
 #define MASTER_SEED_BOARD "AGRIMODAOLSTECETISMNGPART"
 #define SINGLE_DEVIATIONS 312
-#define NUMBER_OF_SEEDS_TO_RUN 2
+#define NUMBER_OF_SEEDS_TO_RUN 100
 #define ROUNDS 25
 #define BOARDS_PER_THREAD BOARDS_PER_ROUND
 
