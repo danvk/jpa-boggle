@@ -182,17 +182,14 @@ vector<BoardScore> RunOneSeed(
     // Process the results - add qualifying boards to the evaluation list for
     // the next round
     vector<BoardScore> next_eval_list;
-    set<BoardWithCell, BoardComparator> round_boards;
     for (const auto &board : deviations) {
       auto min_score =
           next_eval_list.size() == EVALUATE_LIST_SIZE ? next_eval_list.back().score : 0;
       if (board.score <= min_score) {
         break;
       }
-      if (AddBoard(round_boards, board.board) == 1) {
-        if (AllEvaluatedBoards.find(board.board) == AllEvaluatedBoards.end()) {
-          InsertIntoEvaluateList(next_eval_list, board);
-        }
+      if (AllEvaluatedBoards.find(board.board) == AllEvaluatedBoards.end()) {
+        InsertIntoEvaluateList(next_eval_list, board);
       }
     }
     evaluate_list = next_eval_list;
