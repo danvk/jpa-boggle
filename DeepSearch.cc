@@ -148,7 +148,7 @@ vector<BoardScore> RunOneSeed(
     const BoardWithCell &SeedBoard,
     Boggler<5, 5> *boggler,
     vector<BoardScore> &MasterResults,
-    set<BoardWithCell, BoardComparator> &AllEvaluatedBoards
+    set<string> &AllEvaluatedBoards
 ) {
   // Before checking the "AllEvaluatedBoards" Trie, test if the score is high
   // enough to make the list. The scores attached to this list needs to be
@@ -160,25 +160,21 @@ vector<BoardScore> RunOneSeed(
   auto seed_variations =
       GenerateSingleDeviations({{SeedBoard.board, -1}}, boggler, MasterResults);
   for (const auto &board_score : seed_variations) {
-    if (AllEvaluatedBoards.find(board_score.board) == AllEvaluatedBoards.end()) {
+    if (AllEvaluatedBoards.find(board_score.board.board) == AllEvaluatedBoards.end()) {
       InsertIntoEvaluateList(evaluate_list, board_score);
     }
   }
 
   // This Loop Represents the rounds cascade.
   for (int T = 0; T < ROUNDS; T++) {
-    // Add the board strings from TopEvaluationBoardList to the
-    // "AllEvaluatedBoards" trie.
-    auto to_evaluate = evaluate_list | views::take(BOARDS_PER_ROUND);
-    for (const auto &b : to_evaluate) {
-      AllEvaluatedBoards.insert(b.board);
-    }
-
     // Even if nothing qualifies for the master list on this round, print out
     // the best result for the round to keep track of the progress.
     PrintBestBoard(T, evaluate_list);
     printf("\nThe Top 10 Off The Master List After Round |%d|.\n", T);
     PrintBoardList(MasterResults, 10);
+
+    // Deviate the top boards and mark them as "evaluated."
+    auto to_evaluate = evaluate_list | views::take(BOARDS_PER_ROUND);
 
     vector<BoardWithCell> sources;
     sources.reserve(BOARDS_PER_ROUND);
@@ -186,6 +182,9 @@ vector<BoardScore> RunOneSeed(
       sources.push_back(b.board);
     }
     auto deviations = GenerateSingleDeviations(sources, boggler, MasterResults);
+    for (const auto &b : to_evaluate) {
+      AllEvaluatedBoards.insert(b.board.board);
+    }
     std::sort(
         deviations.begin(),
         deviations.end(),
@@ -196,7 +195,7 @@ vector<BoardScore> RunOneSeed(
     // the next round
     vector<BoardScore> next_eval_list;
     for (const auto &board : deviations) {
-      if (AllEvaluatedBoards.find(board.board) == AllEvaluatedBoards.end()) {
+      if (AllEvaluatedBoards.find(board.board.board) == AllEvaluatedBoards.end()) {
         InsertIntoEvaluateList(next_eval_list, board);
       }
       if (next_eval_list.size() == EVALUATE_LIST_SIZE) {
@@ -224,7 +223,7 @@ int main() {
   // These "MinBoardTrie"s will maintain information about the search so that
   // new boards will continue to be evaluated.  This is an important construct
   // to a search algorithm.
-  set<BoardWithCell, BoardComparator> AllEvaluatedBoards;
+  set<string> AllEvaluatedBoards;
   set<BoardWithCell, BoardComparator> ChosenSeedBoards;
 
   // Allocate the global variables for board processing
@@ -272,7 +271,7 @@ int main() {
         seed.board.c_str(),
         seed_score.score
     );
-    AllEvaluatedBoards.insert(seed);
+    AllEvaluatedBoards.insert(seed.board);
 
     auto TopEvaluationBoardList =
         RunOneSeed(seed, boggler, MasterResults, AllEvaluatedBoards);
