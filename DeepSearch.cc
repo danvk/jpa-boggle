@@ -203,13 +203,10 @@ vector<BoardScore> RunOneSeed(
 
     // Process the results - add qualifying boards to the evaluation list for
     // the next round
-    for (int Y = 0; Y < LIST_SIZE; Y++) {
-      // Because the list is sorted, once we find a board that doesn't make
-      // this evaluation round, get the fuck out.
+    for (const auto &board : WorkingBoardScoreTally) {
       auto min_score = TopEvaluationBoardList.size() == EVALUATE_LIST_SIZE
                            ? TopEvaluationBoardList.back().score
                            : 0;
-      const auto &board = WorkingBoardScoreTally[Y];
       if (board.score <= min_score) {
         break;
       }
