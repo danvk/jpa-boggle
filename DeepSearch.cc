@@ -93,6 +93,33 @@ void AddBoardsToMasterList(
   }
 }
 
+vector<BoardScore> GenerateSingleDeviations(
+    const vector<BoardWithCell> &boards, Boggler<5, 5> *boggler
+) {
+  vector<BoardScore> WorkingBoardScoreTally;
+  WorkingBoardScoreTally.reserve(
+      boards.size() * (SQUARE_COUNT - 1) * (SIZE_OF_CHARACTER_SET - 1)
+  );
+
+  for (const auto &board : boards) {
+    auto OffLimitSquare = board.off_limit_cell;
+    for (int Y = 0; Y < SQUARE_COUNT; Y++) {
+      if (Y == OffLimitSquare) continue;
+      BoardWithCell temp_board(board.board, Y);
+      unsigned int OffLimitLetterIndex = CHARACTER_LOCATIONS[board.board[Y] - 'A'];
+      for (int Z = 0; Z < SIZE_OF_CHARACTER_SET; Z++) {
+        if (Z == OffLimitLetterIndex) continue;
+        temp_board.board[Y] = CHARACTER_SET[Z];
+        auto score = boggler->Score(temp_board.board.c_str());
+        assert(score >= 0);
+        WorkingBoardScoreTally.push_back(BoardScore(score, temp_board));
+      }
+    }
+  }
+
+  return WorkingBoardScoreTally;
+}
+
 vector<BoardScore> RunOneSeed(
     const BoardWithCell &SeedBoard,
     Boggler<5, 5> *boggler,
@@ -168,31 +195,12 @@ vector<BoardScore> RunOneSeed(
     // boards.
     TopEvaluationBoardList.clear();
 
-    // Vector of BoardScore objects for working board tallies
-    std::vector<BoardScore> WorkingBoardScoreTally;
-    WorkingBoardScoreTally.reserve(LIST_SIZE);
-
-    // Fill "WorkingBoardScoreTally" with all single deviations of the boards
-    // in CurrentEvaluationList
+    vector<BoardWithCell> sources;
+    sources.reserve(BOARDS_PER_ROUND);
     for (int X = 0; X < BOARDS_PER_ROUND && X < CurrentEvaluationList.size(); X++) {
-      const auto &board = CurrentEvaluationList[X].board;
-      auto OffLimitSquare = board.off_limit_cell;
-      for (int Y = 0; Y < SQUARE_COUNT; Y++) {
-        if (Y == OffLimitSquare) continue;
-        // Y will now represent the placement of the off limits Square so set
-        // it as such.
-        BoardWithCell temp_board(board.board, Y);
-        unsigned int OffLimitLetterIndex = CHARACTER_LOCATIONS[board.board[Y] - 'A'];
-        for (int Z = 0; Z < SIZE_OF_CHARACTER_SET; Z++) {
-          if (Z == OffLimitLetterIndex) continue;
-          temp_board.board[Y] = CHARACTER_SET[Z];
-          auto score = boggler->Score(temp_board.board.c_str());
-          assert(score >= 0);
-          BoardScore bs(score, temp_board);
-          WorkingBoardScoreTally.push_back(bs);
-        }
-      }
+      sources.push_back(CurrentEvaluationList[X].board);
     }
+    auto WorkingBoardScoreTally = GenerateSingleDeviations(sources, boggler);
 
     // Sort the results in descending order by score.
     std::sort(
