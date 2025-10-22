@@ -106,9 +106,6 @@ vector<BoardScore> RunOneSeed(
   std::vector<BoardScore> TopEvaluationBoardList;
   TopEvaluationBoardList.reserve(EVALUATE_LIST_SIZE);
 
-  // Vector of BoardScore objects for working board tallies
-  std::vector<BoardScore> WorkingBoardScoreTally(LIST_SIZE);
-
   // Populate the evaluate list for the first round of boards based on the
   // best solitary deviations of the current seed board.  Add these boards to
   // the Evaluate and Master lists.  They Have not been fully evaluated yet.
@@ -171,9 +168,12 @@ vector<BoardScore> RunOneSeed(
     // boards.
     TopEvaluationBoardList.clear();
 
+    // Vector of BoardScore objects for working board tallies
+    std::vector<BoardScore> WorkingBoardScoreTally;
+    WorkingBoardScoreTally.reserve(LIST_SIZE);
+
     // Fill "WorkingBoardScoreTally" with all single deviations of the boards
     // in CurrentEvaluationList
-    unsigned int InsertionSlot = 0;
     for (int X = 0; X < BOARDS_PER_ROUND && X < CurrentEvaluationList.size(); X++) {
       const auto &board = CurrentEvaluationList[X].board;
       auto OffLimitSquare = board.off_limit_cell;
@@ -186,20 +186,15 @@ vector<BoardScore> RunOneSeed(
         for (int Z = 0; Z < SIZE_OF_CHARACTER_SET; Z++) {
           if (Z == OffLimitLetterIndex) continue;
           temp_board.board[Y] = CHARACTER_SET[Z];
-          WorkingBoardScoreTally[InsertionSlot].board = temp_board;
-          InsertionSlot += 1;
+          auto score = boggler->Score(temp_board.board.c_str());
+          assert(score >= 0);
+          BoardScore bs(score, temp_board);
+          WorkingBoardScoreTally.push_back(bs);
         }
       }
     }
 
-    // Evaluate all of the single deviation boards and store the scores
-    for (int X = 0; X < LIST_SIZE; X++) {
-      auto score = boggler->Score(WorkingBoardScoreTally[X].board.board.c_str());
-      assert(score >= 0);
-      WorkingBoardScoreTally[X].score = score;
-    }
-
-    // Sort the results in descending order by score using std::sort
+    // Sort the results in descending order by score.
     std::sort(
         WorkingBoardScoreTally.begin(),
         WorkingBoardScoreTally.end(),
