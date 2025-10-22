@@ -84,7 +84,6 @@ std::vector<BoardScore> RunOneSeed(
     const BoardWithCell &SeedBoard,
     Boggler<5, 5> *boggler,
     std::vector<BoardScore> &MasterResults,
-    set<BoardWithCell, BoardComparator> &WhatMadeTheMasterList,
     set<BoardWithCell, BoardComparator> &AllEvaluatedBoards
 ) {
   // Before checking the "AllEvaluatedBoards" Trie, test if the score is high
@@ -122,13 +121,7 @@ std::vector<BoardScore> RunOneSeed(
       // Try to add each board to the "MasterResultsBoardList", and the
       // "TopEvaluationBoardList".  Do this in sequence.  Only the
       // "WhatMadeTheMasterList" MinBoardTrie will be augmented.
-      if (WhatMadeTheMasterList.find(bd) == WhatMadeTheMasterList.end()) {
-        size_t old_size = MasterResults.size();
-        auto was_inserted = InsertIntoMasterList(MasterResults, board_score);
-        if (was_inserted) {
-          WhatMadeTheMasterList.insert(bd);
-        }
-      }
+      InsertIntoMasterList(MasterResults, board_score);
       if (AllEvaluatedBoards.find(bd) == AllEvaluatedBoards.end()) {
         InsertIntoEvaluateList(TopEvaluationBoardList, board_score);
       }
@@ -145,6 +138,7 @@ std::vector<BoardScore> RunOneSeed(
     for (int X = 0; X < BOARDS_PER_ROUND && X < TopEvaluationBoardList.size(); X++) {
       AllEvaluatedBoards.insert(TopEvaluationBoardList[X].board);
     }
+
     // The boards on the evaluate list in round zero have already been added
     // to the master list.
     if (T != 0) {
@@ -155,10 +149,7 @@ std::vector<BoardScore> RunOneSeed(
         const auto &score = result.score;
 
         if (score > min_master_score) {
-          if (WhatMadeTheMasterList.find(board) == WhatMadeTheMasterList.end()) {
-            InsertIntoMasterList(MasterResults, result);
-            WhatMadeTheMasterList.insert(board);
-          }
+          InsertIntoMasterList(MasterResults, result);
         }
         // As soon as a board is reached that doesn't make the master list,
         // get the fuck out of here.
@@ -242,10 +233,7 @@ std::vector<BoardScore> RunOneSeed(
     const auto &board = result.board;
     const auto &score = result.score;
     if (score > min_master_score_final) {
-      if (WhatMadeTheMasterList.find(board) == WhatMadeTheMasterList.end()) {
-        InsertIntoMasterList(MasterResults, result);
-        WhatMadeTheMasterList.insert(board);
-      }
+      InsertIntoMasterList(MasterResults, result);
     }
     // As soon as a board is reached that doesn't make the master list, get
     // the fuck out of here.
@@ -271,10 +259,8 @@ int main() {
   // These "MinBoardTrie"s will maintain information about the search so that
   // new boards will continue to be evaluated.  This is an important construct
   // to a search algorithm.
-  set<BoardWithCell, BoardComparator> CurrentBoardsConsideredThisRound;
   set<BoardWithCell, BoardComparator> AllEvaluatedBoards;
   set<BoardWithCell, BoardComparator> ChosenSeedBoards;
-  set<BoardWithCell, BoardComparator> WhatMadeTheMasterList;
 
   // Allocate the global variables for board processing
 
@@ -300,7 +286,6 @@ int main() {
   // The very first task is to insert the original seed board into the master
   // list.
   BoardWithCell seed(SeedBoard, 0);
-  WhatMadeTheMasterList.insert(seed);
   InsertIntoMasterList(MasterResults, {TemporaryBoardScore, seed});
 
   printf(
@@ -330,9 +315,8 @@ int main() {
     ChosenSeedBoards.insert(seed);
     AllEvaluatedBoards.insert(seed);
 
-    auto TopEvaluationBoardList = RunOneSeed(
-        seed, boggler, MasterResults, WhatMadeTheMasterList, AllEvaluatedBoards
-    );
+    auto TopEvaluationBoardList =
+        RunOneSeed(seed, boggler, MasterResults, AllEvaluatedBoards);
 
     // Even if nothing qualifies for the master list on this round, print out
     // the best result for the round to keep track of the progress.
