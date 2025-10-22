@@ -145,18 +145,13 @@ std::vector<BoardScore> RunOneSeed(
       unsigned int min_master_score =
           MasterResults.size() == MASTER_LIST_SIZE ? MasterResults.back().score : 0;
       for (const auto &result : TopEvaluationBoardList) {
-        const auto &board = result.board;
-        const auto &score = result.score;
-
-        if (score > min_master_score) {
-          InsertIntoMasterList(MasterResults, result);
-        }
-        // As soon as a board is reached that doesn't make the master list,
-        // get the fuck out of here.
-        else
+        if (result.score <= min_master_score) {
           break;
+        }
+        InsertIntoMasterList(MasterResults, result);
       }
     }
+
     // Even if nothing qualifies for the master list on this round, print out
     // the best result for the round to keep track of the progress.
     PrintBestBoard(T, TopEvaluationBoardList);
@@ -210,18 +205,18 @@ std::vector<BoardScore> RunOneSeed(
     for (int Y = 0; Y < LIST_SIZE; Y++) {
       // Because the list is sorted, once we find a board that doesn't make
       // this evaluation round, get the fuck out.
-      auto min_eval_score = TopEvaluationBoardList.size() == EVALUATE_LIST_SIZE
-                                ? TopEvaluationBoardList.back().score
-                                : 0;
+      auto min_score = TopEvaluationBoardList.size() == EVALUATE_LIST_SIZE
+                           ? TopEvaluationBoardList.back().score
+                           : 0;
       const auto &board = WorkingBoardScoreTally[Y];
-      if (board.score > min_eval_score) {
-        if (AddBoard(CurrentBoardsConsideredThisRound, board.board) == 1) {
-          if (AllEvaluatedBoards.find(board.board) == AllEvaluatedBoards.end()) {
-            InsertIntoEvaluateList(TopEvaluationBoardList, board);
-          }
-        }
-      } else
+      if (board.score <= min_score) {
         break;
+      }
+      if (AddBoard(CurrentBoardsConsideredThisRound, board.board) == 1) {
+        if (AllEvaluatedBoards.find(board.board) == AllEvaluatedBoards.end()) {
+          InsertIntoEvaluateList(TopEvaluationBoardList, board);
+        }
+      }
     }
   }
 
@@ -230,15 +225,10 @@ std::vector<BoardScore> RunOneSeed(
   unsigned int min_master_score_final =
       MasterResults.size() == MASTER_LIST_SIZE ? MasterResults.back().score : 0;
   for (const auto &result : TopEvaluationBoardList) {
-    const auto &board = result.board;
-    const auto &score = result.score;
-    if (score > min_master_score_final) {
-      InsertIntoMasterList(MasterResults, result);
-    }
-    // As soon as a board is reached that doesn't make the master list, get
-    // the fuck out of here.
-    else
+    if (result.score <= min_master_score_final) {
       break;
+    }
+    InsertIntoMasterList(MasterResults, result);
   }
 
   return TopEvaluationBoardList;
