@@ -12,7 +12,9 @@
 
 #include <algorithm>
 #include <format>
+#include <ranges>
 #include <set>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -167,8 +169,9 @@ vector<BoardScore> RunOneSeed(
   for (int T = 0; T < ROUNDS; T++) {
     // Add the board strings from TopEvaluationBoardList to the
     // "AllEvaluatedBoards" trie.
-    for (int X = 0; X < BOARDS_PER_ROUND && X < evaluate_list.size(); X++) {
-      AllEvaluatedBoards.insert(evaluate_list[X].board);
+    auto to_evaluate = evaluate_list | views::take(BOARDS_PER_ROUND);
+    for (const auto &b : to_evaluate) {
+      AllEvaluatedBoards.insert(b.board);
     }
 
     // Even if nothing qualifies for the master list on this round, print out
@@ -179,8 +182,8 @@ vector<BoardScore> RunOneSeed(
 
     vector<BoardWithCell> sources;
     sources.reserve(BOARDS_PER_ROUND);
-    for (int X = 0; X < BOARDS_PER_ROUND && X < evaluate_list.size(); X++) {
-      sources.push_back(evaluate_list[X].board);
+    for (const auto &b : to_evaluate) {
+      sources.push_back(b.board);
     }
     auto deviations = GenerateSingleDeviations(sources, boggler, MasterResults);
     std::sort(
