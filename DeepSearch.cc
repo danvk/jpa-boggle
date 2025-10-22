@@ -96,28 +96,26 @@ void AddBoardsToMasterList(
 vector<BoardScore> GenerateSingleDeviations(
     const vector<BoardWithCell> &boards, Boggler<5, 5> *boggler
 ) {
-  vector<BoardScore> WorkingBoardScoreTally;
-  WorkingBoardScoreTally.reserve(
-      boards.size() * (SQUARE_COUNT - 1) * (SIZE_OF_CHARACTER_SET - 1)
-  );
+  vector<BoardScore> deviations;
+  deviations.reserve(boards.size() * (SQUARE_COUNT - 1) * (SIZE_OF_CHARACTER_SET - 1));
 
   for (const auto &board : boards) {
-    auto OffLimitSquare = board.off_limit_cell;
-    for (int Y = 0; Y < SQUARE_COUNT; Y++) {
-      if (Y == OffLimitSquare) continue;
-      BoardWithCell temp_board(board.board, Y);
-      unsigned int OffLimitLetterIndex = CHARACTER_LOCATIONS[board.board[Y] - 'A'];
-      for (int Z = 0; Z < SIZE_OF_CHARACTER_SET; Z++) {
-        if (Z == OffLimitLetterIndex) continue;
-        temp_board.board[Y] = CHARACTER_SET[Z];
+    auto off_limit_cell = board.off_limit_cell;
+    for (int cell = 0; cell < SQUARE_COUNT; cell++) {
+      if (cell == off_limit_cell) continue;
+      BoardWithCell temp_board(board.board, cell);
+      unsigned int OffLimitLetterIndex = CHARACTER_LOCATIONS[board.board[cell] - 'A'];
+      for (int i = 0; i < SIZE_OF_CHARACTER_SET; i++) {
+        if (i == OffLimitLetterIndex) continue;
+        temp_board.board[cell] = CHARACTER_SET[i];
         auto score = boggler->Score(temp_board.board.c_str());
         assert(score >= 0);
-        WorkingBoardScoreTally.push_back(BoardScore(score, temp_board));
+        deviations.push_back(BoardScore(score, temp_board));
       }
     }
   }
 
-  return WorkingBoardScoreTally;
+  return deviations;
 }
 
 vector<BoardScore> RunOneSeed(
