@@ -82,7 +82,7 @@ template <int M, int N>
 bool Boggler<M, N>::ParseBoard(const char* bd) {
   unsigned int expected_len = M * N;
   auto true_len = strlen(bd);
-  if (true_len != expected_len && true_len != expected_len + 2) {
+  if (true_len != expected_len) {
     fprintf(
         stderr,
         "Board strings must contain %d characters, got %zu ('%s')\n",

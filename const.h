@@ -13,6 +13,8 @@ extern "C" {
 
 // These constant arrays define the lexicon contained in the ADTDAWG.
 extern char CHARACTER_SET[SIZE_OF_CHARACTER_SET + 1];
+
+// TODO: eliminate this
 extern unsigned int CHARACTER_LOCATIONS[NUMBER_OF_ENGLISH_LETTERS];
 
 #define BOARDS_PER_ROUND 64

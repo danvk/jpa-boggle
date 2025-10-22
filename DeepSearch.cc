@@ -34,35 +34,42 @@
 
 using namespace std;
 
-// Custom comparator for set<string> that only compares first SQUARE_COUNT
-// characters
 struct BoardComparator {
-  bool operator()(const string &a, const string &b) const {
-    return a.compare(0, SQUARE_COUNT, b, 0, SQUARE_COUNT) < 0;
+  bool operator()(const BoardWithCell &a, const BoardWithCell &b) const {
+    return a.board < b.board;
   }
 };
 
 // Returns 1 if this adds board to the container
-int AddBoard(set<string, BoardComparator> &container, const char *board) {
-  if (board == NULL) return 0;
-  std::string s(board);
-  auto result = container.insert(s);
+int AddBoard(
+    set<BoardWithCell, BoardComparator> &container, const BoardWithCell &board
+) {
+  auto result = container.insert(board);
   return result.second ? 1 : 0;
 }
 
 void PrintBoardList(const vector<BoardScore> &list, int num_to_print = 10'000) {
   for (int i = 0; i < num_to_print && i < list.size(); i++) {
-    printf("#%4d -|%5d|-|%s|\n", i + 1, list[i].score, list[i].board.c_str());
+    const auto &b = list[i];
+    printf(
+        "#%4d -|%5d|-|%s%02d|\n",
+        i + 1,
+        b.score,
+        b.board.board.c_str(),
+        b.board.off_limit_cell
+    );
   }
 }
 
 void PrintBestBoard(int round, const vector<BoardScore> &list) {
   if (!list.empty()) {
+    const auto &b = list[0];
     printf(
-        "\nRound|%d|, Best Board|%s|, Best Score|%d|\n",
+        "\nRound|%d|, Best Board|%s%02d|, Best Score|%d|\n",
         round,
-        list[0].board.c_str(),
-        list[0].score
+        b.board.board.c_str(),
+        b.board.off_limit_cell,
+        b.score
     );
   }
 }
@@ -74,11 +81,11 @@ void PrintBoard(const string &board) {
 }
 
 std::vector<BoardScore> RunOneSeed(
-    const std::string &SeedBoard,
+    const BoardWithCell &SeedBoard,
     Boggler<5, 5> *boggler,
     std::vector<BoardScore> &MasterResults,
-    set<string, BoardComparator> &WhatMadeTheMasterList,
-    set<string, BoardComparator> &AllEvaluatedBoards
+    set<BoardWithCell, BoardComparator> &WhatMadeTheMasterList,
+    set<BoardWithCell, BoardComparator> &AllEvaluatedBoards
 ) {
   // Before checking the "AllEvaluatedBoards" Trie, test if the score is high
   // enough to make the list. The scores attached to this list needs to be
@@ -97,39 +104,33 @@ std::vector<BoardScore> RunOneSeed(
   // here.  Add them to the master list if they qualify.
 
   for (int X = 0; X < SQUARE_COUNT; X++) {
-    string bd = SeedBoard;
-    if (bd.length() == SQUARE_COUNT) {
-      bd += "00";
-    }
-    assert(bd.length() == SQUARE_COUNT + 2);
-    char buf[3];
-    snprintf(buf, 3, "%02d", X);
-    bd[SQUARE_COUNT] = buf[0];
-    bd[SQUARE_COUNT + 1] = buf[1];
-    char TheSeedLetter = SeedBoard[X];
+    auto bd = SeedBoard;
+    bd.off_limit_cell = X;
+    char TheSeedLetter = SeedBoard.board[X];
 
     for (int Y = 0; Y < SIZE_OF_CHARACTER_SET; Y++) {
       // This statement indicates that less new boards are generated for each
       // evaluation board, as in one square will be off limits.  This is how
       // we arrive at the number "SOLITARY_DEVIATIONS".
       if (TheSeedLetter == CHARACTER_SET[Y]) continue;
-      bd[X] = CHARACTER_SET[Y];
+      bd.board[X] = CHARACTER_SET[Y];
 
-      int score = boggler->Score(bd.c_str());
+      int score = boggler->Score(bd.board.c_str());
       assert(score >= 0);
+      BoardScore board_score(score, bd);
 
       // Try to add each board to the "MasterResultsBoardList", and the
       // "TopEvaluationBoardList".  Do this in sequence.  Only the
       // "WhatMadeTheMasterList" MinBoardTrie will be augmented.
       if (WhatMadeTheMasterList.find(bd) == WhatMadeTheMasterList.end()) {
         size_t old_size = MasterResults.size();
-        auto was_inserted = InsertIntoMasterList(MasterResults, score, bd);
+        auto was_inserted = InsertIntoMasterList(MasterResults, board_score);
         if (was_inserted) {
           WhatMadeTheMasterList.insert(bd);
         }
       }
       if (AllEvaluatedBoards.find(bd) == AllEvaluatedBoards.end()) {
-        InsertIntoEvaluateList(TopEvaluationBoardList, score, bd);
+        InsertIntoEvaluateList(TopEvaluationBoardList, board_score);
       }
     }
   }
@@ -137,7 +138,7 @@ std::vector<BoardScore> RunOneSeed(
   // This Loop Represents the rounds cascade.
   for (int T = 0; T < ROUNDS; T++) {
     // Initiate a "MinBoardTrie" to keep track of the round returns.
-    set<string, BoardComparator> CurrentBoardsConsideredThisRound;
+    set<BoardWithCell, BoardComparator> CurrentBoardsConsideredThisRound;
 
     // Add the board strings from TopEvaluationBoardList to the
     // "AllEvaluatedBoards" trie.
@@ -155,7 +156,7 @@ std::vector<BoardScore> RunOneSeed(
 
         if (score > min_master_score) {
           if (WhatMadeTheMasterList.find(board) == WhatMadeTheMasterList.end()) {
-            InsertIntoMasterList(MasterResults, score, board.c_str());
+            InsertIntoMasterList(MasterResults, result);
             WhatMadeTheMasterList.insert(board);
           }
         }
@@ -182,31 +183,26 @@ std::vector<BoardScore> RunOneSeed(
     // in CurrentEvaluationList
     unsigned int InsertionSlot = 0;
     for (int X = 0; X < BOARDS_PER_ROUND && X < CurrentEvaluationList.size(); X++) {
-      string TempBoardString = CurrentEvaluationList[X].board;
-      unsigned int OffLimitSquare = atoi(TempBoardString.c_str() + SQUARE_COUNT);
+      const auto &board = CurrentEvaluationList[X].board;
+      auto OffLimitSquare = board.off_limit_cell;
       for (int Y = 0; Y < SQUARE_COUNT; Y++) {
         if (Y == OffLimitSquare) continue;
         // Y will now represent the placement of the off limits Square so set
         // it as such.
-        char buf[3];
-        snprintf(buf, 3, "%02d", Y);
-        TempBoardString[SQUARE_COUNT] = buf[0];
-        TempBoardString[SQUARE_COUNT + 1] = buf[1];
-        unsigned int OffLimitLetterIndex =
-            CHARACTER_LOCATIONS[TempBoardString[Y] - 'A'];
+        BoardWithCell temp_board(board.board, Y);
+        unsigned int OffLimitLetterIndex = CHARACTER_LOCATIONS[board.board[Y] - 'A'];
         for (int Z = 0; Z < SIZE_OF_CHARACTER_SET; Z++) {
           if (Z == OffLimitLetterIndex) continue;
-          TempBoardString[Y] = CHARACTER_SET[Z];
-          WorkingBoardScoreTally[InsertionSlot].board = TempBoardString;
+          temp_board.board[Y] = CHARACTER_SET[Z];
+          WorkingBoardScoreTally[InsertionSlot].board = temp_board;
           InsertionSlot += 1;
         }
-        TempBoardString[Y] = CHARACTER_SET[OffLimitLetterIndex];
       }
     }
 
     // Evaluate all of the single deviation boards and store the scores
     for (int X = 0; X < LIST_SIZE; X++) {
-      auto score = boggler->Score(WorkingBoardScoreTally[X].board.c_str());
+      auto score = boggler->Score(WorkingBoardScoreTally[X].board.board.c_str());
       assert(score >= 0);
       WorkingBoardScoreTally[X].score = score;
     }
@@ -223,16 +219,14 @@ std::vector<BoardScore> RunOneSeed(
     for (int Y = 0; Y < LIST_SIZE; Y++) {
       // Because the list is sorted, once we find a board that doesn't make
       // this evaluation round, get the fuck out.
-      unsigned int min_eval_score = TopEvaluationBoardList.size() == EVALUATE_LIST_SIZE
-                                        ? TopEvaluationBoardList.back().score
-                                        : 0;
+      auto min_eval_score = TopEvaluationBoardList.size() == EVALUATE_LIST_SIZE
+                                ? TopEvaluationBoardList.back().score
+                                : 0;
       const auto &board = WorkingBoardScoreTally[Y];
       if (board.score > min_eval_score) {
-        if (AddBoard(CurrentBoardsConsideredThisRound, board.board.c_str()) == 1) {
+        if (AddBoard(CurrentBoardsConsideredThisRound, board.board) == 1) {
           if (AllEvaluatedBoards.find(board.board) == AllEvaluatedBoards.end()) {
-            InsertIntoEvaluateList(
-                TopEvaluationBoardList, board.score, board.board.c_str()
-            );
+            InsertIntoEvaluateList(TopEvaluationBoardList, board);
           }
         }
       } else
@@ -249,7 +243,7 @@ std::vector<BoardScore> RunOneSeed(
     const auto &score = result.score;
     if (score > min_master_score_final) {
       if (WhatMadeTheMasterList.find(board) == WhatMadeTheMasterList.end()) {
-        InsertIntoMasterList(MasterResults, score, board.c_str());
+        InsertIntoMasterList(MasterResults, result);
         WhatMadeTheMasterList.insert(board);
       }
     }
@@ -277,10 +271,10 @@ int main() {
   // These "MinBoardTrie"s will maintain information about the search so that
   // new boards will continue to be evaluated.  This is an important construct
   // to a search algorithm.
-  set<string, BoardComparator> CurrentBoardsConsideredThisRound;
-  set<string, BoardComparator> AllEvaluatedBoards;
-  set<string, BoardComparator> ChosenSeedBoards;
-  set<string, BoardComparator> WhatMadeTheMasterList;
+  set<BoardWithCell, BoardComparator> CurrentBoardsConsideredThisRound;
+  set<BoardWithCell, BoardComparator> AllEvaluatedBoards;
+  set<BoardWithCell, BoardComparator> ChosenSeedBoards;
+  set<BoardWithCell, BoardComparator> WhatMadeTheMasterList;
 
   // Allocate the global variables for board processing
 
@@ -299,13 +293,15 @@ int main() {
   }
   auto boggler = new Boggler<5, 5>(trie.get());
 
+  // TODO: reduce scope of this variable
   unsigned int TemporaryBoardScore = boggler->Score(SeedBoard.c_str());
   assert(TemporaryBoardScore >= 0);
 
   // The very first task is to insert the original seed board into the master
   // list.
-  WhatMadeTheMasterList.insert(SeedBoard);
-  InsertIntoMasterList(MasterResults, TemporaryBoardScore, SeedBoard);
+  BoardWithCell seed(SeedBoard, 0);
+  WhatMadeTheMasterList.insert(seed);
+  InsertIntoMasterList(MasterResults, {TemporaryBoardScore, seed});
 
   printf(
       "This is the original seed board that will be used...  It is worth "
@@ -319,7 +315,7 @@ int main() {
     for (const auto &result : MasterResults) {
       const auto &board = result.board;
       if (ChosenSeedBoards.find(board) == ChosenSeedBoards.end()) {
-        SeedBoard = board;
+        seed = board;
         TemporaryBoardScore = result.score;
         break;
       }
@@ -328,14 +324,14 @@ int main() {
     printf(
         "For the |%d|'th run the seed board is |%s| worth |%d| points.\n",
         S + 1,
-        SeedBoard.substr(0, SQUARE_COUNT).c_str(),
+        seed.board.c_str(),
         TemporaryBoardScore
     );
-    ChosenSeedBoards.insert(SeedBoard);
-    AllEvaluatedBoards.insert(SeedBoard);
+    ChosenSeedBoards.insert(seed);
+    AllEvaluatedBoards.insert(seed);
 
     auto TopEvaluationBoardList = RunOneSeed(
-        SeedBoard, boggler, MasterResults, WhatMadeTheMasterList, AllEvaluatedBoards
+        seed, boggler, MasterResults, WhatMadeTheMasterList, AllEvaluatedBoards
     );
 
     // Even if nothing qualifies for the master list on this round, print out
@@ -365,7 +361,7 @@ int main() {
   printf("The boards used as seed boards are as follows:..\n");
   printf("This Min Board Trie Contains |%zu| Boards.\n", ChosenSeedBoards.size());
   for (const auto &board : ChosenSeedBoards) {
-    printf("|%s|\n", board.substr(0, SQUARE_COUNT).c_str());
+    printf("|%s|\n", board.board.c_str());
   }
 
   return 0;

@@ -6,13 +6,19 @@
 
 #include "const.h"
 
+struct BoardWithCell {
+  std::string board;
+  int off_limit_cell;
+
+  BoardWithCell(std::string bd, int cell) : board(bd), off_limit_cell(cell) {}
+};
+
 struct BoardScore {
   unsigned int score;
-  std::string board;
+  BoardWithCell board;
 
-  BoardScore() : score(0), board() {}
-  BoardScore(unsigned int s, const std::string &b) : score(s), board(b) {}
-  BoardScore(unsigned int s, const char *b) : score(s), board(b) {}
+  BoardScore() : score(0), board("", 0) {}
+  BoardScore(unsigned int s, const BoardWithCell &b) : score(s), board(b) {}
 };
 
 // Scoreboard list constants for streamlined binary insertion sort
@@ -22,12 +28,9 @@ struct BoardScore {
 #define EVALUATE_LIST_SIZE 66
 #define MASTER_LIST_SIZE 1026
 
+// TODO: change these to TopN classes
 // Returns whether the item was inserted into the list.
-bool InsertIntoMasterList(
-    std::vector<BoardScore> &list, unsigned int score, const std::string &board
-);
-bool InsertIntoEvaluateList(
-    std::vector<BoardScore> &list, unsigned int score, const std::string &board
-);
+bool InsertIntoMasterList(std::vector<BoardScore> &list, const BoardScore &board);
+bool InsertIntoEvaluateList(std::vector<BoardScore> &list, const BoardScore &board);
 
 #endif  // INSERT_H
