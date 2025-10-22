@@ -92,6 +92,18 @@ void AddBoardsToMasterList(
   }
 }
 
+vector<BoardScore> BuildEvalList(
+    const vector<BoardScore> &boards, const set<string> &all_evaluated_boards
+) {
+  vector<BoardScore> next_eval_list;
+  for (const auto &board : boards) {
+    if (all_evaluated_boards.find(board.board.board) == all_evaluated_boards.end()) {
+      InsertIntoEvaluateList(next_eval_list, board);
+    }
+  }
+  return next_eval_list;
+}
+
 int ScoreBoard(
     const BoardWithCell &board,
     Boggler<5, 5> *boggler,
@@ -136,21 +148,10 @@ vector<BoardScore> RunOneSeed(
     vector<BoardScore> &MasterResults,
     set<string> &AllEvaluatedBoards
 ) {
-  // Before checking the "AllEvaluatedBoards" Trie, test if the score is high
-  // enough to make the list. The scores attached to this list needs to be
-  // reset every time that we start a new seed, the important remaining list
-  // is the master list.
-  vector<BoardScore> evaluate_list;
-  evaluate_list.reserve(EVALUATE_LIST_SIZE);
-
   auto seed_variations =
       GenerateSingleDeviations({{seed_board, -1}}, boggler, MasterResults);
-  AllEvaluatedBoards.insert(seed_board);
-  for (const auto &board_score : seed_variations) {
-    if (AllEvaluatedBoards.find(board_score.board.board) == AllEvaluatedBoards.end()) {
-      InsertIntoEvaluateList(evaluate_list, board_score);
-    }
-  }
+
+  auto evaluate_list = BuildEvalList(seed_variations, AllEvaluatedBoards);
 
   // This Loop Represents the rounds cascade.
   for (int T = 0; T < ROUNDS; T++) {
@@ -172,24 +173,8 @@ vector<BoardScore> RunOneSeed(
     for (const auto &b : to_evaluate) {
       AllEvaluatedBoards.insert(b.board.board);
     }
-    std::sort(
-        deviations.begin(),
-        deviations.end(),
-        [](const BoardScore &a, const BoardScore &b) { return a.score > b.score; }
-    );
 
-    // Process the results - add qualifying boards to the evaluation list for
-    // the next round
-    vector<BoardScore> next_eval_list;
-    for (const auto &board : deviations) {
-      if (AllEvaluatedBoards.find(board.board.board) == AllEvaluatedBoards.end()) {
-        InsertIntoEvaluateList(next_eval_list, board);
-      }
-      if (next_eval_list.size() == EVALUATE_LIST_SIZE) {
-        break;
-      }
-    }
-    evaluate_list = next_eval_list;
+    evaluate_list = BuildEvalList(deviations, AllEvaluatedBoards);
   }
 
   return evaluate_list;
