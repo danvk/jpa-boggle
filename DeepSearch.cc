@@ -47,20 +47,6 @@ char CHARACTER_SET[SIZE_OF_CHARACTER_SET + 1] = {
 
 using namespace std;
 
-struct BoardComparator {
-  bool operator()(const BoardWithCell &a, const BoardWithCell &b) const {
-    return a.board < b.board;
-  }
-};
-
-// Returns 1 if this adds board to the container
-int AddBoard(
-    set<BoardWithCell, BoardComparator> &container, const BoardWithCell &board
-) {
-  auto result = container.insert(board);
-  return result.second ? 1 : 0;
-}
-
 void PrintBoardList(const vector<BoardScore> &list, int num_to_print = 10'000) {
   for (int i = 0; i < num_to_print && i < list.size(); i++) {
     const auto &b = list[i];
@@ -225,7 +211,7 @@ int main() {
   // new boards will continue to be evaluated.  This is an important construct
   // to a search algorithm.
   set<string> AllEvaluatedBoards;
-  set<BoardWithCell, BoardComparator> ChosenSeedBoards;
+  set<string> ChosenSeedBoards;
 
   // Allocate the global variables for board processing
 
@@ -257,14 +243,14 @@ int main() {
   for (int S = 0; S < NUMBER_OF_SEEDS_TO_RUN; S++) {
     BoardScore seed_score(-1, {"", 0});
     for (const auto &result : MasterResults) {
-      if (ChosenSeedBoards.find(result.board) == ChosenSeedBoards.end()) {
+      if (ChosenSeedBoards.find(result.board.board) == ChosenSeedBoards.end()) {
         seed_score = result;
         break;
       }
     }
     assert(seed_score.score >= 0);
     auto seed = seed_score.board;
-    ChosenSeedBoards.insert(seed);
+    ChosenSeedBoards.insert(seed.board);
 
     printf(
         "For the |%d|'th run the seed board is |%s| worth |%d| points.\n",
@@ -303,7 +289,7 @@ int main() {
   printf("The boards used as seed boards are as follows:..\n");
   printf("This Min Board Trie Contains |%zu| Boards.\n", ChosenSeedBoards.size());
   for (const auto &board : ChosenSeedBoards) {
-    printf("|%s|\n", board.board.c_str());
+    printf("|%s|\n", board.c_str());
   }
 
   return 0;
