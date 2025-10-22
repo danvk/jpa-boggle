@@ -133,35 +133,11 @@ vector<BoardScore> RunOneSeed(
   std::vector<BoardScore> TopEvaluationBoardList;
   TopEvaluationBoardList.reserve(EVALUATE_LIST_SIZE);
 
-  // Populate the evaluate list for the first round of boards based on the
-  // best solitary deviations of the current seed board.  Add these boards to
-  // the Evaluate and Master lists.  They Have not been fully evaluated yet.
-  // These boards will not get evaluated in the threads, so evaluate them
-  // here.  Add them to the master list if they qualify.
-
-  for (int X = 0; X < SQUARE_COUNT; X++) {
-    auto bd = SeedBoard;
-    bd.off_limit_cell = X;
-    char TheSeedLetter = SeedBoard.board[X];
-
-    for (int Y = 0; Y < SIZE_OF_CHARACTER_SET; Y++) {
-      // This statement indicates that less new boards are generated for each
-      // evaluation board, as in one square will be off limits.  This is how
-      // we arrive at the number "SOLITARY_DEVIATIONS".
-      if (TheSeedLetter == CHARACTER_SET[Y]) continue;
-      bd.board[X] = CHARACTER_SET[Y];
-
-      int score = boggler->Score(bd.board.c_str());
-      assert(score >= 0);
-      BoardScore board_score(score, bd);
-
-      // Try to add each board to the "MasterResultsBoardList", and the
-      // "TopEvaluationBoardList".  Do this in sequence.  Only the
-      // "WhatMadeTheMasterList" MinBoardTrie will be augmented.
-      InsertIntoMasterList(MasterResults, board_score);
-      if (AllEvaluatedBoards.find(bd) == AllEvaluatedBoards.end()) {
-        InsertIntoEvaluateList(TopEvaluationBoardList, board_score);
-      }
+  auto SeedVariations = GenerateSingleDeviations({SeedBoard}, boggler);
+  for (const auto &board_score : SeedVariations) {
+    InsertIntoMasterList(MasterResults, board_score);
+    if (AllEvaluatedBoards.find(board_score.board) == AllEvaluatedBoards.end()) {
+      InsertIntoEvaluateList(TopEvaluationBoardList, board_score);
     }
   }
 
