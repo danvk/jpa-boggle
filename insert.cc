@@ -11,12 +11,31 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Vector-based implementations
 
-static bool InsertIntoSortedVector(
+bool ContainsElement(std::vector<BoardScore> &list, const BoardScore &board_score) {
+  auto score = board_score.score;
+  const auto &board = board_score.board.board;
+
+  // TODO: binary search
+  for (const auto &el : list) {
+    if (el.score < score) {
+      return false;
+    }
+    if (el.score == score && el.board.board == board) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool InsertIntoSortedVector(
     std::vector<BoardScore> &list, unsigned int max_size, const BoardScore &board_score
 ) {
   auto score = board_score.score;
   // If list is not full yet, always insert
   if (list.size() < max_size) {
+    if (ContainsElement(list, board_score)) {
+      return false;
+    }
     // Find insertion point using binary search (list is sorted in descending
     // order)
     auto it = std::lower_bound(
@@ -32,6 +51,10 @@ static bool InsertIntoSortedVector(
   // List is full - check if score is high enough
   if (score <= list.back().score) {
     return false;  // Score too low
+  }
+
+  if (ContainsElement(list, board_score)) {
+    return false;
   }
 
   // Remove the last (lowest) element
