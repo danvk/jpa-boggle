@@ -15,7 +15,6 @@ struct BoardScore {
   unsigned int score;
   BoardWithCell board;
 
-  BoardScore() : score(0), board("", 0) {}
   BoardScore(unsigned int s, const BoardWithCell &b) : score(s), board(b) {}
 };
 

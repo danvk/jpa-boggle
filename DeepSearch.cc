@@ -255,8 +255,7 @@ int main() {
 
   // This loop represents the chain seeds cascade.
   for (int S = 0; S < NUMBER_OF_SEEDS_TO_RUN; S++) {
-    BoardScore seed_score;
-    seed_score.score = -1;
+    BoardScore seed_score(-1, {"", 0});
     for (const auto &result : MasterResults) {
       if (ChosenSeedBoards.find(result.board) == ChosenSeedBoards.end()) {
         seed_score = result;
