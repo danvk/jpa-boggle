@@ -193,13 +193,11 @@ vector<BoardScore> RunOneSeed(
     // the next round
     vector<BoardScore> next_eval_list;
     for (const auto &board : deviations) {
-      auto min_score =
-          next_eval_list.size() == EVALUATE_LIST_SIZE ? next_eval_list.back().score : 0;
-      if (board.score <= min_score) {
-        break;
-      }
       if (AllEvaluatedBoards.find(board.board) == AllEvaluatedBoards.end()) {
         InsertIntoEvaluateList(next_eval_list, board);
+      }
+      if (next_eval_list.size() == EVALUATE_LIST_SIZE) {
+        break;
       }
     }
     evaluate_list = next_eval_list;
