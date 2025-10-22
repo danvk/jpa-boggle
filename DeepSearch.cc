@@ -159,11 +159,7 @@ vector<BoardScore> RunOneSeed(
       AllEvaluatedBoards.insert(evaluate_list[X].board);
     }
 
-    // The boards on the evaluate list in round zero have already been added
-    // to the master list.
-    if (T != 0) {
-      AddBoardsToMasterList(MasterResults, evaluate_list);
-    }
+    AddBoardsToMasterList(MasterResults, evaluate_list);
 
     // Even if nothing qualifies for the master list on this round, print out
     // the best result for the round to keep track of the progress.
