@@ -15,15 +15,11 @@
 #define MAX_ROW 5
 #define MAX_COL 5
 #define SQUARE_COUNT 25
-#define BOARD_STRING_SIZE 31
 #define NEIGHBOURS 8
 #define NUMBER_OF_ENGLISH_LETTERS 26
 #define SIZE_OF_CHARACTER_SET 14
 #define MAX_STRING_LENGTH 15
 #define BOGUS 4294967197
-#define NUMBER_OF_DOUBLE_DEVIATIONS                                  \
-  (SQUARE_COUNT * (SQUARE_COUNT - 1) * (SIZE_OF_CHARACTER_SET - 1) * \
-   (SIZE_OF_CHARACTER_SET - 1) / 2)
 
 // Constants that are lexicon specific.
 #define TOTAL_WORDS_IN_LEXICON 44220
@@ -506,22 +502,6 @@ unsigned int BoardSquareWordDiscover(
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-// Converts the two digit integer X into a string that tacks onto board strings to
-// indicate the last square to be altered.
-void ConvertSquareNumberToString(char *TheThreeString, unsigned int X) {
-  if (X > 19) {
-    TheThreeString[0] = '2';
-    TheThreeString[1] = ('0' + (X - 20));
-  } else if (X > 9) {
-    TheThreeString[0] = '1';
-    TheThreeString[1] = ('0' + (X - 10));
-  } else {
-    TheThreeString[0] = '0';
-    TheThreeString[1] = '0' + X;
-  }
-  TheThreeString[2] = '\0';
-}
 
 int LoadDictionary() {
   FILE *PartOne = fopen(FOUR_PART_DTDAWG_14_PART_ONE, "rb");
