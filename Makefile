@@ -12,8 +12,8 @@ all: $(TARGET) $(TARGET2)
 $(TARGET): $(OBJS)
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
-$(TARGET2): GunsOfNavarone.c
-	$(CC) $(CFLAGS) -o $@ $<
+$(TARGET2): GunsOfNavarone.cc
+	$(CXX) $(CXXFLAGS) -o $@ $<
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c -o $@ $<
