@@ -2,4 +2,7 @@
 .DS_Store
 log.txt
 *.o
+
+# binaries
 deepsearch
+gunsofnavarone
