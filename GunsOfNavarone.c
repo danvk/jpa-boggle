@@ -407,56 +407,17 @@ void ConvertSquareNumberToString( char *TheThreeString, unsigned int X ){
 	TheThreeString[2] = '\0';
 }
 
-int main() {
-
-	unsigned int X;
-	int Y;
-	unsigned int Z;
-	unsigned int W;
-	unsigned int WhatTime;
-	unsigned int UniqueFours = 0;
-	unsigned char TempReadIn;
-
-	unsigned int InsertionSpot = 0;
-	unsigned int CurrentScore;
-	unsigned int BestScore = 0;
-	unsigned int TheBestBoardIndex;
-
-	unsigned int FirstOffLimitsLetterIndex;
-	unsigned int SecondOffLimitsLetterIndex;
-
-	char SeedBoardString[SQUARE_COUNT + 1];
-	char TemporaryBoardString[BOARD_STRING_SIZE];
-
-	char CurrentOffLimitsNumbers[5];
-
-	char *DoubleDeed = (char*)malloc(sizeof(char)*NUMBER_OF_DOUBLE_DEVIATIONS*(BOARD_STRING_SIZE));
-
-	BoardPtr WorkingBoard = (BoardPtr)malloc(sizeof(Board));
-
+int LoadDictionary() {
 	FILE *PartOne = fopen(FOUR_PART_DTDAWG_14_PART_ONE, "rb");
 	FILE *PartTwo = fopen(FOUR_PART_DTDAWG_14_PART_TWO, "rb");
 	FILE *PartThree = fopen(FOUR_PART_DTDAWG_14_PART_THREE, "rb");
 	FILE *PartFour = fopen(FOUR_PART_DTDAWG_14_PART_FOUR, "rb");
 
+	unsigned char TempReadIn;
 	unsigned int SizeOfPartOne;
 	unsigned long int SizeOfPartTwo;
 	unsigned int SizeOfPartThree;
 	unsigned int SizeOfPartFour;
-
-	double BeginWorkTime;
-	double EndWorkTime;
-	double TheRunTime;
-	srand((unsigned int)time(NULL));
-
-	BoardInit(WorkingBoard);
-
-	// Allocate the set of lexicon time stamps as unsigned integers.
-	for ( X = 0; X < NUMBER_OF_WORKER_THREADS; X++ ) LexiconTimeStamps[X] = (unsigned int*)malloc((TOTAL_WORDS_IN_LEXICON + 1)*sizeof(unsigned int));
-
-	// Zero all of the global time stamps.  Notice how there are only time stamps for each word in the lexicon and not for intermediate nodes.
-	// The memset() function promises a more efficient zeroing procedure than a for loop.
-	for ( X = 0; X < NUMBER_OF_WORKER_THREADS; X++ ) memset(LexiconTimeStamps[X], 0, (TOTAL_WORDS_IN_LEXICON + 1)*sizeof(unsigned int));
 
 	// Read in the size of each data file.
 	if ( fread(&SizeOfPartOne, 4, 1, PartOne) != 1 ) return 0;
@@ -488,7 +449,7 @@ int main() {
 	PartThreeArray[0] = 0;
 	if ( fread(PartThreeArray + 1, 4, SizeOfPartThree, PartThree) != SizeOfPartThree ) return 0;
 	// Part Four has been replaced by encoding the Part Four WTEOBL values as 32 bit integers for speed.  The size of the data structure is small enough as it is.
-	for ( X = (SizeOfPartThree + 1); X <= SizeOfPartOne; X++ ) {
+	for ( int X = (SizeOfPartThree + 1); X <= SizeOfPartOne; X++ ) {
 		if ( fread(&TempReadIn, 1, 1, PartFour) != 1 ) return 0;
 		PartThreeArray[X] = TempReadIn;
 	}
@@ -497,7 +458,53 @@ int main() {
 	fclose(PartTwo);
 	fclose(PartThree);
 	fclose(PartFour);
+	return 1;
+}
 
+int main() {
+
+	unsigned int X;
+	int Y;
+	unsigned int Z;
+	unsigned int W;
+	unsigned int WhatTime;
+	unsigned int UniqueFours = 0;
+
+	unsigned int InsertionSpot = 0;
+	unsigned int CurrentScore;
+	unsigned int BestScore = 0;
+	unsigned int TheBestBoardIndex;
+
+	unsigned int FirstOffLimitsLetterIndex;
+	unsigned int SecondOffLimitsLetterIndex;
+
+	char SeedBoardString[SQUARE_COUNT + 1];
+	char TemporaryBoardString[BOARD_STRING_SIZE];
+
+	char CurrentOffLimitsNumbers[5];
+
+	char *DoubleDeed = (char*)malloc(sizeof(char)*NUMBER_OF_DOUBLE_DEVIATIONS*(BOARD_STRING_SIZE));
+
+	BoardPtr WorkingBoard = (BoardPtr)malloc(sizeof(Board));
+
+	double BeginWorkTime;
+	double EndWorkTime;
+	double TheRunTime;
+	srand((unsigned int)time(NULL));
+
+	BoardInit(WorkingBoard);
+
+	// Allocate the set of lexicon time stamps as unsigned integers.
+	for ( X = 0; X < NUMBER_OF_WORKER_THREADS; X++ ) LexiconTimeStamps[X] = (unsigned int*)malloc((TOTAL_WORDS_IN_LEXICON + 1)*sizeof(unsigned int));
+
+	// Zero all of the global time stamps.  Notice how there are only time stamps for each word in the lexicon and not for intermediate nodes.
+	// The memset() function promises a more efficient zeroing procedure than a for loop.
+	for ( X = 0; X < NUMBER_OF_WORKER_THREADS; X++ ) memset(LexiconTimeStamps[X], 0, (TOTAL_WORDS_IN_LEXICON + 1)*sizeof(unsigned int));
+
+	int result = LoadDictionary();
+	if (result != 1) {
+		return result;
+	}
 	printf("The four data files have been opened and read into memory.\n\n");
 
 	strcpy(SeedBoardString, "RSLCSDEIAEGNTRPATESESMIDR");
