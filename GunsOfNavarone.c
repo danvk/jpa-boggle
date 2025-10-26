@@ -461,140 +461,79 @@ int LoadDictionary() {
 	return 1;
 }
 
-int main() {
-
+int main(int argc, char *argv[]) {
 	unsigned int X;
-	int Y;
-	unsigned int Z;
-	unsigned int W;
 	unsigned int WhatTime;
-	unsigned int UniqueFours = 0;
-
-	unsigned int InsertionSpot = 0;
 	unsigned int CurrentScore;
-	unsigned int BestScore = 0;
-	unsigned int TheBestBoardIndex;
+	unsigned int BoardCount = 0;
 
-	unsigned int FirstOffLimitsLetterIndex;
-	unsigned int SecondOffLimitsLetterIndex;
-
-	char SeedBoardString[SQUARE_COUNT + 1];
-	char TemporaryBoardString[BOARD_STRING_SIZE];
-
-	char CurrentOffLimitsNumbers[5];
-
-	char *DoubleDeed = (char*)malloc(sizeof(char)*NUMBER_OF_DOUBLE_DEVIATIONS*(BOARD_STRING_SIZE));
-
+	char BoardString[SQUARE_COUNT + 1];
 	BoardPtr WorkingBoard = (BoardPtr)malloc(sizeof(Board));
 
 	double BeginWorkTime;
 	double EndWorkTime;
 	double TheRunTime;
-	srand((unsigned int)time(NULL));
+
+	FILE *input_file;
+
+	// Check for command-line argument
+	if (argc != 2) {
+		fprintf(stderr, "Usage: %s <board_file>\n", argv[0]);
+		return 1;
+	}
 
 	BoardInit(WorkingBoard);
 
 	// Allocate the set of lexicon time stamps as unsigned integers.
-	for ( X = 0; X < NUMBER_OF_WORKER_THREADS; X++ ) LexiconTimeStamps[X] = (unsigned int*)malloc((TOTAL_WORDS_IN_LEXICON + 1)*sizeof(unsigned int));
+	for ( X = 0; X < NUMBER_OF_WORKER_THREADS; X++ ) {
+		LexiconTimeStamps[X] = (unsigned int*)malloc((TOTAL_WORDS_IN_LEXICON + 1)*sizeof(unsigned int));
+	}
 
-	// Zero all of the global time stamps.  Notice how there are only time stamps for each word in the lexicon and not for intermediate nodes.
-	// The memset() function promises a more efficient zeroing procedure than a for loop.
-	for ( X = 0; X < NUMBER_OF_WORKER_THREADS; X++ ) memset(LexiconTimeStamps[X], 0, (TOTAL_WORDS_IN_LEXICON + 1)*sizeof(unsigned int));
+	// Zero all of the global time stamps.
+	for ( X = 0; X < NUMBER_OF_WORKER_THREADS; X++ ) {
+		memset(LexiconTimeStamps[X], 0, (TOTAL_WORDS_IN_LEXICON + 1)*sizeof(unsigned int));
+	}
 
 	int result = LoadDictionary();
 	if (result != 1) {
 		return result;
 	}
-	printf("The four data files have been opened and read into memory.\n\n");
 
-	strcpy(SeedBoardString, "RSLCSDEIAEGNTRPATESESMIDR");
-	strcpy(TemporaryBoardString, SeedBoardString);
-	TemporaryBoardString[SQUARE_COUNT] = '2';
-
-	printf("Create all of the champion board's double deviations, |%s|.\n", SeedBoardString);
-	BoardPopulate(WorkingBoard, SeedBoardString);
-	BoardOutput(WorkingBoard);
-	printf("The Seed Score |%d|\n\n", BoardSquareWordDiscover(WorkingBoard, 1, 0));
-
-	// Fill a large array with all of the champion board's double deviations.
-	for ( X = 0; X < SQUARE_COUNT; X++ ) {
-		for ( Y = X + 1; Y < SQUARE_COUNT; Y++ ) {
-			// Now we are in a position where X and Y represent the two locations to be deviated.
-			FirstOffLimitsLetterIndex = CHARACTER_LOCATIONS[SeedBoardString[X] - 'A'];
-			SecondOffLimitsLetterIndex = CHARACTER_LOCATIONS[SeedBoardString[Y] - 'A'];
-			// Set the trailing, off limits numbers here.
-			ConvertSquareNumberToString(CurrentOffLimitsNumbers, X);
-			ConvertSquareNumberToString(&(CurrentOffLimitsNumbers[2]), Y);
-			strcpy(&(TemporaryBoardString[SQUARE_COUNT + 1]), CurrentOffLimitsNumbers);
-			for ( Z = 0; Z < SIZE_OF_CHARACTER_SET; Z++ ) {
-				if ( Z == FirstOffLimitsLetterIndex ) continue;
-				TemporaryBoardString[X] = CHARACTER_SET[Z];
-				for ( W = 0; W < SIZE_OF_CHARACTER_SET; W++ ) {
-					if ( W == SecondOffLimitsLetterIndex ) continue;
-					TemporaryBoardString[Y] = CHARACTER_SET[W];
-					strcpy(&(DoubleDeed[InsertionSpot*(BOARD_STRING_SIZE)]), TemporaryBoardString);
-					// printf("%s\n", TemporaryBoardString);
-					InsertionSpot += 1;
-				}
-			}
-			strcpy(TemporaryBoardString, SeedBoardString);
-			TemporaryBoardString[SQUARE_COUNT] = '2';
-		}
+	// Open the input file
+	input_file = fopen(argv[1], "r");
+	if (input_file == NULL) {
+		fprintf(stderr, "Error: Could not open file %s\n", argv[1]);
+		return 1;
 	}
-
-	printf("Total Number Of Good Boards Being Evaluated Now = |%d|, so please wait.\n", InsertionSpot);
 
 	BeginWorkTime = (double)clock() / CLOCKS_PER_SEC;
-	// The boards inside of "DoubleDeed" get evaluated inside of this loop.
-	for (WhatTime = 0; WhatTime < InsertionSpot; WhatTime++) {
-		BoardPopulate(WorkingBoard, &(DoubleDeed[WhatTime * (BOARD_STRING_SIZE)]));
-		CurrentScore = BoardSquareWordDiscover(WorkingBoard, WhatTime + 2, 0);
-		if (CurrentScore > BestScore) {
-			BestScore = CurrentScore;
-			TheBestBoardIndex = WhatTime;
-		}
-	}
-	EndWorkTime = (double)clock() / CLOCKS_PER_SEC;
-	TheRunTime = EndWorkTime - BeginWorkTime;
 
-	BoardPopulate(WorkingBoard, &(DoubleDeed[TheBestBoardIndex * (BOARD_STRING_SIZE)]));
-	printf("The Best Score Found Is|%d| At Position |%d| - |%s|\n\n", BestScore, TheBestBoardIndex, &(DoubleDeed[TheBestBoardIndex * (BOARD_STRING_SIZE)]));
-	printf("The Running time for this operation is |%g| seconds. |%g| Boards per second.\n\n", TheRunTime, InsertionSpot / TheRunTime);
-	BoardOutput(WorkingBoard);
-
-	printf("\n-----------------------------------------------------------------------\n");
-	printf("\nAnalyze a random board batch of the same size.\n");
-	InsertionSpot = 0;
-	for (X = 0; X < NUMBER_OF_DOUBLE_DEVIATIONS; X++) {
-		for (Y = 0; Y < SQUARE_COUNT; Y++) TemporaryBoardString[Y] = CHARACTER_SET[rand() % SIZE_OF_CHARACTER_SET];
-		TemporaryBoardString[SQUARE_COUNT] = '\0';
-		strcpy(&(DoubleDeed[InsertionSpot * (BOARD_STRING_SIZE)]), TemporaryBoardString);
-		InsertionSpot += 1;
-	}
-
-	printf("Total Number Of Random Boards Being Evaluated Now = |%d|, so please wait.\n", InsertionSpot);
-
-	BeginWorkTime = (double)clock() / CLOCKS_PER_SEC;
-	// Evaluate the random boards.
-	// Zero the timestamps.
-	for (X = 0; X < NUMBER_OF_WORKER_THREADS; X++) memset(LexiconTimeStamps[X], 0, (TOTAL_WORDS_IN_LEXICON + 1) * sizeof(unsigned int));
-	BestScore = 0;
-	for (WhatTime = 0; WhatTime < InsertionSpot; WhatTime++) {
-		BoardPopulate(WorkingBoard, &(DoubleDeed[WhatTime * (BOARD_STRING_SIZE)]));
-		CurrentScore = BoardSquareWordDiscover(WorkingBoard, WhatTime + 2, 0);
-		if (CurrentScore > BestScore) {
-			BestScore = CurrentScore;
-			TheBestBoardIndex = WhatTime;
-		}
+	// Read boards from file and score them
+	while (fscanf(input_file, "%25s", BoardString) == 1) {
+		BoardString[SQUARE_COUNT] = '\0';
+		BoardPopulate(WorkingBoard, BoardString);
+		CurrentScore = BoardSquareWordDiscover(WorkingBoard, BoardCount + 1, 0);
+		printf("%d\n", CurrentScore);
+		BoardCount++;
 	}
 
 	EndWorkTime = (double)clock() / CLOCKS_PER_SEC;
 	TheRunTime = EndWorkTime - BeginWorkTime;
 
-	BoardPopulate(WorkingBoard, &(DoubleDeed[TheBestBoardIndex * (BOARD_STRING_SIZE)]));
-	printf("The Best Random Score Found Is|%d| At Position |%d| - |%s|\n\n", BestScore, TheBestBoardIndex, &(DoubleDeed[TheBestBoardIndex * (BOARD_STRING_SIZE)]));
-	printf("The Running time for this operation is |%g| seconds. |%g| Boards per second.\n\n", TheRunTime, InsertionSpot / TheRunTime);
-	BoardOutput(WorkingBoard);
+	fclose(input_file);
+
+	// Report performance to stderr
+	fprintf(stderr, "Scored %u boards in %.3f seconds (%.2f boards/second)\n",
+		BoardCount, TheRunTime, BoardCount / TheRunTime);
+
+	// Clean up
+	free(WorkingBoard);
+	for ( X = 0; X < NUMBER_OF_WORKER_THREADS; X++ ) {
+		free(LexiconTimeStamps[X]);
+	}
+	free(PartOneArray);
+	free(PartTwoArray);
+	free(PartThreeArray);
 
 	return 0;
 }
