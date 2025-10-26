@@ -208,35 +208,10 @@ void SquareInit(
   }
 }
 
-inline char SquareLetterIndex(SquarePtr ThisSquare) { return ThisSquare->LetterIndex; }
-
-inline Bool SquareUsed(SquarePtr ThisSquare) { return ThisSquare->Used; }
-
 // This function has been converted into a macro, because it is used in the often called
 // "BoardPopulate" routine, and it needs to be fast.
 #define SQUARE_CHANGE_LETTER_INDEX(thissquare, newindex) \
   ((thissquare)->LetterIndex = (newindex))
-
-// A function used exclusively for debugging purposes, display the members of
-// "ThisSquare".
-void SquareOutput(SquarePtr ThisSquare, unsigned int Row, unsigned int Col) {
-  unsigned int X;
-  printf(
-      "{%c} at [%d,%d] |TL...Clockwise Living Neighbours|-|",
-      CHARACTER_SET[ThisSquare->LetterIndex],
-      Row,
-      Col
-  );
-  for (X = 0; X < NEIGHBOURS; X++)
-    printf(
-        "%c|",
-        (ThisSquare->LivingNeighbourSquarePointerArray[X] == NULL)
-            ? '*'
-            : (CHARACTER_SET[(ThisSquare->LivingNeighbourSquarePointerArray[X])
-                                 ->LetterIndex])
-    );
-  printf(" - |%s|\n", ((ThisSquare->Used) == FALSE) ? "UNUSED" : "USED");
-}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -275,26 +250,6 @@ void BoardPopulate(BoardPtr ThisBoard, char *BoardString) {
           CHARACTER_LOCATIONS[BoardString[Row * MAX_COL + Col] - 'A']
       );
     }
-  }
-}
-
-// This function will be used to debug the program.  It will not be used when the
-// analysis of a large number of boards is required.
-void BoardOutput(BoardPtr ThisBoard) {
-  unsigned int Row;
-  unsigned int Col;
-  char PrintLine[2 * (MAX_COL) + 2];
-  printf("-----------\n");
-  for (Row = 0; Row < MAX_ROW; Row++) {
-    for (Col = 0; Col < MAX_COL; Col++) {
-      PrintLine[2 * Col] = '|';
-      PrintLine[2 * Col + 1] =
-          CHARACTER_SET[SquareLetterIndex(&((ThisBoard->Block)[Row][Col]))];
-    }
-    PrintLine[2 * MAX_COL] = '|';
-    PrintLine[2 * MAX_COL + 1] = '\0';
-    printf("%s\n", PrintLine);
-    printf("-----------\n");
   }
 }
 
@@ -561,7 +516,6 @@ int LoadDictionary() {
 
 int main(int argc, char *argv[]) {
   unsigned int X;
-  unsigned int WhatTime;
   unsigned int CurrentScore;
   unsigned int BoardCount = 0;
 
