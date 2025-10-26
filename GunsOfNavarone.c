@@ -511,6 +511,12 @@ int main(int argc, char *argv[]) {
 	// Read boards from file and score them
 	while (fscanf(input_file, "%25s", BoardString) == 1) {
 		BoardString[SQUARE_COUNT] = '\0';
+		for (int i = 0; i < 25; i++) {
+			char c = BoardString[i];
+			if (c >= 'a' && c <= 'z') {
+				BoardString[i] = c - ('a' - 'A');
+			}
+		}
 		BoardPopulate(WorkingBoard, BoardString);
 		CurrentScore = BoardSquareWordDiscover(WorkingBoard, BoardCount + 1, 0);
 		printf("%d\n", CurrentScore);
