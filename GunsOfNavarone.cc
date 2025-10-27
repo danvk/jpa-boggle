@@ -83,14 +83,13 @@ struct square {
 
 // Define the "Square" type.
 typedef struct square Square;
-typedef Square *SquarePtr;
 
 // This Function initializes ThisSquare when passed its row and column position on the
 // board. Important note:  The function is going to use the low level C concept of
 // pointer arithmatic to fill the LivingNeighbourSquarePointerArray, which will be
 // filled from the top-left, clockwise.
 void SquareInit(
-    SquarePtr ThisSquare, unsigned int RowPosition, unsigned int ColPosition
+    Square *ThisSquare, unsigned int RowPosition, unsigned int ColPosition
 ) {
   unsigned int X;
   ThisSquare->LetterIndex = SIZE_OF_CHARACTER_SET;
@@ -271,7 +270,7 @@ unsigned int PartThreeFourTransition;
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 struct discoverystacknode {
-  SquarePtr TheSquareNow;
+  Square *TheSquareNow;
   unsigned int LexiconPartOneIndex;
   unsigned int FirstChildIndex;
   unsigned int WordLengthNow;
@@ -321,7 +320,7 @@ DiscoveryStackNode TheDiscoveryStack[DISCOVERY_STACK_SIZE];
 // character set.
 
 int SquareWordDiscoverStack(
-    SquarePtr BeginSquare,
+    Square *BeginSquare,
     unsigned int BeginIndex,
     unsigned int BeginMarker,
     unsigned int NowTime,
@@ -331,7 +330,7 @@ int SquareWordDiscoverStack(
   Bool DoWeNeedToPop;
   unsigned int X;
   unsigned int WorkOnThisChild;
-  SquarePtr WorkingSquare = BeginSquare;
+  Square *WorkingSquare = BeginSquare;
   unsigned int WorkingMarker = BeginMarker;
   unsigned int WorkingIndex = BeginIndex;
   unsigned int WorkingNumberOfChars = 1;
@@ -339,7 +338,7 @@ int SquareWordDiscoverStack(
   unsigned int TheChosenLetterIndex;
   unsigned int WorkingChildIndex;
   unsigned int Result = 0;
-  SquarePtr *WorkingNeighbourList;
+  Square **WorkingNeighbourList;
   unsigned long int WorkingOffset;
   int WorkingNextMarker;
   DiscoveryStackNodePtr TheTop = TheDiscoveryStack + 1;
