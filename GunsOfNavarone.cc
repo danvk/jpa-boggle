@@ -201,11 +201,6 @@ void SquareInit(
   }
 }
 
-// This function has been converted into a macro, because it is used in the often called
-// "BoardPopulate" routine, and it needs to be fast.
-#define SQUARE_CHANGE_LETTER_INDEX(thissquare, newindex) \
-  ((thissquare)->letter_idx = (newindex))
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // A board is defined as simply a static 2 dimensional array of Squares.
@@ -235,10 +230,8 @@ void BoardPopulate(Board *ThisBoard, char *BoardString) {
   unsigned int Col;
   for (Row = MAX_ROW; Row-- > 0;) {
     for (Col = MAX_COL; Col-- > 0;) {
-      SQUARE_CHANGE_LETTER_INDEX(
-          &((ThisBoard->Block)[Row][Col]),
-          CHARACTER_LOCATIONS[BoardString[Row * MAX_COL + Col] - 'A']
-      );
+      (&((ThisBoard->Block)[Row][Col]))->letter_idx =
+          CHARACTER_LOCATIONS[BoardString[Row * MAX_COL + Col] - 'A'];
     }
   }
 }
