@@ -388,25 +388,22 @@ int SquareWordDiscoverStack(
 unsigned int BoardSquareWordDiscover(
     Board *ThisBoard, unsigned int TheTimeNow, unsigned int CallingThread
 ) {
-  unsigned int TheScoreTotal = 0;
-  unsigned int CurrentRow;
-  unsigned int CurrentCol;
-  unsigned int CurrentPartOneIndex;
+  auto &block = ThisBoard->Block;
+  unsigned int score = 0;
   // Add up all the scores that originate from each square in the board.
-  for (CurrentRow = 0; CurrentRow < MAX_ROW; CurrentRow++) {
-    for (CurrentCol = 0; CurrentCol < MAX_COL; CurrentCol++) {
-      CurrentPartOneIndex =
-          (((ThisBoard->Block)[CurrentRow][CurrentCol]).letter_idx + 1);
-      TheScoreTotal += SquareWordDiscoverStack(
-          &((ThisBoard->Block)[CurrentRow][CurrentCol]),
-          CurrentPartOneIndex,
-          PartThreeArray[CurrentPartOneIndex],
+  for (unsigned int row = 0; row < MAX_ROW; row++) {
+    for (unsigned int col = 0; col < MAX_COL; col++) {
+      unsigned int part1_idx = block[row][col].letter_idx + 1;
+      score += SquareWordDiscoverStack(
+          &block[row][col],
+          part1_idx,
+          PartThreeArray[part1_idx],
           TheTimeNow,
           CallingThread
       );
     }
   }
-  return TheScoreTotal;
+  return score;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
