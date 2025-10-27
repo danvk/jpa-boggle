@@ -72,17 +72,14 @@ typedef Bool *BoolPtr;
 // The "square" struct will represent one position in a Boggle board.
 // A square also requires a flag to indicate use in the current word being formed, the
 // number of valid neighbours, and the index of the letter showing on its face.
-struct square {
+struct Square {
   // The Used flag will indicate if a square is being used in constructing the current
   // word, and hence to remove the used square from further inclusion in the same word.
   Bool Used;
   unsigned int NumberOfLivingNeighbours;
-  struct square *LivingNeighbourSquarePointerArray[NEIGHBOURS];
+  Square *LivingNeighbourSquarePointerArray[NEIGHBOURS];
   unsigned int LetterIndex;
 };
-
-// Define the "Square" type.
-typedef struct square Square;
 
 // This Function initializes ThisSquare when passed its row and column position on the
 // board. Important note:  The function is going to use the low level C concept of
@@ -215,11 +212,9 @@ void SquareInit(
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // A board is defined as simply a static 2 dimensional array of Squares.
-struct board {
+struct Board {
   Square Block[MAX_ROW][MAX_COL];
 };
-
-typedef struct board Board;
 
 // This initialization function sets the neighbour array for all of the Squares in
 // ThisBoard's Block (this only needs to be done once). The Letter index for each square
