@@ -63,9 +63,6 @@ unsigned int CHILD_LETTER_BIT_SHIFTS[SIZE_OF_CHARACTER_SET] = {
     0, 1, 3, 5, 8, 11, 14, 17, 21, 25, 29, 33, 37, 41
 };
 
-typedef enum { FALSE = 0, TRUE = 1 } Bool;
-typedef Bool *BoolPtr;
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // The structure for a Boggle board is defined in this section.
 
@@ -75,7 +72,7 @@ typedef Bool *BoolPtr;
 struct Square {
   // The Used flag will indicate if a square is being used in constructing the current
   // word, and hence to remove the used square from further inclusion in the same word.
-  Bool Used;
+  bool Used;
   unsigned int NumberOfLivingNeighbours;
   Square *LivingNeighbourSquarePointerArray[NEIGHBOURS];
   unsigned int LetterIndex;
@@ -90,7 +87,7 @@ void SquareInit(
 ) {
   unsigned int X;
   ThisSquare->LetterIndex = SIZE_OF_CHARACTER_SET;
-  ThisSquare->Used = FALSE;
+  ThisSquare->Used = false;
   if (RowPosition == 0) {
     // ThisSquare is in the top-left position.
     if (ColPosition == 0) {
@@ -321,8 +318,8 @@ int SquareWordDiscoverStack(
     unsigned int NowTime,
     unsigned int ThreadIdentity
 ) {
-  Bool FirstTime = TRUE;
-  Bool DoWeNeedToPop;
+  bool FirstTime = true;
+  bool DoWeNeedToPop;
   unsigned int X;
   unsigned int WorkOnThisChild;
   Square *WorkingSquare = BeginSquare;
@@ -340,11 +337,11 @@ int SquareWordDiscoverStack(
   while (DISCOVERY_STACK_NOT_EMPTY) {
     // The first time that we land on a square, set it to used, and check if it
     // represents a word, and then a new word.
-    if (FirstTime == TRUE) {
+    if (FirstTime == true) {
       WorkingChildIndex = (PartOneArray[WorkingIndex] & CHILD_MASK);
       WorkingNextMarker = 0;
       // Tag "WorkingSquare" as being used.
-      WorkingSquare->Used = TRUE;
+      WorkingSquare->Used = true;
       // Check to see if we have arrived at a new word, and if so, add the correct score
       // to the result.
       if (PartOneArray[WorkingIndex] & END_OF_WORD_FLAG) {
@@ -360,17 +357,17 @@ int SquareWordDiscoverStack(
     // If "WorkingSquare" has children, visit the next one from
     // ("NumberOfLivingNeighbours" - 1) to zero.  There will be no scrolling through a
     // list of children in the lexicon data structure when using the ADTDAWG.
-    DoWeNeedToPop = TRUE;
+    DoWeNeedToPop = true;
     if (WorkingChildIndex) {
       WorkingNeighbourList = WorkingSquare->LivingNeighbourSquarePointerArray;
-      if (FirstTime == TRUE) {
+      if (FirstTime == true) {
         WorkingNextMarker += (WorkingMarker - PartThreeArray[WorkingChildIndex]);
         WorkingSecondPart = PartTwoArray
             [(PartOneArray[WorkingIndex] & OFFSET_INDEX_MASK) >> OffSET_BIT_SHIFT];
         WorkOnThisChild = WorkingSquare->NumberOfLivingNeighbours;
       }
       for (X = WorkOnThisChild; X-- > 0;) {
-        if ((WorkingNeighbourList[X])->Used == FALSE) {
+        if ((WorkingNeighbourList[X])->Used == false) {
           TheChosenLetterIndex = (WorkingNeighbourList[X])->LetterIndex;
           if ((WorkingOffset =
                    (WorkingSecondPart & CHILD_LETTER_BIT_MASKS[TheChosenLetterIndex])
@@ -396,8 +393,8 @@ int SquareWordDiscoverStack(
                 WorkingNextMarker +
                 PartThreeArray[WorkingChildIndex + (unsigned int)WorkingOffset];
             WorkingNumberOfChars += 1;
-            FirstTime = TRUE;
-            DoWeNeedToPop = FALSE;
+            FirstTime = true;
+            DoWeNeedToPop = false;
             break;
           }
         }
@@ -405,7 +402,7 @@ int SquareWordDiscoverStack(
     }
     if (DoWeNeedToPop) {
       // We have now finished using "WorkingSquare", so set its "Used" element to FALSE.
-      WorkingSquare->Used = FALSE;
+      WorkingSquare->Used = false;
       // Pop the top of the stack into the function and pick up where we left off at
       // that particular square.
       DISCOVERY_STACK_POP(
@@ -418,7 +415,7 @@ int SquareWordDiscoverStack(
           WorkingSecondPart,
           TheTop
       );
-      FirstTime = FALSE;
+      FirstTime = false;
     }
   }
   return Result;
