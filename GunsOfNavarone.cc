@@ -72,10 +72,10 @@ unsigned int CHILD_LETTER_BIT_SHIFTS[SIZE_OF_CHARACTER_SET] = {
 struct Square {
   // The Used flag will indicate if a square is being used in constructing the current
   // word, and hence to remove the used square from further inclusion in the same word.
-  bool Used;
-  unsigned int NumberOfLivingNeighbours;
-  Square *LivingNeighbourSquarePointerArray[NEIGHBOURS];
-  unsigned int LetterIndex;
+  bool used;
+  unsigned int num_living_neighbors;
+  Square *living_neighbors[NEIGHBOURS];
+  unsigned int letter_idx;
 };
 
 // This Function initializes ThisSquare when passed its row and column position on the
@@ -86,125 +86,125 @@ void SquareInit(
     Square *ThisSquare, unsigned int RowPosition, unsigned int ColPosition
 ) {
   unsigned int X;
-  ThisSquare->LetterIndex = SIZE_OF_CHARACTER_SET;
-  ThisSquare->Used = false;
+  ThisSquare->letter_idx = SIZE_OF_CHARACTER_SET;
+  ThisSquare->used = false;
   if (RowPosition == 0) {
     // ThisSquare is in the top-left position.
     if (ColPosition == 0) {
-      ThisSquare->NumberOfLivingNeighbours = 3;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[0] = ThisSquare + 1;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[1] = ThisSquare + MAX_COL + 1;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[2] = ThisSquare + MAX_COL;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[3] = NULL;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[4] = NULL;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[5] = NULL;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[6] = NULL;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[7] = NULL;
+      ThisSquare->num_living_neighbors = 3;
+      (ThisSquare->living_neighbors)[0] = ThisSquare + 1;
+      (ThisSquare->living_neighbors)[1] = ThisSquare + MAX_COL + 1;
+      (ThisSquare->living_neighbors)[2] = ThisSquare + MAX_COL;
+      (ThisSquare->living_neighbors)[3] = NULL;
+      (ThisSquare->living_neighbors)[4] = NULL;
+      (ThisSquare->living_neighbors)[5] = NULL;
+      (ThisSquare->living_neighbors)[6] = NULL;
+      (ThisSquare->living_neighbors)[7] = NULL;
     }
     // ThisSquare is in the top-right position.
     else if (ColPosition == (MAX_COL - 1)) {
-      ThisSquare->NumberOfLivingNeighbours = 3;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[0] = ThisSquare + MAX_COL;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[1] = ThisSquare + MAX_COL - 1;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[2] = ThisSquare - 1;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[3] = NULL;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[4] = NULL;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[5] = NULL;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[6] = NULL;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[7] = NULL;
+      ThisSquare->num_living_neighbors = 3;
+      (ThisSquare->living_neighbors)[0] = ThisSquare + MAX_COL;
+      (ThisSquare->living_neighbors)[1] = ThisSquare + MAX_COL - 1;
+      (ThisSquare->living_neighbors)[2] = ThisSquare - 1;
+      (ThisSquare->living_neighbors)[3] = NULL;
+      (ThisSquare->living_neighbors)[4] = NULL;
+      (ThisSquare->living_neighbors)[5] = NULL;
+      (ThisSquare->living_neighbors)[6] = NULL;
+      (ThisSquare->living_neighbors)[7] = NULL;
     }
     // ThisSquare is in a top-middle position.
     else {
-      ThisSquare->NumberOfLivingNeighbours = 5;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[0] = ThisSquare + 1;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[1] = ThisSquare + MAX_COL + 1;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[2] = ThisSquare + MAX_COL;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[3] = ThisSquare + MAX_COL - 1;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[4] = ThisSquare - 1;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[5] = NULL;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[6] = NULL;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[7] = NULL;
+      ThisSquare->num_living_neighbors = 5;
+      (ThisSquare->living_neighbors)[0] = ThisSquare + 1;
+      (ThisSquare->living_neighbors)[1] = ThisSquare + MAX_COL + 1;
+      (ThisSquare->living_neighbors)[2] = ThisSquare + MAX_COL;
+      (ThisSquare->living_neighbors)[3] = ThisSquare + MAX_COL - 1;
+      (ThisSquare->living_neighbors)[4] = ThisSquare - 1;
+      (ThisSquare->living_neighbors)[5] = NULL;
+      (ThisSquare->living_neighbors)[6] = NULL;
+      (ThisSquare->living_neighbors)[7] = NULL;
     }
   } else if (RowPosition == (MAX_ROW - 1)) {
     // ThisSquare is in the bottom-left position.
     if (ColPosition == 0) {
-      ThisSquare->NumberOfLivingNeighbours = 3;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[0] = ThisSquare - MAX_COL;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[1] = ThisSquare - MAX_COL + 1;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[2] = ThisSquare + 1;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[3] = NULL;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[4] = NULL;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[5] = NULL;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[6] = NULL;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[7] = NULL;
+      ThisSquare->num_living_neighbors = 3;
+      (ThisSquare->living_neighbors)[0] = ThisSquare - MAX_COL;
+      (ThisSquare->living_neighbors)[1] = ThisSquare - MAX_COL + 1;
+      (ThisSquare->living_neighbors)[2] = ThisSquare + 1;
+      (ThisSquare->living_neighbors)[3] = NULL;
+      (ThisSquare->living_neighbors)[4] = NULL;
+      (ThisSquare->living_neighbors)[5] = NULL;
+      (ThisSquare->living_neighbors)[6] = NULL;
+      (ThisSquare->living_neighbors)[7] = NULL;
     }
     // ThisSquare is in the bottom-right position.
     else if (ColPosition == (MAX_COL - 1)) {
-      ThisSquare->NumberOfLivingNeighbours = 3;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[0] = ThisSquare - MAX_COL - 1;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[1] = ThisSquare - MAX_COL;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[2] = ThisSquare - 1;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[3] = NULL;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[4] = NULL;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[5] = NULL;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[6] = NULL;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[7] = NULL;
+      ThisSquare->num_living_neighbors = 3;
+      (ThisSquare->living_neighbors)[0] = ThisSquare - MAX_COL - 1;
+      (ThisSquare->living_neighbors)[1] = ThisSquare - MAX_COL;
+      (ThisSquare->living_neighbors)[2] = ThisSquare - 1;
+      (ThisSquare->living_neighbors)[3] = NULL;
+      (ThisSquare->living_neighbors)[4] = NULL;
+      (ThisSquare->living_neighbors)[5] = NULL;
+      (ThisSquare->living_neighbors)[6] = NULL;
+      (ThisSquare->living_neighbors)[7] = NULL;
     }
     // ThisSquare is in a bottom-middle position.
     else {
-      ThisSquare->NumberOfLivingNeighbours = 5;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[0] = ThisSquare - MAX_COL - 1;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[1] = ThisSquare - MAX_COL;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[2] = ThisSquare - MAX_COL + 1;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[3] = ThisSquare + 1;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[4] = ThisSquare - 1;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[5] = NULL;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[6] = NULL;
-      (ThisSquare->LivingNeighbourSquarePointerArray)[7] = NULL;
+      ThisSquare->num_living_neighbors = 5;
+      (ThisSquare->living_neighbors)[0] = ThisSquare - MAX_COL - 1;
+      (ThisSquare->living_neighbors)[1] = ThisSquare - MAX_COL;
+      (ThisSquare->living_neighbors)[2] = ThisSquare - MAX_COL + 1;
+      (ThisSquare->living_neighbors)[3] = ThisSquare + 1;
+      (ThisSquare->living_neighbors)[4] = ThisSquare - 1;
+      (ThisSquare->living_neighbors)[5] = NULL;
+      (ThisSquare->living_neighbors)[6] = NULL;
+      (ThisSquare->living_neighbors)[7] = NULL;
     }
   }
   // ThisSquare is in a middle-left position.
   else if (ColPosition == 0) {
-    ThisSquare->NumberOfLivingNeighbours = 5;
-    (ThisSquare->LivingNeighbourSquarePointerArray)[0] = ThisSquare - MAX_COL;
-    (ThisSquare->LivingNeighbourSquarePointerArray)[1] = ThisSquare - MAX_COL + 1;
-    (ThisSquare->LivingNeighbourSquarePointerArray)[2] = ThisSquare + 1;
-    (ThisSquare->LivingNeighbourSquarePointerArray)[3] = ThisSquare + MAX_COL + 1;
-    (ThisSquare->LivingNeighbourSquarePointerArray)[4] = ThisSquare + MAX_COL;
-    (ThisSquare->LivingNeighbourSquarePointerArray)[5] = NULL;
-    (ThisSquare->LivingNeighbourSquarePointerArray)[6] = NULL;
-    (ThisSquare->LivingNeighbourSquarePointerArray)[7] = NULL;
+    ThisSquare->num_living_neighbors = 5;
+    (ThisSquare->living_neighbors)[0] = ThisSquare - MAX_COL;
+    (ThisSquare->living_neighbors)[1] = ThisSquare - MAX_COL + 1;
+    (ThisSquare->living_neighbors)[2] = ThisSquare + 1;
+    (ThisSquare->living_neighbors)[3] = ThisSquare + MAX_COL + 1;
+    (ThisSquare->living_neighbors)[4] = ThisSquare + MAX_COL;
+    (ThisSquare->living_neighbors)[5] = NULL;
+    (ThisSquare->living_neighbors)[6] = NULL;
+    (ThisSquare->living_neighbors)[7] = NULL;
   }
   // ThisSquare is in a middle-right position.
   else if (ColPosition == (MAX_COL - 1)) {
-    ThisSquare->NumberOfLivingNeighbours = 5;
-    (ThisSquare->LivingNeighbourSquarePointerArray)[0] = ThisSquare - MAX_COL - 1;
-    (ThisSquare->LivingNeighbourSquarePointerArray)[1] = ThisSquare - MAX_COL;
-    (ThisSquare->LivingNeighbourSquarePointerArray)[2] = ThisSquare + MAX_COL;
-    (ThisSquare->LivingNeighbourSquarePointerArray)[3] = ThisSquare + MAX_COL - 1;
-    (ThisSquare->LivingNeighbourSquarePointerArray)[4] = ThisSquare - 1;
-    (ThisSquare->LivingNeighbourSquarePointerArray)[5] = NULL;
-    (ThisSquare->LivingNeighbourSquarePointerArray)[6] = NULL;
-    (ThisSquare->LivingNeighbourSquarePointerArray)[7] = NULL;
+    ThisSquare->num_living_neighbors = 5;
+    (ThisSquare->living_neighbors)[0] = ThisSquare - MAX_COL - 1;
+    (ThisSquare->living_neighbors)[1] = ThisSquare - MAX_COL;
+    (ThisSquare->living_neighbors)[2] = ThisSquare + MAX_COL;
+    (ThisSquare->living_neighbors)[3] = ThisSquare + MAX_COL - 1;
+    (ThisSquare->living_neighbors)[4] = ThisSquare - 1;
+    (ThisSquare->living_neighbors)[5] = NULL;
+    (ThisSquare->living_neighbors)[6] = NULL;
+    (ThisSquare->living_neighbors)[7] = NULL;
   }
   // ThisSquare is in a middle-middle position.
   else {
-    ThisSquare->NumberOfLivingNeighbours = NEIGHBOURS;
-    (ThisSquare->LivingNeighbourSquarePointerArray)[0] = ThisSquare - MAX_COL - 1;
-    (ThisSquare->LivingNeighbourSquarePointerArray)[1] = ThisSquare - MAX_COL;
-    (ThisSquare->LivingNeighbourSquarePointerArray)[2] = ThisSquare - MAX_COL + 1;
-    (ThisSquare->LivingNeighbourSquarePointerArray)[3] = ThisSquare + 1;
-    (ThisSquare->LivingNeighbourSquarePointerArray)[4] = ThisSquare + MAX_COL + 1;
-    (ThisSquare->LivingNeighbourSquarePointerArray)[5] = ThisSquare + MAX_COL;
-    (ThisSquare->LivingNeighbourSquarePointerArray)[6] = ThisSquare + MAX_COL - 1;
-    (ThisSquare->LivingNeighbourSquarePointerArray)[7] = ThisSquare - 1;
+    ThisSquare->num_living_neighbors = NEIGHBOURS;
+    (ThisSquare->living_neighbors)[0] = ThisSquare - MAX_COL - 1;
+    (ThisSquare->living_neighbors)[1] = ThisSquare - MAX_COL;
+    (ThisSquare->living_neighbors)[2] = ThisSquare - MAX_COL + 1;
+    (ThisSquare->living_neighbors)[3] = ThisSquare + 1;
+    (ThisSquare->living_neighbors)[4] = ThisSquare + MAX_COL + 1;
+    (ThisSquare->living_neighbors)[5] = ThisSquare + MAX_COL;
+    (ThisSquare->living_neighbors)[6] = ThisSquare + MAX_COL - 1;
+    (ThisSquare->living_neighbors)[7] = ThisSquare - 1;
   }
 }
 
 // This function has been converted into a macro, because it is used in the often called
 // "BoardPopulate" routine, and it needs to be fast.
 #define SQUARE_CHANGE_LETTER_INDEX(thissquare, newindex) \
-  ((thissquare)->LetterIndex = (newindex))
+  ((thissquare)->letter_idx = (newindex))
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -341,7 +341,7 @@ int SquareWordDiscoverStack(
       WorkingChildIndex = (PartOneArray[WorkingIndex] & CHILD_MASK);
       WorkingNextMarker = 0;
       // Tag "WorkingSquare" as being used.
-      WorkingSquare->Used = true;
+      WorkingSquare->used = true;
       // Check to see if we have arrived at a new word, and if so, add the correct score
       // to the result.
       if (PartOneArray[WorkingIndex] & END_OF_WORD_FLAG) {
@@ -359,16 +359,16 @@ int SquareWordDiscoverStack(
     // list of children in the lexicon data structure when using the ADTDAWG.
     DoWeNeedToPop = true;
     if (WorkingChildIndex) {
-      WorkingNeighbourList = WorkingSquare->LivingNeighbourSquarePointerArray;
+      WorkingNeighbourList = WorkingSquare->living_neighbors;
       if (FirstTime == true) {
         WorkingNextMarker += (WorkingMarker - PartThreeArray[WorkingChildIndex]);
         WorkingSecondPart = PartTwoArray
             [(PartOneArray[WorkingIndex] & OFFSET_INDEX_MASK) >> OffSET_BIT_SHIFT];
-        WorkOnThisChild = WorkingSquare->NumberOfLivingNeighbours;
+        WorkOnThisChild = WorkingSquare->num_living_neighbors;
       }
       for (X = WorkOnThisChild; X-- > 0;) {
-        if ((WorkingNeighbourList[X])->Used == false) {
-          TheChosenLetterIndex = (WorkingNeighbourList[X])->LetterIndex;
+        if ((WorkingNeighbourList[X])->used == false) {
+          TheChosenLetterIndex = (WorkingNeighbourList[X])->letter_idx;
           if ((WorkingOffset =
                    (WorkingSecondPart & CHILD_LETTER_BIT_MASKS[TheChosenLetterIndex])
               )) {
@@ -402,7 +402,7 @@ int SquareWordDiscoverStack(
     }
     if (DoWeNeedToPop) {
       // We have now finished using "WorkingSquare", so set its "Used" element to FALSE.
-      WorkingSquare->Used = false;
+      WorkingSquare->used = false;
       // Pop the top of the stack into the function and pick up where we left off at
       // that particular square.
       DISCOVERY_STACK_POP(
@@ -434,7 +434,7 @@ unsigned int BoardSquareWordDiscover(
   for (CurrentRow = 0; CurrentRow < MAX_ROW; CurrentRow++) {
     for (CurrentCol = 0; CurrentCol < MAX_COL; CurrentCol++) {
       CurrentPartOneIndex =
-          (((ThisBoard->Block)[CurrentRow][CurrentCol]).LetterIndex + 1);
+          (((ThisBoard->Block)[CurrentRow][CurrentCol]).letter_idx + 1);
       TheScoreTotal += SquareWordDiscoverStack(
           &((ThisBoard->Block)[CurrentRow][CurrentCol]),
           CurrentPartOneIndex,
