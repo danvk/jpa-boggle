@@ -277,8 +277,7 @@ int SquareWordDiscoverStack(
     Square *BeginSquare,
     unsigned int BeginIndex,
     unsigned int BeginMarker,
-    unsigned int NowTime,
-    unsigned int ThreadIdentity
+    unsigned int NowTime
 ) {
   bool FirstTime = true;
   bool DoWeNeedToPop;
@@ -308,9 +307,9 @@ int SquareWordDiscoverStack(
       // to the result.
       if (PartOneArray[WorkingIndex] & END_OF_WORD_FLAG) {
         // printf("Bingo Word At |%u|\n", WorkingMarker);
-        if ((LexiconTimeStamps[ThreadIdentity])[WorkingMarker] < NowTime) {
+        if ((LexiconTimeStamps[0])[WorkingMarker] < NowTime) {
           Result += THE_SCORE_CARD[WorkingNumberOfChars];
-          (LexiconTimeStamps[ThreadIdentity])[WorkingMarker] = NowTime;
+          (LexiconTimeStamps[0])[WorkingMarker] = NowTime;
         }
         // No matter what, we need to reduce the "WorkingNextMarker"
         WorkingNextMarker -= 1;
@@ -385,9 +384,7 @@ int SquareWordDiscoverStack(
 
 // The function returns the Boggle score for "ThisBoard."  I uses the global time
 // stamps.
-unsigned int BoardSquareWordDiscover(
-    Board *ThisBoard, unsigned int TheTimeNow, unsigned int CallingThread
-) {
+unsigned int BoardSquareWordDiscover(Board *ThisBoard, unsigned int TheTimeNow) {
   auto &block = ThisBoard->Block;
   unsigned int score = 0;
   // Add up all the scores that originate from each square in the board.
@@ -395,11 +392,7 @@ unsigned int BoardSquareWordDiscover(
     for (unsigned int col = 0; col < MAX_COL; col++) {
       unsigned int part1_idx = block[row][col].letter_idx + 1;
       score += SquareWordDiscoverStack(
-          &block[row][col],
-          part1_idx,
-          PartThreeArray[part1_idx],
-          TheTimeNow,
-          CallingThread
+          &block[row][col], part1_idx, PartThreeArray[part1_idx], TheTimeNow
       );
     }
   }
@@ -520,7 +513,7 @@ int main(int argc, char *argv[]) {
       BoardString[i] = toupper(BoardString[i]);
     }
     BoardPopulate(WorkingBoard, BoardString);
-    CurrentScore = BoardSquareWordDiscover(WorkingBoard, BoardCount + 1, 0);
+    CurrentScore = BoardSquareWordDiscover(WorkingBoard, BoardCount + 1);
     for (int i = 0; BoardString[i]; i++) {
       BoardString[i] = tolower(BoardString[i]);
     }
