@@ -221,12 +221,11 @@ struct board {
 };
 
 typedef struct board Board;
-typedef Board *BoardPtr;
 
 // This initialization function sets the neighbour array for all of the Squares in
 // ThisBoard's Block (this only needs to be done once). The Letter index for each square
 // will be a blank space ' ', and they will all be not Used.
-void BoardInit(BoardPtr ThisBoard) {
+void BoardInit(Board *ThisBoard) {
   unsigned int Row;
   unsigned int Col;
   for (Row = MAX_ROW; Row-- > 0;) {
@@ -240,7 +239,7 @@ void BoardInit(BoardPtr ThisBoard) {
 // correct format. A major optimization has taken place at this level because the
 // ADTDAWG's direct property enforces the "Order Does Not Matter," paradigm, and thus,
 // no sorting is required.
-void BoardPopulate(BoardPtr ThisBoard, char *BoardString) {
+void BoardPopulate(Board *ThisBoard, char *BoardString) {
   unsigned int Row;
   unsigned int Col;
   for (Row = MAX_ROW; Row-- > 0;) {
@@ -434,7 +433,7 @@ int SquareWordDiscoverStack(
 // The function returns the Boggle score for "ThisBoard."  I uses the global time
 // stamps.
 unsigned int BoardSquareWordDiscover(
-    BoardPtr ThisBoard, unsigned int TheTimeNow, unsigned int CallingThread
+    Board *ThisBoard, unsigned int TheTimeNow, unsigned int CallingThread
 ) {
   unsigned int TheScoreTotal = 0;
   unsigned int CurrentRow;
@@ -521,7 +520,7 @@ int main(int argc, char *argv[]) {
   unsigned int BoardCount = 0;
 
   char BoardString[SQUARE_COUNT + 1];
-  BoardPtr WorkingBoard = (BoardPtr)malloc(sizeof(Board));
+  Board *WorkingBoard = (Board *)malloc(sizeof(Board));
 
   double BeginWorkTime;
   double EndWorkTime;
