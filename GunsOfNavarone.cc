@@ -82,122 +82,119 @@ struct Square {
 // board. Important note:  The function is going to use the low level C concept of
 // pointer arithmatic to fill the LivingNeighbourSquarePointerArray, which will be
 // filled from the top-left, clockwise.
-void SquareInit(
-    Square *ThisSquare, unsigned int RowPosition, unsigned int ColPosition
-) {
-  unsigned int X;
-  ThisSquare->letter_idx = SIZE_OF_CHARACTER_SET;
-  ThisSquare->used = false;
-  if (RowPosition == 0) {
+void SquareInit(Square *square, unsigned int row, unsigned int col) {
+  square->letter_idx = SIZE_OF_CHARACTER_SET;
+  square->used = false;
+  if (row == 0) {
     // ThisSquare is in the top-left position.
-    if (ColPosition == 0) {
-      ThisSquare->num_living_neighbors = 3;
-      (ThisSquare->living_neighbors)[0] = ThisSquare + 1;
-      (ThisSquare->living_neighbors)[1] = ThisSquare + MAX_COL + 1;
-      (ThisSquare->living_neighbors)[2] = ThisSquare + MAX_COL;
-      (ThisSquare->living_neighbors)[3] = NULL;
-      (ThisSquare->living_neighbors)[4] = NULL;
-      (ThisSquare->living_neighbors)[5] = NULL;
-      (ThisSquare->living_neighbors)[6] = NULL;
-      (ThisSquare->living_neighbors)[7] = NULL;
+    if (col == 0) {
+      square->num_living_neighbors = 3;
+      (square->living_neighbors)[0] = square + 1;
+      (square->living_neighbors)[1] = square + MAX_COL + 1;
+      (square->living_neighbors)[2] = square + MAX_COL;
+      (square->living_neighbors)[3] = NULL;
+      (square->living_neighbors)[4] = NULL;
+      (square->living_neighbors)[5] = NULL;
+      (square->living_neighbors)[6] = NULL;
+      (square->living_neighbors)[7] = NULL;
     }
     // ThisSquare is in the top-right position.
-    else if (ColPosition == (MAX_COL - 1)) {
-      ThisSquare->num_living_neighbors = 3;
-      (ThisSquare->living_neighbors)[0] = ThisSquare + MAX_COL;
-      (ThisSquare->living_neighbors)[1] = ThisSquare + MAX_COL - 1;
-      (ThisSquare->living_neighbors)[2] = ThisSquare - 1;
-      (ThisSquare->living_neighbors)[3] = NULL;
-      (ThisSquare->living_neighbors)[4] = NULL;
-      (ThisSquare->living_neighbors)[5] = NULL;
-      (ThisSquare->living_neighbors)[6] = NULL;
-      (ThisSquare->living_neighbors)[7] = NULL;
+    else if (col == (MAX_COL - 1)) {
+      square->num_living_neighbors = 3;
+      (square->living_neighbors)[0] = square + MAX_COL;
+      (square->living_neighbors)[1] = square + MAX_COL - 1;
+      (square->living_neighbors)[2] = square - 1;
+      (square->living_neighbors)[3] = NULL;
+      (square->living_neighbors)[4] = NULL;
+      (square->living_neighbors)[5] = NULL;
+      (square->living_neighbors)[6] = NULL;
+      (square->living_neighbors)[7] = NULL;
     }
     // ThisSquare is in a top-middle position.
     else {
-      ThisSquare->num_living_neighbors = 5;
-      (ThisSquare->living_neighbors)[0] = ThisSquare + 1;
-      (ThisSquare->living_neighbors)[1] = ThisSquare + MAX_COL + 1;
-      (ThisSquare->living_neighbors)[2] = ThisSquare + MAX_COL;
-      (ThisSquare->living_neighbors)[3] = ThisSquare + MAX_COL - 1;
-      (ThisSquare->living_neighbors)[4] = ThisSquare - 1;
-      (ThisSquare->living_neighbors)[5] = NULL;
-      (ThisSquare->living_neighbors)[6] = NULL;
-      (ThisSquare->living_neighbors)[7] = NULL;
+      square->num_living_neighbors = 5;
+      (square->living_neighbors)[0] = square + 1;
+      (square->living_neighbors)[1] = square + MAX_COL + 1;
+      (square->living_neighbors)[2] = square + MAX_COL;
+      (square->living_neighbors)[3] = square + MAX_COL - 1;
+      (square->living_neighbors)[4] = square - 1;
+      (square->living_neighbors)[5] = NULL;
+      (square->living_neighbors)[6] = NULL;
+      (square->living_neighbors)[7] = NULL;
     }
-  } else if (RowPosition == (MAX_ROW - 1)) {
+  } else if (row == (MAX_ROW - 1)) {
     // ThisSquare is in the bottom-left position.
-    if (ColPosition == 0) {
-      ThisSquare->num_living_neighbors = 3;
-      (ThisSquare->living_neighbors)[0] = ThisSquare - MAX_COL;
-      (ThisSquare->living_neighbors)[1] = ThisSquare - MAX_COL + 1;
-      (ThisSquare->living_neighbors)[2] = ThisSquare + 1;
-      (ThisSquare->living_neighbors)[3] = NULL;
-      (ThisSquare->living_neighbors)[4] = NULL;
-      (ThisSquare->living_neighbors)[5] = NULL;
-      (ThisSquare->living_neighbors)[6] = NULL;
-      (ThisSquare->living_neighbors)[7] = NULL;
+    if (col == 0) {
+      square->num_living_neighbors = 3;
+      (square->living_neighbors)[0] = square - MAX_COL;
+      (square->living_neighbors)[1] = square - MAX_COL + 1;
+      (square->living_neighbors)[2] = square + 1;
+      (square->living_neighbors)[3] = NULL;
+      (square->living_neighbors)[4] = NULL;
+      (square->living_neighbors)[5] = NULL;
+      (square->living_neighbors)[6] = NULL;
+      (square->living_neighbors)[7] = NULL;
     }
     // ThisSquare is in the bottom-right position.
-    else if (ColPosition == (MAX_COL - 1)) {
-      ThisSquare->num_living_neighbors = 3;
-      (ThisSquare->living_neighbors)[0] = ThisSquare - MAX_COL - 1;
-      (ThisSquare->living_neighbors)[1] = ThisSquare - MAX_COL;
-      (ThisSquare->living_neighbors)[2] = ThisSquare - 1;
-      (ThisSquare->living_neighbors)[3] = NULL;
-      (ThisSquare->living_neighbors)[4] = NULL;
-      (ThisSquare->living_neighbors)[5] = NULL;
-      (ThisSquare->living_neighbors)[6] = NULL;
-      (ThisSquare->living_neighbors)[7] = NULL;
+    else if (col == (MAX_COL - 1)) {
+      square->num_living_neighbors = 3;
+      (square->living_neighbors)[0] = square - MAX_COL - 1;
+      (square->living_neighbors)[1] = square - MAX_COL;
+      (square->living_neighbors)[2] = square - 1;
+      (square->living_neighbors)[3] = NULL;
+      (square->living_neighbors)[4] = NULL;
+      (square->living_neighbors)[5] = NULL;
+      (square->living_neighbors)[6] = NULL;
+      (square->living_neighbors)[7] = NULL;
     }
     // ThisSquare is in a bottom-middle position.
     else {
-      ThisSquare->num_living_neighbors = 5;
-      (ThisSquare->living_neighbors)[0] = ThisSquare - MAX_COL - 1;
-      (ThisSquare->living_neighbors)[1] = ThisSquare - MAX_COL;
-      (ThisSquare->living_neighbors)[2] = ThisSquare - MAX_COL + 1;
-      (ThisSquare->living_neighbors)[3] = ThisSquare + 1;
-      (ThisSquare->living_neighbors)[4] = ThisSquare - 1;
-      (ThisSquare->living_neighbors)[5] = NULL;
-      (ThisSquare->living_neighbors)[6] = NULL;
-      (ThisSquare->living_neighbors)[7] = NULL;
+      square->num_living_neighbors = 5;
+      (square->living_neighbors)[0] = square - MAX_COL - 1;
+      (square->living_neighbors)[1] = square - MAX_COL;
+      (square->living_neighbors)[2] = square - MAX_COL + 1;
+      (square->living_neighbors)[3] = square + 1;
+      (square->living_neighbors)[4] = square - 1;
+      (square->living_neighbors)[5] = NULL;
+      (square->living_neighbors)[6] = NULL;
+      (square->living_neighbors)[7] = NULL;
     }
   }
   // ThisSquare is in a middle-left position.
-  else if (ColPosition == 0) {
-    ThisSquare->num_living_neighbors = 5;
-    (ThisSquare->living_neighbors)[0] = ThisSquare - MAX_COL;
-    (ThisSquare->living_neighbors)[1] = ThisSquare - MAX_COL + 1;
-    (ThisSquare->living_neighbors)[2] = ThisSquare + 1;
-    (ThisSquare->living_neighbors)[3] = ThisSquare + MAX_COL + 1;
-    (ThisSquare->living_neighbors)[4] = ThisSquare + MAX_COL;
-    (ThisSquare->living_neighbors)[5] = NULL;
-    (ThisSquare->living_neighbors)[6] = NULL;
-    (ThisSquare->living_neighbors)[7] = NULL;
+  else if (col == 0) {
+    square->num_living_neighbors = 5;
+    (square->living_neighbors)[0] = square - MAX_COL;
+    (square->living_neighbors)[1] = square - MAX_COL + 1;
+    (square->living_neighbors)[2] = square + 1;
+    (square->living_neighbors)[3] = square + MAX_COL + 1;
+    (square->living_neighbors)[4] = square + MAX_COL;
+    (square->living_neighbors)[5] = NULL;
+    (square->living_neighbors)[6] = NULL;
+    (square->living_neighbors)[7] = NULL;
   }
   // ThisSquare is in a middle-right position.
-  else if (ColPosition == (MAX_COL - 1)) {
-    ThisSquare->num_living_neighbors = 5;
-    (ThisSquare->living_neighbors)[0] = ThisSquare - MAX_COL - 1;
-    (ThisSquare->living_neighbors)[1] = ThisSquare - MAX_COL;
-    (ThisSquare->living_neighbors)[2] = ThisSquare + MAX_COL;
-    (ThisSquare->living_neighbors)[3] = ThisSquare + MAX_COL - 1;
-    (ThisSquare->living_neighbors)[4] = ThisSquare - 1;
-    (ThisSquare->living_neighbors)[5] = NULL;
-    (ThisSquare->living_neighbors)[6] = NULL;
-    (ThisSquare->living_neighbors)[7] = NULL;
+  else if (col == (MAX_COL - 1)) {
+    square->num_living_neighbors = 5;
+    (square->living_neighbors)[0] = square - MAX_COL - 1;
+    (square->living_neighbors)[1] = square - MAX_COL;
+    (square->living_neighbors)[2] = square + MAX_COL;
+    (square->living_neighbors)[3] = square + MAX_COL - 1;
+    (square->living_neighbors)[4] = square - 1;
+    (square->living_neighbors)[5] = NULL;
+    (square->living_neighbors)[6] = NULL;
+    (square->living_neighbors)[7] = NULL;
   }
   // ThisSquare is in a middle-middle position.
   else {
-    ThisSquare->num_living_neighbors = NEIGHBOURS;
-    (ThisSquare->living_neighbors)[0] = ThisSquare - MAX_COL - 1;
-    (ThisSquare->living_neighbors)[1] = ThisSquare - MAX_COL;
-    (ThisSquare->living_neighbors)[2] = ThisSquare - MAX_COL + 1;
-    (ThisSquare->living_neighbors)[3] = ThisSquare + 1;
-    (ThisSquare->living_neighbors)[4] = ThisSquare + MAX_COL + 1;
-    (ThisSquare->living_neighbors)[5] = ThisSquare + MAX_COL;
-    (ThisSquare->living_neighbors)[6] = ThisSquare + MAX_COL - 1;
-    (ThisSquare->living_neighbors)[7] = ThisSquare - 1;
+    square->num_living_neighbors = NEIGHBOURS;
+    (square->living_neighbors)[0] = square - MAX_COL - 1;
+    (square->living_neighbors)[1] = square - MAX_COL;
+    (square->living_neighbors)[2] = square - MAX_COL + 1;
+    (square->living_neighbors)[3] = square + 1;
+    (square->living_neighbors)[4] = square + MAX_COL + 1;
+    (square->living_neighbors)[5] = square + MAX_COL;
+    (square->living_neighbors)[6] = square + MAX_COL - 1;
+    (square->living_neighbors)[7] = square - 1;
   }
 }
 
