@@ -73,9 +73,9 @@ struct Square {
   // The Used flag will indicate if a square is being used in constructing the current
   // word, and hence to remove the used square from further inclusion in the same word.
   bool used;
+  unsigned int letter_idx;
   unsigned int num_neighbors;
   Square *neighbors[NEIGHBOURS];
-  unsigned int letter_idx;
 };
 
 // This Function initializes ThisSquare when passed its row and column position on the
@@ -196,13 +196,11 @@ void BoardInit(Board *ThisBoard) {
 // correct format. A major optimization has taken place at this level because the
 // ADTDAWG's direct property enforces the "Order Does Not Matter," paradigm, and thus,
 // no sorting is required.
-void BoardPopulate(Board *ThisBoard, char *BoardString) {
-  unsigned int Row;
-  unsigned int Col;
-  for (Row = MAX_ROW; Row-- > 0;) {
-    for (Col = MAX_COL; Col-- > 0;) {
-      (&((ThisBoard->Block)[Row][Col]))->letter_idx =
-          CHARACTER_LOCATIONS[BoardString[Row * MAX_COL + Col] - 'A'];
+void BoardPopulate(Board *bd, char *letters) {
+  for (unsigned int Row = MAX_ROW; Row-- > 0;) {
+    for (unsigned int Col = MAX_COL; Col-- > 0;) {
+      (bd->Block)[Row][Col].letter_idx =
+          CHARACTER_LOCATIONS[letters[Row * MAX_COL + Col] - 'A'];
     }
   }
 }
