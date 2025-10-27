@@ -210,7 +210,7 @@ void BoardPopulate(Board *bd, char *letters) {
 
 // Each worker thread will have it's own time stamping unsigned int array for all of the
 // words in the lexicon.
-unsigned int *LexiconTimeStamps[NUMBER_OF_WORKER_THREADS];
+unsigned int *LexiconTimeStamps;
 
 // These are the pointers to the global immutable lexicon data structure.  The ADTDAWG
 // is well advanced and beyond the scope of the high level search algorithm. Since these
@@ -277,7 +277,7 @@ int SquareWordDiscoverStack(
     Square *BeginSquare,
     unsigned int BeginIndex,
     unsigned int BeginMarker,
-    unsigned int NowTime
+    unsigned int mark
 ) {
   bool FirstTime = true;
   bool DoWeNeedToPop;
@@ -307,9 +307,9 @@ int SquareWordDiscoverStack(
       // to the result.
       if (PartOneArray[WorkingIndex] & END_OF_WORD_FLAG) {
         // printf("Bingo Word At |%u|\n", WorkingMarker);
-        if ((LexiconTimeStamps[0])[WorkingMarker] < NowTime) {
+        if (LexiconTimeStamps[WorkingMarker] < mark) {
           Result += THE_SCORE_CARD[WorkingNumberOfChars];
-          (LexiconTimeStamps[0])[WorkingMarker] = NowTime;
+          LexiconTimeStamps[WorkingMarker] = mark;
         }
         // No matter what, we need to reduce the "WorkingNextMarker"
         WorkingNextMarker -= 1;
@@ -384,7 +384,7 @@ int SquareWordDiscoverStack(
 
 // The function returns the Boggle score for "ThisBoard."  I uses the global time
 // stamps.
-unsigned int BoardSquareWordDiscover(Board *ThisBoard, unsigned int TheTimeNow) {
+unsigned int BoardSquareWordDiscover(Board *ThisBoard, unsigned int mark) {
   auto &block = ThisBoard->Block;
   unsigned int score = 0;
   // Add up all the scores that originate from each square in the board.
@@ -392,7 +392,7 @@ unsigned int BoardSquareWordDiscover(Board *ThisBoard, unsigned int TheTimeNow) 
     for (unsigned int col = 0; col < MAX_COL; col++) {
       unsigned int part1_idx = block[row][col].letter_idx + 1;
       score += SquareWordDiscoverStack(
-          &block[row][col], part1_idx, PartThreeArray[part1_idx], TheTimeNow
+          &block[row][col], part1_idx, PartThreeArray[part1_idx], mark
       );
     }
   }
@@ -480,17 +480,11 @@ int main(int argc, char *argv[]) {
   BoardInit(WorkingBoard);
 
   // Allocate the set of lexicon time stamps as unsigned integers.
-  for (X = 0; X < NUMBER_OF_WORKER_THREADS; X++) {
-    LexiconTimeStamps[X] =
-        (unsigned int *)malloc((TOTAL_WORDS_IN_LEXICON + 1) * sizeof(unsigned int));
-  }
+  LexiconTimeStamps =
+      (unsigned int *)malloc((TOTAL_WORDS_IN_LEXICON + 1) * sizeof(unsigned int));
 
   // Zero all of the global time stamps.
-  for (X = 0; X < NUMBER_OF_WORKER_THREADS; X++) {
-    memset(
-        LexiconTimeStamps[X], 0, (TOTAL_WORDS_IN_LEXICON + 1) * sizeof(unsigned int)
-    );
-  }
+  memset(LexiconTimeStamps, 0, (TOTAL_WORDS_IN_LEXICON + 1) * sizeof(unsigned int));
 
   int result = LoadDictionary();
   if (result != 1) {
@@ -537,9 +531,7 @@ int main(int argc, char *argv[]) {
 
   // Clean up
   free(WorkingBoard);
-  for (X = 0; X < NUMBER_OF_WORKER_THREADS; X++) {
-    free(LexiconTimeStamps[X]);
-  }
+  free(LexiconTimeStamps);
   free(PartOneArray);
   free(PartTwoArray);
   free(PartThreeArray);
