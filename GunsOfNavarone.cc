@@ -210,7 +210,7 @@ void BoardPopulate(Board *bd, char *letters) {
 
 // Each worker thread will have it's own time stamping unsigned int array for all of the
 // words in the lexicon.
-unsigned int *LexiconTimeStamps;
+unsigned int *LexiconMarks;
 
 // These are the pointers to the global immutable lexicon data structure.  The ADTDAWG
 // is well advanced and beyond the scope of the high level search algorithm. Since these
@@ -307,9 +307,9 @@ int SquareWordDiscoverStack(
       // to the result.
       if (PartOneArray[WorkingIndex] & END_OF_WORD_FLAG) {
         // printf("Bingo Word At |%u|\n", WorkingMarker);
-        if (LexiconTimeStamps[WorkingMarker] < mark) {
+        if (LexiconMarks[WorkingMarker] < mark) {
           Result += THE_SCORE_CARD[WorkingNumberOfChars];
-          LexiconTimeStamps[WorkingMarker] = mark;
+          LexiconMarks[WorkingMarker] = mark;
         }
         // No matter what, we need to reduce the "WorkingNextMarker"
         WorkingNextMarker -= 1;
@@ -480,11 +480,11 @@ int main(int argc, char *argv[]) {
   BoardInit(WorkingBoard);
 
   // Allocate the set of lexicon time stamps as unsigned integers.
-  LexiconTimeStamps =
+  LexiconMarks =
       (unsigned int *)malloc((TOTAL_WORDS_IN_LEXICON + 1) * sizeof(unsigned int));
 
   // Zero all of the global time stamps.
-  memset(LexiconTimeStamps, 0, (TOTAL_WORDS_IN_LEXICON + 1) * sizeof(unsigned int));
+  memset(LexiconMarks, 0, (TOTAL_WORDS_IN_LEXICON + 1) * sizeof(unsigned int));
 
   int result = LoadDictionary();
   if (result != 1) {
@@ -531,7 +531,7 @@ int main(int argc, char *argv[]) {
 
   // Clean up
   free(WorkingBoard);
-  free(LexiconTimeStamps);
+  free(LexiconMarks);
   free(PartOneArray);
   free(PartTwoArray);
   free(PartThreeArray);
