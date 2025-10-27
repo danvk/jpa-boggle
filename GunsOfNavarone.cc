@@ -379,8 +379,9 @@ int SquareWordDiscoverStack(
       for (X = WorkOnThisChild; X-- > 0;) {
         if ((WorkingNeighbourList[X])->Used == FALSE) {
           TheChosenLetterIndex = (WorkingNeighbourList[X])->LetterIndex;
-          if (WorkingOffset =
-                  (WorkingSecondPart & CHILD_LETTER_BIT_MASKS[TheChosenLetterIndex])) {
+          if ((WorkingOffset =
+                   (WorkingSecondPart & CHILD_LETTER_BIT_MASKS[TheChosenLetterIndex])
+              )) {
             WorkingOffset >>= CHILD_LETTER_BIT_SHIFTS[TheChosenLetterIndex];
             WorkingOffset -= 1;
             // Now that we are ready to move down to the next level, push the current
