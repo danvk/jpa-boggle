@@ -268,118 +268,71 @@ DiscoveryStackNode TheDiscoveryStack[DISCOVERY_STACK_SIZE];
 // The sequential board scoring functions are found here for the new ADTDAWG.
 
 // This is the central piece of code in the BIG Boggle board analysis scheme.
-// An explicit stack is used to traverse the neighbours of "BeginSquare," regardless of
-// alphabetical order.  It updates the global "LexiconTimeStamps" to eliminate the
-// counting of identical words. The algorithm is inherently recursive, and this drawback
-// has been excised. Every letter on the board must be contained in the lexicon
+// Recursion is used to traverse the neighbours of the starting square, regardless of
+// alphabetical order. It updates the global "LexiconTimeStamps" to eliminate the
+// counting of identical words. Every letter on the board must be contained in the lexicon
 // character set.
 
 int ScoreSquare(
-    Square *BeginSquare,
-    unsigned int BeginIndex,
-    unsigned int BeginMarker,
-    unsigned int mark
+    Square *WorkingSquare,
+    unsigned int WorkingIndex,
+    unsigned int WorkingMarker,
+    unsigned int mark,
+    unsigned int WorkingNumberOfChars
 ) {
-  bool FirstTime = true;
-  bool DoWeNeedToPop;
-  unsigned int X;
-  unsigned int WorkOnThisChild;
-  Square *WorkingSquare = BeginSquare;
-  unsigned int WorkingMarker = BeginMarker;
-  unsigned int WorkingIndex = BeginIndex;
-  unsigned int WorkingNumberOfChars = 1;
-  unsigned long int WorkingSecondPart;
-  unsigned int TheChosenLetterIndex;
-  unsigned int WorkingChildIndex;
   unsigned int Result = 0;
-  Square **WorkingNeighbourList;
-  unsigned long int WorkingOffset;
-  int WorkingNextMarker;
-  DiscoveryStackNode *TheTop = TheDiscoveryStack + 1;
-  while (DISCOVERY_STACK_NOT_EMPTY) {
-    // The first time that we land on a square, set it to used, and check if it
-    // represents a word, and then a new word.
-    if (FirstTime == true) {
-      WorkingChildIndex = (PartOneArray[WorkingIndex] & CHILD_MASK);
-      WorkingNextMarker = 0;
-      // Tag "WorkingSquare" as being used.
-      WorkingSquare->used = true;
-      // Check to see if we have arrived at a new word, and if so, add the correct score
-      // to the result.
-      if (PartOneArray[WorkingIndex] & END_OF_WORD_FLAG) {
-        // printf("Bingo Word At |%u|\n", WorkingMarker);
-        if (LexiconMarks[WorkingMarker] < mark) {
-          Result += THE_SCORE_CARD[WorkingNumberOfChars];
-          LexiconMarks[WorkingMarker] = mark;
-        }
-        // No matter what, we need to reduce the "WorkingNextMarker"
-        WorkingNextMarker -= 1;
-      }
+
+  // Mark this square as used
+  WorkingSquare->used = true;
+
+  // Get the child index from the lexicon
+  unsigned int WorkingChildIndex = (PartOneArray[WorkingIndex] & CHILD_MASK);
+  int WorkingNextMarker = 0;
+
+  // Check if we have arrived at a new word, and if so, add the correct score
+  if (PartOneArray[WorkingIndex] & END_OF_WORD_FLAG) {
+    if (LexiconMarks[WorkingMarker] < mark) {
+      Result += THE_SCORE_CARD[WorkingNumberOfChars];
+      LexiconMarks[WorkingMarker] = mark;
     }
-    // If "WorkingSquare" has children, visit the next one from
-    // ("NumberOfLivingNeighbours" - 1) to zero.  There will be no scrolling through a
-    // list of children in the lexicon data structure when using the ADTDAWG.
-    DoWeNeedToPop = true;
-    if (WorkingChildIndex) {
-      WorkingNeighbourList = WorkingSquare->neighbors;
-      if (FirstTime == true) {
-        WorkingNextMarker += (WorkingMarker - PartThreeArray[WorkingChildIndex]);
-        WorkingSecondPart = PartTwoArray
-            [(PartOneArray[WorkingIndex] & OFFSET_INDEX_MASK) >> OffSET_BIT_SHIFT];
-        WorkOnThisChild = WorkingSquare->num_neighbors;
-      }
-      for (X = WorkOnThisChild; X-- > 0;) {
-        if ((WorkingNeighbourList[X])->used == false) {
-          TheChosenLetterIndex = (WorkingNeighbourList[X])->letter_idx;
-          if ((WorkingOffset =
-                   (WorkingSecondPart & CHILD_LETTER_BIT_MASKS[TheChosenLetterIndex])
-              )) {
-            WorkingOffset >>= CHILD_LETTER_BIT_SHIFTS[TheChosenLetterIndex];
-            WorkingOffset -= 1;
-            // Now that we are ready to move down to the next level, push the current
-            // state onto the stack if we are not on the final neighbour, and update the
-            // working variables.
-            DISCOVERY_STACK_PUSH(
-                TheTop,
-                WorkingSquare,
-                WorkingIndex,
-                WorkingChildIndex,
-                WorkingNumberOfChars,
-                WorkingNextMarker,
-                X,
-                WorkingSecondPart
-            );
-            WorkingSquare = WorkingNeighbourList[X];
-            WorkingIndex = WorkingChildIndex + (unsigned int)WorkingOffset;
-            WorkingMarker =
-                WorkingNextMarker +
-                PartThreeArray[WorkingChildIndex + (unsigned int)WorkingOffset];
-            WorkingNumberOfChars += 1;
-            FirstTime = true;
-            DoWeNeedToPop = false;
-            break;
-          }
+    WorkingNextMarker -= 1;
+  }
+
+  // If this node has children in the lexicon, explore the neighbors
+  if (WorkingChildIndex) {
+    WorkingNextMarker += (WorkingMarker - PartThreeArray[WorkingChildIndex]);
+    unsigned long int WorkingSecondPart = PartTwoArray
+        [(PartOneArray[WorkingIndex] & OFFSET_INDEX_MASK) >> OffSET_BIT_SHIFT];
+
+    Square **WorkingNeighbourList = WorkingSquare->neighbors;
+
+    // Loop through all neighbors
+    for (unsigned int X = 0; X < WorkingSquare->num_neighbors; X++) {
+      if ((WorkingNeighbourList[X])->used == false) {
+        unsigned int TheChosenLetterIndex = (WorkingNeighbourList[X])->letter_idx;
+        unsigned long int WorkingOffset =
+            (WorkingSecondPart & CHILD_LETTER_BIT_MASKS[TheChosenLetterIndex]);
+
+        if (WorkingOffset) {
+          WorkingOffset >>= CHILD_LETTER_BIT_SHIFTS[TheChosenLetterIndex];
+          WorkingOffset -= 1;
+
+          // Recursive call to explore this neighbor
+          Result += ScoreSquare(
+              WorkingNeighbourList[X],
+              WorkingChildIndex + (unsigned int)WorkingOffset,
+              WorkingNextMarker + PartThreeArray[WorkingChildIndex + (unsigned int)WorkingOffset],
+              mark,
+              WorkingNumberOfChars + 1
+          );
         }
       }
-    }
-    if (DoWeNeedToPop) {
-      // We have now finished using "WorkingSquare", so set its "Used" element to FALSE.
-      WorkingSquare->used = false;
-      // Pop the top of the stack into the function and pick up where we left off at
-      // that particular square.
-      DISCOVERY_STACK_POP(
-          WorkingSquare,
-          WorkingIndex,
-          WorkingChildIndex,
-          WorkingNumberOfChars,
-          WorkingNextMarker,
-          WorkOnThisChild,
-          WorkingSecondPart,
-          TheTop
-      );
-      FirstTime = false;
     }
   }
+
+  // Unmark this square (backtrack)
+  WorkingSquare->used = false;
+
   return Result;
 }
 
@@ -392,7 +345,7 @@ unsigned int ScoreBoard(Board *ThisBoard, unsigned int mark) {
     for (unsigned int col = 0; col < MAX_COL; col++) {
       unsigned int part1_idx = block[row][col].letter_idx + 1;
       score +=
-          ScoreSquare(&block[row][col], part1_idx, PartThreeArray[part1_idx], mark);
+          ScoreSquare(&block[row][col], part1_idx, PartThreeArray[part1_idx], mark, 1);
     }
   }
   return score;
