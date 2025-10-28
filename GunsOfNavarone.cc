@@ -228,7 +228,7 @@ unsigned int PartThreeFourTransition;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-struct discoverystacknode {
+struct DiscoveryStackNode {
   Square *TheSquareNow;
   unsigned int LexiconPartOneIndex;
   unsigned int FirstChildIndex;
@@ -237,9 +237,6 @@ struct discoverystacknode {
   unsigned int TheChildToWorkOn;
   unsigned long int TheSecondPartNow;
 };
-
-typedef struct discoverystacknode DiscoveryStackNode;
-typedef DiscoveryStackNode *DiscoveryStackNodePtr;
 
 // This is where the recursion-replacement stack is implemented.
 // Using macros allows the programmer to change the value of an argument directly.
@@ -278,7 +275,7 @@ DiscoveryStackNode TheDiscoveryStack[DISCOVERY_STACK_SIZE];
 // has been excised. Every letter on the board must be contained in the lexicon
 // character set.
 
-int SquareWordDiscoverStack(
+int ScoreSquare(
     Square *BeginSquare,
     unsigned int BeginIndex,
     unsigned int BeginMarker,
@@ -299,7 +296,7 @@ int SquareWordDiscoverStack(
   Square **WorkingNeighbourList;
   unsigned long int WorkingOffset;
   int WorkingNextMarker;
-  DiscoveryStackNodePtr TheTop = TheDiscoveryStack + 1;
+  DiscoveryStackNode *TheTop = TheDiscoveryStack + 1;
   while (DISCOVERY_STACK_NOT_EMPTY) {
     // The first time that we land on a square, set it to used, and check if it
     // represents a word, and then a new word.
@@ -387,18 +384,16 @@ int SquareWordDiscoverStack(
   return Result;
 }
 
-// The function returns the Boggle score for "ThisBoard."  I uses the global time
-// stamps.
-unsigned int BoardSquareWordDiscover(Board *ThisBoard, unsigned int mark) {
+// The function returns the Boggle score for "ThisBoard."
+unsigned int ScoreBoard(Board *ThisBoard, unsigned int mark) {
   auto &block = ThisBoard->Block;
   unsigned int score = 0;
   // Add up all the scores that originate from each square in the board.
   for (unsigned int row = 0; row < MAX_ROW; row++) {
     for (unsigned int col = 0; col < MAX_COL; col++) {
       unsigned int part1_idx = block[row][col].letter_idx + 1;
-      score += SquareWordDiscoverStack(
-          &block[row][col], part1_idx, PartThreeArray[part1_idx], mark
-      );
+      score +=
+          ScoreSquare(&block[row][col], part1_idx, PartThreeArray[part1_idx], mark);
     }
   }
   return score;
@@ -521,7 +516,7 @@ int main(int argc, char *argv[]) {
   unsigned int total_score = 0;
   for (const auto &board : boards) {
     BoardPopulate(WorkingBoard, board.c_str());
-    CurrentScore = BoardSquareWordDiscover(WorkingBoard, BoardCount + 1);
+    CurrentScore = ScoreBoard(WorkingBoard, BoardCount + 1);
     total_score += CurrentScore;
     BoardCount++;
   }
