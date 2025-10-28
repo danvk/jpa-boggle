@@ -285,7 +285,6 @@ int ScoreSquare(
 
   // Get the child index from the lexicon
   unsigned int child_idx = (PartOneArray[part1_idx] & CHILD_MASK);
-  int lexicon_offset = 0;
 
   // Check if we have arrived at a new word, and if so, add the correct score
   if (PartOneArray[part1_idx] & END_OF_WORD_FLAG) {
@@ -293,12 +292,12 @@ int ScoreSquare(
       score += THE_SCORE_CARD[num_chars];
       LexiconMarks[lexicon_idx] = mark;
     }
-    lexicon_offset -= 1;
+    lexicon_idx -= 1;
   }
 
   // If this node has children in the lexicon, explore the neighbors
   if (child_idx) {
-    lexicon_offset -= PartThreeArray[child_idx];
+    lexicon_idx -= PartThreeArray[child_idx];
     unsigned long int part_two =
         PartTwoArray[(PartOneArray[part1_idx] & OFFSET_INDEX_MASK) >> OffSET_BIT_SHIFT];
 
@@ -320,7 +319,7 @@ int ScoreSquare(
           score += ScoreSquare(
               neighbors[X],
               child_idx + offset32,
-              lexicon_idx + lexicon_offset + PartThreeArray[child_idx + offset32],
+              lexicon_idx + PartThreeArray[child_idx + offset32],
               mark,
               num_chars + 1
           );
