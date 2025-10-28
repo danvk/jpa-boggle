@@ -1,10 +1,5 @@
-
-SizeOfPartOne |29797|
-SizeOfPartTwo |1505|
-SizeOfPartThree |1009|
-Transition |1010|
-SizeOfPartFour |28788|
-
+bytes for marks: 176884
+bytes for arrays: 119192 + 12040 + 119192 = 250424
 mmsnolaollrcaitrsdismlmoi: 567
 iaodpacdtttgcipammlapoded: 279
 tssirgiaiecnierdrpoonlced: 357

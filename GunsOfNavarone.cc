@@ -411,28 +411,27 @@ int LoadDictionary() {
   unsigned int SizeOfPartOne;
   unsigned long int SizeOfPartTwo;
   unsigned int SizeOfPartThree;
-  unsigned int SizeOfPartFour;
 
   // Read in the size of each data file.
   if (fread(&SizeOfPartOne, 4, 1, PartOne) != 1) return 0;
   if (fread(&SizeOfPartTwo, 8, 1, PartTwo) != 1) return 0;
   if (fread(&SizeOfPartThree, 4, 1, PartThree) != 1) return 0;
-  PartThreeFourTransition = SizeOfPartThree + 1;
-  SizeOfPartFour = SizeOfPartOne - SizeOfPartThree;
-
-  // Print out the lexicon size values.
-  printf("\n");
-  printf("SizeOfPartOne |%d|\n", SizeOfPartOne);
-  printf("SizeOfPartTwo |%ld|\n", SizeOfPartTwo);
-  printf("SizeOfPartThree |%d|\n", SizeOfPartThree);
-  printf("Transition |%d|\n", PartThreeFourTransition);
-  printf("SizeOfPartFour |%d|\n", SizeOfPartFour);
-  printf("\n");
 
   // Allocate memory for the ADTDAWG.
-  PartOneArray = (unsigned int *)malloc((SizeOfPartOne + 1) * sizeof(int));
-  PartTwoArray = (unsigned long int *)malloc(SizeOfPartTwo * sizeof(long int));
-  PartThreeArray = (unsigned int *)malloc((SizeOfPartOne + 1) * sizeof(int));
+  size_t bytes_one = (SizeOfPartOne + 1) * sizeof(int);
+  size_t bytes_two = SizeOfPartTwo * sizeof(long int);
+  size_t bytes_three = (SizeOfPartOne + 1) * sizeof(int);
+  PartOneArray = (unsigned int *)malloc(bytes_one);
+  PartTwoArray = (unsigned long int *)malloc(bytes_two);
+  PartThreeArray = (unsigned int *)malloc(bytes_three);
+
+  printf(
+      "bytes for arrays: %zu + %zu + %zu = %zu\n",
+      bytes_one,
+      bytes_two,
+      bytes_three,
+      bytes_one + bytes_two + bytes_three
+  );
 
   // Read in the data files into global arrays of basic integer types.
   // The zero position in "PartOneArray" is the NULL node.
@@ -480,8 +479,9 @@ int main(int argc, char *argv[]) {
   BoardInit(WorkingBoard);
 
   // Allocate the set of lexicon time stamps as unsigned integers.
-  LexiconMarks =
-      (unsigned int *)malloc((TOTAL_WORDS_IN_LEXICON + 1) * sizeof(unsigned int));
+  size_t bytes_marks = (TOTAL_WORDS_IN_LEXICON + 1) * sizeof(unsigned int);
+  LexiconMarks = (unsigned int *)malloc(bytes_marks);
+  printf("bytes for marks: %zu\n", bytes_marks);
 
   // Zero all of the global time stamps.
   memset(LexiconMarks, 0, (TOTAL_WORDS_IN_LEXICON + 1) * sizeof(unsigned int));
