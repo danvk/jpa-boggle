@@ -305,19 +305,17 @@ int ScoreSquare(
 
     // Loop through all neighbors
     for (unsigned int X = 0; X < square->num_neighbors; X++) {
-      if (neighbors[X]->used == false) {
-        unsigned int letter_idx = (neighbors[X])->letter_idx;
-        unsigned long int offset64 = (part_two & CHILD_LETTER_BIT_MASKS[letter_idx]);
+      auto n = neighbors[X];
+      if (n->used == false) {
+        unsigned long int offset64 = (part_two & CHILD_LETTER_BIT_MASKS[n->letter_idx]);
 
         if (offset64) {
-          offset64 >>= CHILD_LETTER_BIT_SHIFTS[letter_idx];
+          offset64 >>= CHILD_LETTER_BIT_SHIFTS[n->letter_idx];
           offset64 -= 1;
-
           auto offset32 = (unsigned int)offset64;
 
-          // Recursive call to explore this neighbor
           score += ScoreSquare(
-              neighbors[X],
+              n,
               child_idx + offset32,
               lexicon_idx + PartThreeArray[child_idx + offset32],
               mark,
@@ -328,9 +326,7 @@ int ScoreSquare(
     }
   }
 
-  // Unmark this square (backtrack)
   square->used = false;
-
   return score;
 }
 
