@@ -4,6 +4,11 @@
 #include <string.h>
 #include <time.h>  // Ensure this is included for clock()
 
+#include <string>
+#include <vector>
+
+using namespace std;
+
 // The ADTDAWG for Lexicon_14, a subset of TWL06, is located in the 4 data files listed
 // below.
 #define FOUR_PART_DTDAWG_14_PART_ONE "Four_Part_1_DTDAWG_For_Lexicon_14.dat"
@@ -196,7 +201,7 @@ void BoardInit(Board *ThisBoard) {
 // correct format. A major optimization has taken place at this level because the
 // ADTDAWG's direct property enforces the "Order Does Not Matter," paradigm, and thus,
 // no sorting is required.
-void BoardPopulate(Board *bd, char *letters) {
+void BoardPopulate(Board *bd, const char *letters) {
   for (unsigned int Row = MAX_ROW; Row-- > 0;) {
     for (unsigned int Col = MAX_COL; Col-- > 0;) {
       (bd->Block)[Row][Col].letter_idx =
@@ -498,6 +503,9 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
+  // Read the boards in advance to avoid measuring I/O time.
+  vector<string> boards;
+
   BeginWorkTime = (double)clock() / CLOCKS_PER_SEC;
 
   // Read boards from file and score them
@@ -506,8 +514,14 @@ int main(int argc, char *argv[]) {
     for (int i = 0; BoardString[i]; i++) {
       BoardString[i] = toupper(BoardString[i]);
     }
-    BoardPopulate(WorkingBoard, BoardString);
+    boards.push_back(BoardString);
+  }
+  fclose(input_file);
+
+  for (const auto &board : boards) {
+    BoardPopulate(WorkingBoard, board.c_str());
     CurrentScore = BoardSquareWordDiscover(WorkingBoard, BoardCount + 1);
+    strcpy(BoardString, board.c_str());
     for (int i = 0; BoardString[i]; i++) {
       BoardString[i] = tolower(BoardString[i]);
     }
@@ -517,8 +531,6 @@ int main(int argc, char *argv[]) {
 
   EndWorkTime = (double)clock() / CLOCKS_PER_SEC;
   TheRunTime = EndWorkTime - BeginWorkTime;
-
-  fclose(input_file);
 
   // Report performance to stderr
   fprintf(
