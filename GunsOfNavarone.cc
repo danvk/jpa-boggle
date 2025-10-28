@@ -518,19 +518,18 @@ int main(int argc, char *argv[]) {
   }
   fclose(input_file);
 
+  unsigned int total_score = 0;
   for (const auto &board : boards) {
     BoardPopulate(WorkingBoard, board.c_str());
     CurrentScore = BoardSquareWordDiscover(WorkingBoard, BoardCount + 1);
-    strcpy(BoardString, board.c_str());
-    for (int i = 0; BoardString[i]; i++) {
-      BoardString[i] = tolower(BoardString[i]);
-    }
-    printf("%s: %d\n", BoardString, CurrentScore);
+    total_score += CurrentScore;
     BoardCount++;
   }
 
   EndWorkTime = (double)clock() / CLOCKS_PER_SEC;
   TheRunTime = EndWorkTime - BeginWorkTime;
+
+  printf("Evaluated %zu boards\nTotal score: %u\n", boards.size(), total_score);
 
   // Report performance to stderr
   fprintf(
