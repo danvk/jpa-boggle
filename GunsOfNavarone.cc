@@ -270,60 +270,60 @@ DiscoveryStackNode TheDiscoveryStack[DISCOVERY_STACK_SIZE];
 // This is the central piece of code in the BIG Boggle board analysis scheme.
 // Recursion is used to traverse the neighbours of the starting square, regardless of
 // alphabetical order. It updates the global "LexiconTimeStamps" to eliminate the
-// counting of identical words. Every letter on the board must be contained in the lexicon
-// character set.
+// counting of identical words. Every letter on the board must be contained in the
+// lexicon character set.
 
 int ScoreSquare(
-    Square *WorkingSquare,
-    unsigned int WorkingIndex,
-    unsigned int WorkingMarker,
+    Square *square,
+    unsigned int part1_idx,
+    unsigned int lexicon_idx,
     unsigned int mark,
-    unsigned int WorkingNumberOfChars
+    unsigned int num_chars
 ) {
-  unsigned int Result = 0;
-
-  // Mark this square as used
-  WorkingSquare->used = true;
+  unsigned int score = 0;
+  square->used = true;
 
   // Get the child index from the lexicon
-  unsigned int WorkingChildIndex = (PartOneArray[WorkingIndex] & CHILD_MASK);
-  int WorkingNextMarker = 0;
+  unsigned int child_idx = (PartOneArray[part1_idx] & CHILD_MASK);
+  int next_lexicon_idx = 0;
 
   // Check if we have arrived at a new word, and if so, add the correct score
-  if (PartOneArray[WorkingIndex] & END_OF_WORD_FLAG) {
-    if (LexiconMarks[WorkingMarker] < mark) {
-      Result += THE_SCORE_CARD[WorkingNumberOfChars];
-      LexiconMarks[WorkingMarker] = mark;
+  if (PartOneArray[part1_idx] & END_OF_WORD_FLAG) {
+    if (LexiconMarks[lexicon_idx] < mark) {
+      score += THE_SCORE_CARD[num_chars];
+      LexiconMarks[lexicon_idx] = mark;
     }
-    WorkingNextMarker -= 1;
+    next_lexicon_idx -= 1;
   }
 
   // If this node has children in the lexicon, explore the neighbors
-  if (WorkingChildIndex) {
-    WorkingNextMarker += (WorkingMarker - PartThreeArray[WorkingChildIndex]);
-    unsigned long int WorkingSecondPart = PartTwoArray
-        [(PartOneArray[WorkingIndex] & OFFSET_INDEX_MASK) >> OffSET_BIT_SHIFT];
+  if (child_idx) {
+    next_lexicon_idx += (lexicon_idx - PartThreeArray[child_idx]);
+    unsigned long int WorkingSecondPart =
+        PartTwoArray[(PartOneArray[part1_idx] & OFFSET_INDEX_MASK) >> OffSET_BIT_SHIFT];
 
-    Square **WorkingNeighbourList = WorkingSquare->neighbors;
+    Square **neighbors = square->neighbors;
 
     // Loop through all neighbors
-    for (unsigned int X = 0; X < WorkingSquare->num_neighbors; X++) {
-      if ((WorkingNeighbourList[X])->used == false) {
-        unsigned int TheChosenLetterIndex = (WorkingNeighbourList[X])->letter_idx;
-        unsigned long int WorkingOffset =
-            (WorkingSecondPart & CHILD_LETTER_BIT_MASKS[TheChosenLetterIndex]);
+    for (unsigned int X = 0; X < square->num_neighbors; X++) {
+      if (neighbors[X]->used == false) {
+        unsigned int letter_idx = (neighbors[X])->letter_idx;
+        unsigned long int offset64 =
+            (WorkingSecondPart & CHILD_LETTER_BIT_MASKS[letter_idx]);
 
-        if (WorkingOffset) {
-          WorkingOffset >>= CHILD_LETTER_BIT_SHIFTS[TheChosenLetterIndex];
-          WorkingOffset -= 1;
+        if (offset64) {
+          offset64 >>= CHILD_LETTER_BIT_SHIFTS[letter_idx];
+          offset64 -= 1;
+
+          auto offset32 = (unsigned int)offset64;
 
           // Recursive call to explore this neighbor
-          Result += ScoreSquare(
-              WorkingNeighbourList[X],
-              WorkingChildIndex + (unsigned int)WorkingOffset,
-              WorkingNextMarker + PartThreeArray[WorkingChildIndex + (unsigned int)WorkingOffset],
+          score += ScoreSquare(
+              neighbors[X],
+              child_idx + offset32,
+              next_lexicon_idx + PartThreeArray[child_idx + offset32],
               mark,
-              WorkingNumberOfChars + 1
+              num_chars + 1
           );
         }
       }
@@ -331,9 +331,9 @@ int ScoreSquare(
   }
 
   // Unmark this square (backtrack)
-  WorkingSquare->used = false;
+  square->used = false;
 
-  return Result;
+  return score;
 }
 
 // The function returns the Boggle score for "ThisBoard."
@@ -477,6 +477,7 @@ int main(int argc, char *argv[]) {
   TheRunTime = EndWorkTime - BeginWorkTime;
 
   printf("Evaluated %zu boards\nTotal score: %u\n", boards.size(), total_score);
+  // printf("sizeof(long int) = %zu\n", sizeof(long int));  // 8
 
   // Report performance to stderr
   fprintf(
