@@ -33,6 +33,18 @@ using namespace std;
 #define OFFSET_INDEX_MASK 67076096
 #define OffSET_BIT_SHIFT 15
 
+//                    2         1
+//           987654321098765432109876543210
+// child_mask:              111111111111111
+// offset_index: 11111111111000000000000000
+// end_of_word: 100000000000000000000000000
+
+struct Node {
+  int child_mask : 15;    // bits 0-14
+  int offset_index : 11;  // bits 15-25
+  int end_of_word : 1;    // bit 26
+};
+
 // Constants that define the high level algorithm.
 #define NUMBER_OF_WORKER_THREADS 1
 
@@ -224,45 +236,6 @@ uint32_t *LexiconMarks;
 uint32_t *PartOneArray;
 uint64_t *PartTwoArray;
 uint32_t *PartThreeArray;
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-struct DiscoveryStackNode {
-  Square *TheSquareNow;
-  uint32_t LexiconPartOneIndex;
-  uint32_t FirstChildIndex;
-  uint32_t WordLengthNow;
-  uint32_t NextMarkerNow;
-  uint32_t TheChildToWorkOn;
-  uint64_t TheSecondPartNow;
-};
-
-// This is where the recursion-replacement stack is implemented.
-// Using macros allows the programmer to change the value of an argument directly.
-// The stack needs room for the NULL position 0, (MAX_STRING_LENGTH - 1) square
-// positions, and a buffer for the top pointer.
-#define DISCOVERY_STACK_SIZE (MAX_STRING_LENGTH + 1)
-#define DISCOVERY_STACK_PUSH(top, square, indie, fcindie, len, next, workon, second) \
-  (((top->TheSquareNow = (square)),                                                  \
-    (top->LexiconPartOneIndex = (indie)),                                            \
-    (top->FirstChildIndex = (fcindie)),                                              \
-    (top->WordLengthNow = (len)),                                                    \
-    (top->NextMarkerNow = (next)),                                                   \
-    (top->TheChildToWorkOn = (workon)),                                              \
-    (top->TheSecondPartNow = (second)),                                              \
-    ++top))
-#define DISCOVERY_STACK_POP(square, indie, fcindie, len, next, workon, second, top) \
-  ((--top,                                                                          \
-    (square = top->TheSquareNow),                                                   \
-    (indie = top->LexiconPartOneIndex),                                             \
-    (fcindie = top->FirstChildIndex),                                               \
-    (len = top->WordLengthNow),                                                     \
-    (next = top->NextMarkerNow),                                                    \
-    (workon = top->TheChildToWorkOn),                                               \
-    (second = top->TheSecondPartNow)))
-#define DISCOVERY_STACK_NOT_EMPTY (TheDiscoveryStack < TheTop)
-
-DiscoveryStackNode TheDiscoveryStack[DISCOVERY_STACK_SIZE];
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // The sequential board scoring functions are found here for the new ADTDAWG.
