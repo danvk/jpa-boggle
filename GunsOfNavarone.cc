@@ -288,9 +288,8 @@ int ScoreSquare(
 
       if (offset64) {
         offset64 >>= CHILD_LETTER_BIT_SHIFTS[letter_idx];
-        offset64 -= 1;
         auto offset32 = (uint32_t)offset64;
-        auto next_idx = child_idx + offset32;
+        auto next_idx = child_idx + offset32 - 1;
 
         score += ScoreSquare(
             n, next_idx, lexicon_idx + PartThreeArray[next_idx], mark, num_chars + 1
