@@ -59,20 +59,20 @@ uint32_t CHARACTER_LOCATIONS[NUMBER_OF_ENGLISH_LETTERS] = {
     8, 9,     10, BOGUS, 11, 12,    13, BOGUS, BOGUS, BOGUS, BOGUS, BOGUS, BOGUS
 };
 uint64_t CHILD_LETTER_BIT_MASKS[SIZE_OF_CHARACTER_SET] = {
-    0b1,
-    0b110,
-    0b11000,
-    0b11100000,
-    0b11100000000,
-    0b11100000000000,
-    0b11100000000000000,
-    0b111100000000000000000,
-    0b1111000000000000000000000,
-    0b11110000000000000000000000000,
-    0b111100000000000000000000000000000,
-    0b1111000000000000000000000000000000000,
-    0b11110000000000000000000000000000000000000,
-    0b111100000000000000000000000000000000000000000
+    0b000000000000000000000000000000000000000000001,  // A
+    0b000000000000000000000000000000000000000000110,  // C
+    0b000000000000000000000000000000000000000011000,  // D
+    0b000000000000000000000000000000000000011100000,  // E
+    0b000000000000000000000000000000000011100000000,  // G
+    0b000000000000000000000000000000011100000000000,  // I
+    0b000000000000000000000000000011100000000000000,  // L
+    0b000000000000000000000000111100000000000000000,  // M
+    0b000000000000000000001111000000000000000000000,  // N
+    0b000000000000000011110000000000000000000000000,  // O
+    0b000000000000111100000000000000000000000000000,  // P
+    0b000000001111000000000000000000000000000000000,  // R
+    0b000011110000000000000000000000000000000000000,  // S
+    0b111100000000000000000000000000000000000000000   // T
 };
 uint32_t CHILD_LETTER_BIT_SHIFTS[SIZE_OF_CHARACTER_SET] = {
     0, 1, 3, 5, 8, 11, 14, 17, 21, 25, 29, 33, 37, 41
@@ -274,24 +274,23 @@ int ScoreSquare(
     Square **neighbors = square->neighbors;
 
     // Loop through all neighbors
-    for (uint32_t X = 0; X < square->num_neighbors; X++) {
-      auto n = neighbors[X];
-      if (n->used == false) {
-        uint64_t offset64 = (part_two & CHILD_LETTER_BIT_MASKS[n->letter_idx]);
+    for (int i = 0; i < square->num_neighbors; i++) {
+      auto n = neighbors[i];
+      if (n->used) {
+        continue;
+      }
 
-        if (offset64) {
-          offset64 >>= CHILD_LETTER_BIT_SHIFTS[n->letter_idx];
-          offset64 -= 1;
-          auto offset32 = (uint32_t)offset64;
+      uint64_t offset64 = (part_two & CHILD_LETTER_BIT_MASKS[n->letter_idx]);
 
-          score += ScoreSquare(
-              n,
-              child_idx + offset32,
-              lexicon_idx + PartThreeArray[child_idx + offset32],
-              mark,
-              num_chars + 1
-          );
-        }
+      if (offset64) {
+        offset64 >>= CHILD_LETTER_BIT_SHIFTS[n->letter_idx];
+        offset64 -= 1;
+        auto offset32 = (uint32_t)offset64;
+        auto next_idx = child_idx + offset32;
+
+        score += ScoreSquare(
+            n, next_idx, lexicon_idx + PartThreeArray[next_idx], mark, num_chars + 1
+        );
       }
     }
   }
