@@ -46,7 +46,7 @@ struct Node {
 // Constants that define the high level algorithm.
 #define NUMBER_OF_WORKER_THREADS 1
 
-uint32_t THE_SCORE_CARD[MAX_STRING_LENGTH + 1] = {
+uint32_t SCORES[MAX_STRING_LENGTH + 1] = {
     0, 0, 0, 1, 1, 2, 3, 5, 11, 11, 11, 11, 11, 11, 11, 11
 };
 
@@ -254,14 +254,12 @@ int ScoreSquare(
   uint32_t score = 0;
   square->used = true;
   const auto &node = Nodes[node_idx];
-
-  // Get the child index from the lexicon
   uint32_t child_idx = node.child_mask;
 
   // Check if we have arrived at a new word, and if so, add the correct score
   if (node.end_of_word) {
     if (LexiconMarks[lexicon_idx] < mark) {
-      score += THE_SCORE_CARD[num_chars];
+      score += SCORES[num_chars];
       LexiconMarks[lexicon_idx] = mark;
     }
     lexicon_idx -= 1;
@@ -280,11 +278,11 @@ int ScoreSquare(
       if (n->used) {
         continue;
       }
-
-      uint64_t offset64 = (part_two & CHILD_LETTER_BIT_MASKS[n->letter_idx]);
+      auto letter_idx = n->letter_idx;
+      uint64_t offset64 = (part_two & CHILD_LETTER_BIT_MASKS[letter_idx]);
 
       if (offset64) {
-        offset64 >>= CHILD_LETTER_BIT_SHIFTS[n->letter_idx];
+        offset64 >>= CHILD_LETTER_BIT_SHIFTS[letter_idx];
         offset64 -= 1;
         auto offset32 = (uint32_t)offset64;
         auto next_idx = child_idx + offset32;
