@@ -231,7 +231,7 @@ uint32_t *LexiconMarks;
 // is well advanced and beyond the scope of the high level search algorithm. Since these
 // variables are branded as "Read Only," they can be utilized globally without passing
 // pointers.
-Node *PartOneArray;
+Node *Nodes;
 uint64_t *PartTwoArray;
 uint32_t *PartThreeArray;
 
@@ -246,19 +246,20 @@ uint32_t *PartThreeArray;
 
 int ScoreSquare(
     Square *square,
-    uint32_t part1_idx,
+    uint32_t node_idx,
     uint32_t lexicon_idx,
     uint32_t mark,
     uint32_t num_chars
 ) {
   uint32_t score = 0;
   square->used = true;
+  const auto &node = Nodes[node_idx];
 
   // Get the child index from the lexicon
-  uint32_t child_idx = (PartOneArray[part1_idx].child_mask);
+  uint32_t child_idx = node.child_mask;
 
   // Check if we have arrived at a new word, and if so, add the correct score
-  if (PartOneArray[part1_idx].end_of_word) {
+  if (node.end_of_word) {
     if (LexiconMarks[lexicon_idx] < mark) {
       score += THE_SCORE_CARD[num_chars];
       LexiconMarks[lexicon_idx] = mark;
@@ -269,7 +270,7 @@ int ScoreSquare(
   // If this node has children in the lexicon, explore the neighbors
   if (child_idx) {
     lexicon_idx -= PartThreeArray[child_idx];
-    uint64_t part_two = PartTwoArray[PartOneArray[part1_idx].offset_index];
+    uint64_t part_two = PartTwoArray[node.offset_index];
 
     Square **neighbors = square->neighbors;
 
@@ -336,7 +337,7 @@ int LoadDictionary() {
   size_t bytes_one = (SizeOfPartOne + 1) * sizeof(uint32_t);
   size_t bytes_two = SizeOfPartTwo * sizeof(uint64_t);
   size_t bytes_three = (SizeOfPartOne + 1) * sizeof(uint32_t);
-  PartOneArray = (Node *)malloc(bytes_one);
+  Nodes = (Node *)malloc(bytes_one);
   PartTwoArray = (uint64_t *)malloc(bytes_two);
   PartThreeArray = (uint32_t *)malloc(bytes_three);
 
@@ -350,10 +351,10 @@ int LoadDictionary() {
 
   // Read in the data files into global arrays of basic integer types.
   // The zero position in "PartOneArray" is the NULL node.
-  PartOneArray[0].child_mask = 0;
-  PartOneArray[0].end_of_word = 0;
-  PartOneArray[0].offset_index = 0;
-  if (fread(PartOneArray + 1, 4, SizeOfPartOne, PartOne) != SizeOfPartOne) return 0;
+  Nodes[0].child_mask = 0;
+  Nodes[0].end_of_word = 0;
+  Nodes[0].offset_index = 0;
+  if (fread(Nodes + 1, 4, SizeOfPartOne, PartOne) != SizeOfPartOne) return 0;
   if (fread(PartTwoArray, 8, SizeOfPartTwo, PartTwo) != SizeOfPartTwo) return 0;
   // The Zero position in "PartThreeArray" maps to the NULL node in "PartOneArray".
   PartThreeArray[0] = 0;
@@ -457,7 +458,7 @@ int main(int argc, char *argv[]) {
   // Clean up
   free(WorkingBoard);
   free(LexiconMarks);
-  free(PartOneArray);
+  free(Nodes);
   free(PartTwoArray);
   free(PartThreeArray);
 
