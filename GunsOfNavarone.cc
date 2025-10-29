@@ -31,15 +31,15 @@ using namespace std;
 
 //               3          2         1
 //              1098 7654 3210 9876 5432 1098 7654 3210
-// child_mask:                       111 1111 1111 1111
+// child_index:                      111 1111 1111 1111
 // offset_index:       11 1111 1111 1000 0000 0000 0000
 // end_of_word:       100 0000 0000 0000 0000 0000 0000
 // blank:       1111 1
 
 struct Node {
-  // this is an index into the part three array
+  // this is the index of the first child of this node (zero for leaf)
   unsigned int child_index : 15;  // bits 0-14
-  // this is an index into the part two array
+  // this is an index into the child offsets array
   unsigned int offset_index : 11;  // bits 15-25
   unsigned int is_word : 1;        // bit 26
   int blank : 5;
@@ -60,7 +60,7 @@ uint32_t CHARACTER_LOCATIONS[NUMBER_OF_ENGLISH_LETTERS] = {
     0, BOGUS, 1,  2,     3,  BOGUS, 4,  BOGUS, 5,     BOGUS, BOGUS, 6,     7,
     8, 9,     10, BOGUS, 11, 12,    13, BOGUS, BOGUS, BOGUS, BOGUS, BOGUS, BOGUS
 };
-uint64_t CHILD_LETTER_BIT_MASKS[SIZE_OF_CHARACTER_SET] = {
+uint64_t CHILD_MASKS[SIZE_OF_CHARACTER_SET] = {
     //    4         3         2         1
     // 32109876543210987654321098765432109876543210
     0b000000000000000000000000000000000000000000001,  // A
@@ -78,7 +78,7 @@ uint64_t CHILD_LETTER_BIT_MASKS[SIZE_OF_CHARACTER_SET] = {
     0b000011110000000000000000000000000000000000000,  // S
     0b111100000000000000000000000000000000000000000   // T
 };
-uint32_t CHILD_LETTER_BIT_SHIFTS[SIZE_OF_CHARACTER_SET] = {
+uint32_t CHILD_SHIFTS[SIZE_OF_CHARACTER_SET] = {
     0, 1, 3, 5, 8, 11, 14, 17, 21, 25, 29, 33, 37, 41
 };
 // each part two entry uses 45 bits
@@ -272,7 +272,7 @@ int ScoreSquare(
   // If this node has children in the lexicon, explore the neighbors
   uint32_t child_idx = node.child_index;
   if (child_idx) {
-    uint64_t part_two = ChildOffsets[node.offset_index];
+    uint64_t child_offsets = ChildOffsets[node.offset_index];
 
     Square **neighbors = square->neighbors;
 
@@ -283,12 +283,11 @@ int ScoreSquare(
         continue;
       }
       auto letter_idx = n->letter_idx;
-      uint64_t offset64 = part_two & CHILD_LETTER_BIT_MASKS[letter_idx];
+      uint64_t offset64 = child_offsets & CHILD_MASKS[letter_idx];
 
       if (offset64) {
-        offset64 >>= CHILD_LETTER_BIT_SHIFTS[letter_idx];
-        auto offset32 = (uint32_t)offset64;
-        auto next_idx = child_idx + offset32 - 1;
+        offset64 >>= CHILD_SHIFTS[letter_idx];
+        uint32_t next_idx = child_idx + offset64 - 1;
 
         auto next_lexicon_idx =
             lexicon_idx + Tracking[next_idx] - Tracking[child_idx] - is_word;
