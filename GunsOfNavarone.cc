@@ -41,7 +41,7 @@ struct Node {
   unsigned int child_index : 15;  // bits 0-14
   // this is an index into the part two array
   unsigned int offset_index : 11;  // bits 15-25
-  unsigned int end_of_word : 1;    // bit 26
+  unsigned int is_word : 1;        // bit 26
   int blank : 5;
 };
 
@@ -238,7 +238,7 @@ uint32_t *LexiconMarks;
 // pointers.
 Node *Nodes;
 uint64_t *ChildOffsets;
-uint32_t *PartThreeArray;
+uint32_t *Tracking;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // The sequential board scoring functions are found here for the new ADTDAWG.
@@ -261,7 +261,8 @@ int ScoreSquare(
   const auto &node = Nodes[node_idx];
 
   // Check if we have arrived at a new word, and if so, add the correct score
-  if (node.end_of_word) {
+  auto is_word = node.is_word;
+  if (is_word) {
     if (LexiconMarks[lexicon_idx] < mark) {
       score += SCORES[num_chars];
       LexiconMarks[lexicon_idx] = mark;
@@ -289,8 +290,8 @@ int ScoreSquare(
         auto offset32 = (uint32_t)offset64;
         auto next_idx = child_idx + offset32 - 1;
 
-        auto next_lexicon_idx = lexicon_idx + PartThreeArray[next_idx] -
-                                PartThreeArray[child_idx] - node.end_of_word;
+        auto next_lexicon_idx =
+            lexicon_idx + Tracking[next_idx] - Tracking[child_idx] - is_word;
 
         score += ScoreSquare(n, next_idx, next_lexicon_idx, mark, num_chars + 1);
       }
@@ -309,8 +310,7 @@ uint32_t ScoreBoard(Board *ThisBoard, uint32_t mark) {
   for (uint32_t row = 0; row < MAX_ROW; row++) {
     for (uint32_t col = 0; col < MAX_COL; col++) {
       uint32_t part1_idx = block[row][col].letter_idx + 1;
-      score +=
-          ScoreSquare(&block[row][col], part1_idx, PartThreeArray[part1_idx], mark, 1);
+      score += ScoreSquare(&block[row][col], part1_idx, Tracking[part1_idx], mark, 1);
     }
   }
   return score;
@@ -340,7 +340,7 @@ int LoadDictionary() {
   size_t bytes_three = (SizeOfPartOne + 1) * sizeof(uint32_t);
   Nodes = (Node *)malloc(bytes_one);
   ChildOffsets = (uint64_t *)malloc(bytes_two);
-  PartThreeArray = (uint32_t *)malloc(bytes_three);
+  Tracking = (uint32_t *)malloc(bytes_three);
 
   printf(
       "bytes for arrays: %zu + %zu + %zu = %zu\n",
@@ -353,19 +353,18 @@ int LoadDictionary() {
   // Read in the data files into global arrays of basic integer types.
   // The zero position in "PartOneArray" is the NULL node.
   Nodes[0].child_index = 0;
-  Nodes[0].end_of_word = 0;
+  Nodes[0].is_word = 0;
   Nodes[0].offset_index = 0;
   if (fread(Nodes + 1, 4, SizeOfPartOne, PartOne) != SizeOfPartOne) return 0;
   if (fread(ChildOffsets, 8, SizeOfPartTwo, PartTwo) != SizeOfPartTwo) return 0;
   // The Zero position in "PartThreeArray" maps to the NULL node in "PartOneArray".
-  PartThreeArray[0] = 0;
-  if (fread(PartThreeArray + 1, 4, SizeOfPartThree, PartThree) != SizeOfPartThree)
-    return 0;
+  Tracking[0] = 0;
+  if (fread(Tracking + 1, 4, SizeOfPartThree, PartThree) != SizeOfPartThree) return 0;
   // Part Four has been replaced by encoding the Part Four WTEOBL values as 32 bit
   // integers for speed.  The size of the data structure is small enough as it is.
   for (int X = (SizeOfPartThree + 1); X <= SizeOfPartOne; X++) {
     if (fread(&TempReadIn, 1, 1, PartFour) != 1) return 0;
-    PartThreeArray[X] = TempReadIn;
+    Tracking[X] = TempReadIn;
   }
 
   fclose(PartOne);
@@ -461,7 +460,7 @@ int main(int argc, char *argv[]) {
   free(LexiconMarks);
   free(Nodes);
   free(ChildOffsets);
-  free(PartThreeArray);
+  free(Tracking);
 
   return 0;
 }
