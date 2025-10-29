@@ -38,7 +38,7 @@ using namespace std;
 
 struct Node {
   // this is an index into the part three array
-  unsigned int child_mask : 15;  // bits 0-14
+  unsigned int child_index : 15;  // bits 0-14
   // this is an index into the part two array
   unsigned int offset_index : 11;  // bits 15-25
   unsigned int end_of_word : 1;    // bit 26
@@ -259,7 +259,6 @@ int ScoreSquare(
   uint32_t score = 0;
   square->used = true;
   const auto &node = Nodes[node_idx];
-  uint32_t child_idx = node.child_mask;
 
   // Check if we have arrived at a new word, and if so, add the correct score
   if (node.end_of_word) {
@@ -267,12 +266,11 @@ int ScoreSquare(
       score += SCORES[num_chars];
       LexiconMarks[lexicon_idx] = mark;
     }
-    lexicon_idx -= 1;
   }
 
   // If this node has children in the lexicon, explore the neighbors
+  uint32_t child_idx = node.child_index;
   if (child_idx) {
-    lexicon_idx -= PartThreeArray[child_idx];
     uint64_t part_two = ChildOffsets[node.offset_index];
 
     Square **neighbors = square->neighbors;
@@ -291,9 +289,10 @@ int ScoreSquare(
         auto offset32 = (uint32_t)offset64;
         auto next_idx = child_idx + offset32 - 1;
 
-        score += ScoreSquare(
-            n, next_idx, lexicon_idx + PartThreeArray[next_idx], mark, num_chars + 1
-        );
+        auto next_lexicon_idx = lexicon_idx + PartThreeArray[next_idx] -
+                                PartThreeArray[child_idx] - node.end_of_word;
+
+        score += ScoreSquare(n, next_idx, next_lexicon_idx, mark, num_chars + 1);
       }
     }
   }
@@ -353,7 +352,7 @@ int LoadDictionary() {
 
   // Read in the data files into global arrays of basic integer types.
   // The zero position in "PartOneArray" is the NULL node.
-  Nodes[0].child_mask = 0;
+  Nodes[0].child_index = 0;
   Nodes[0].end_of_word = 0;
   Nodes[0].offset_index = 0;
   if (fread(Nodes + 1, 4, SizeOfPartOne, PartOne) != SizeOfPartOne) return 0;
