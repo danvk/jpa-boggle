@@ -28,21 +28,19 @@ using namespace std;
 
 // Constants that are lexicon specific.
 #define TOTAL_WORDS_IN_LEXICON 44220
-#define END_OF_WORD_FLAG 67108864
-#define CHILD_MASK 32767
-#define OFFSET_INDEX_MASK 67076096
-#define OffSET_BIT_SHIFT 15
 
-//                    2         1
-//           987654321098765432109876543210
-// child_mask:              111111111111111
-// offset_index: 11111111111000000000000000
-// end_of_word: 100000000000000000000000000
+//               3          2         1
+//              1098 7654 3210 9876 5432 1098 7654 3210
+// child_mask:                       111 1111 1111 1111
+// offset_index:       11 1111 1111 1000 0000 0000 0000
+// end_of_word:       100 0000 0000 0000 0000 0000 0000
+// blank:       1111 1
 
 struct Node {
-  int child_mask : 15;    // bits 0-14
-  int offset_index : 11;  // bits 15-25
-  int end_of_word : 1;    // bit 26
+  unsigned int child_mask : 15;    // bits 0-14
+  unsigned int offset_index : 11;  // bits 15-25
+  unsigned int end_of_word : 1;    // bit 26
+  int blank : 5;
 };
 
 // Constants that define the high level algorithm.
@@ -233,7 +231,7 @@ uint32_t *LexiconMarks;
 // is well advanced and beyond the scope of the high level search algorithm. Since these
 // variables are branded as "Read Only," they can be utilized globally without passing
 // pointers.
-uint32_t *PartOneArray;
+Node *PartOneArray;
 uint64_t *PartTwoArray;
 uint32_t *PartThreeArray;
 
@@ -257,10 +255,10 @@ int ScoreSquare(
   square->used = true;
 
   // Get the child index from the lexicon
-  uint32_t child_idx = (PartOneArray[part1_idx] & CHILD_MASK);
+  uint32_t child_idx = (PartOneArray[part1_idx].child_mask);
 
   // Check if we have arrived at a new word, and if so, add the correct score
-  if (PartOneArray[part1_idx] & END_OF_WORD_FLAG) {
+  if (PartOneArray[part1_idx].end_of_word) {
     if (LexiconMarks[lexicon_idx] < mark) {
       score += THE_SCORE_CARD[num_chars];
       LexiconMarks[lexicon_idx] = mark;
@@ -271,8 +269,7 @@ int ScoreSquare(
   // If this node has children in the lexicon, explore the neighbors
   if (child_idx) {
     lexicon_idx -= PartThreeArray[child_idx];
-    uint64_t part_two =
-        PartTwoArray[(PartOneArray[part1_idx] & OFFSET_INDEX_MASK) >> OffSET_BIT_SHIFT];
+    uint64_t part_two = PartTwoArray[PartOneArray[part1_idx].offset_index];
 
     Square **neighbors = square->neighbors;
 
@@ -340,7 +337,7 @@ int LoadDictionary() {
   size_t bytes_one = (SizeOfPartOne + 1) * sizeof(uint32_t);
   size_t bytes_two = SizeOfPartTwo * sizeof(uint64_t);
   size_t bytes_three = (SizeOfPartOne + 1) * sizeof(uint32_t);
-  PartOneArray = (uint32_t *)malloc(bytes_one);
+  PartOneArray = (Node *)malloc(bytes_one);
   PartTwoArray = (uint64_t *)malloc(bytes_two);
   PartThreeArray = (uint32_t *)malloc(bytes_three);
 
@@ -354,7 +351,9 @@ int LoadDictionary() {
 
   // Read in the data files into global arrays of basic integer types.
   // The zero position in "PartOneArray" is the NULL node.
-  PartOneArray[0] = 0;
+  PartOneArray[0].child_mask = 0;
+  PartOneArray[0].end_of_word = 0;
+  PartOneArray[0].offset_index = 0;
   if (fread(PartOneArray + 1, 4, SizeOfPartOne, PartOne) != SizeOfPartOne) return 0;
   if (fread(PartTwoArray, 8, SizeOfPartTwo, PartTwo) != SizeOfPartTwo) return 0;
   // The Zero position in "PartThreeArray" maps to the NULL node in "PartOneArray".
@@ -401,6 +400,7 @@ int main(int argc, char *argv[]) {
   size_t bytes_marks = (TOTAL_WORDS_IN_LEXICON + 1) * sizeof(uint32_t);
   LexiconMarks = (uint32_t *)malloc(bytes_marks);
   printf("bytes for marks: %zu\n", bytes_marks);
+  printf("sizeof(Node): %zu\n", sizeof(Node));
 
   // Zero all of the global time stamps.
   memset(LexiconMarks, 0, (TOTAL_WORDS_IN_LEXICON + 1) * sizeof(uint32_t));

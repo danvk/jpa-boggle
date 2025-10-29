@@ -1,4 +1,5 @@
 bytes for marks: 176884
+sizeof(Node): 4
 bytes for arrays: 119192 + 12040 + 119192 = 250424
 Evaluated 10000 boards
 Total score: 4161652
