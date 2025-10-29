@@ -37,7 +37,9 @@ using namespace std;
 // blank:       1111 1
 
 struct Node {
-  unsigned int child_mask : 15;    // bits 0-14
+  // this is an index into the part three array
+  unsigned int child_mask : 15;  // bits 0-14
+  // this is an index into the part two array
   unsigned int offset_index : 11;  // bits 15-25
   unsigned int end_of_word : 1;    // bit 26
   int blank : 5;
@@ -59,6 +61,8 @@ uint32_t CHARACTER_LOCATIONS[NUMBER_OF_ENGLISH_LETTERS] = {
     8, 9,     10, BOGUS, 11, 12,    13, BOGUS, BOGUS, BOGUS, BOGUS, BOGUS, BOGUS
 };
 uint64_t CHILD_LETTER_BIT_MASKS[SIZE_OF_CHARACTER_SET] = {
+    //    4         3         2         1
+    // 32109876543210987654321098765432109876543210
     0b000000000000000000000000000000000000000000001,  // A
     0b000000000000000000000000000000000000000000110,  // C
     0b000000000000000000000000000000000000000011000,  // D
@@ -77,6 +81,7 @@ uint64_t CHILD_LETTER_BIT_MASKS[SIZE_OF_CHARACTER_SET] = {
 uint32_t CHILD_LETTER_BIT_SHIFTS[SIZE_OF_CHARACTER_SET] = {
     0, 1, 3, 5, 8, 11, 14, 17, 21, 25, 29, 33, 37, 41
 };
+// each part two entry uses 45 bits
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // The structure for a Boggle board is defined in this section.
@@ -232,7 +237,7 @@ uint32_t *LexiconMarks;
 // variables are branded as "Read Only," they can be utilized globally without passing
 // pointers.
 Node *Nodes;
-uint64_t *PartTwoArray;
+uint64_t *ChildOffsets;
 uint32_t *PartThreeArray;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -268,7 +273,7 @@ int ScoreSquare(
   // If this node has children in the lexicon, explore the neighbors
   if (child_idx) {
     lexicon_idx -= PartThreeArray[child_idx];
-    uint64_t part_two = PartTwoArray[node.offset_index];
+    uint64_t part_two = ChildOffsets[node.offset_index];
 
     Square **neighbors = square->neighbors;
 
@@ -279,7 +284,7 @@ int ScoreSquare(
         continue;
       }
       auto letter_idx = n->letter_idx;
-      uint64_t offset64 = (part_two & CHILD_LETTER_BIT_MASKS[letter_idx]);
+      uint64_t offset64 = part_two & CHILD_LETTER_BIT_MASKS[letter_idx];
 
       if (offset64) {
         offset64 >>= CHILD_LETTER_BIT_SHIFTS[letter_idx];
@@ -336,7 +341,7 @@ int LoadDictionary() {
   size_t bytes_two = SizeOfPartTwo * sizeof(uint64_t);
   size_t bytes_three = (SizeOfPartOne + 1) * sizeof(uint32_t);
   Nodes = (Node *)malloc(bytes_one);
-  PartTwoArray = (uint64_t *)malloc(bytes_two);
+  ChildOffsets = (uint64_t *)malloc(bytes_two);
   PartThreeArray = (uint32_t *)malloc(bytes_three);
 
   printf(
@@ -353,7 +358,7 @@ int LoadDictionary() {
   Nodes[0].end_of_word = 0;
   Nodes[0].offset_index = 0;
   if (fread(Nodes + 1, 4, SizeOfPartOne, PartOne) != SizeOfPartOne) return 0;
-  if (fread(PartTwoArray, 8, SizeOfPartTwo, PartTwo) != SizeOfPartTwo) return 0;
+  if (fread(ChildOffsets, 8, SizeOfPartTwo, PartTwo) != SizeOfPartTwo) return 0;
   // The Zero position in "PartThreeArray" maps to the NULL node in "PartOneArray".
   PartThreeArray[0] = 0;
   if (fread(PartThreeArray + 1, 4, SizeOfPartThree, PartThree) != SizeOfPartThree)
@@ -457,7 +462,7 @@ int main(int argc, char *argv[]) {
   free(WorkingBoard);
   free(LexiconMarks);
   free(Nodes);
-  free(PartTwoArray);
+  free(ChildOffsets);
   free(PartThreeArray);
 
   return 0;
