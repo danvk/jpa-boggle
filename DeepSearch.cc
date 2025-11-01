@@ -121,12 +121,12 @@ vector<BoardScore> GenerateSingleDeviations(
     vector<BoardScore> &MasterResults
 ) {
   vector<BoardScore> deviations;
-  deviations.reserve(boards.size() * (SQUARE_COUNT - 1) * (SIZE_OF_CHARACTER_SET - 1));
+  deviations.reserve(boards.size() * (SQUARE_COUNT - 1) * (SIZE_OF_CHARACTER_SET));
 
   for (const auto &board : boards) {
     auto off_limit_cell = board.off_limit_cell;
     for (int cell = 0; cell < SQUARE_COUNT; cell++) {
-      if (cell == off_limit_cell) continue;
+      // if (cell == off_limit_cell) continue;
       BoardWithCell temp_board(board.board, cell);
       auto orig_char = board.board[cell];
       for (int i = 0; i < SIZE_OF_CHARACTER_SET; i++) {
