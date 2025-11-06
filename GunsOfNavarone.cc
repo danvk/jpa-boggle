@@ -89,145 +89,16 @@ uint32_t CHILD_SHIFTS[SIZE_OF_CHARACTER_SET] = {
 };
 // each part two entry uses 45 bits
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// The structure for a Boggle board is defined in this section.
-
-// The "square" struct will represent one position in a Boggle board.
-// A square also requires a flag to indicate use in the current word being formed, the
-// number of valid neighbours, and the index of the letter showing on its face.
-struct Square {
-  // The Used flag will indicate if a square is being used in constructing the current
-  // word, and hence to remove the used square from further inclusion in the same word.
-  bool used;
-  uint32_t letter_idx;
-  uint32_t num_neighbors;
-  Square *neighbors[NEIGHBOURS];
-};
-
-// This Function initializes ThisSquare when passed its row and column position on the
-// board. Important note:  The function is going to use the low level C concept of
-// pointer arithmatic to fill the LivingNeighbourSquarePointerArray, which will be
-// filled from the top-left, clockwise.
-void SquareInit(Square *square, uint32_t row, uint32_t col) {
-  square->letter_idx = SIZE_OF_CHARACTER_SET;
-  square->used = false;
-  for (int i = 0; i < NEIGHBOURS; i++) {
-    (square->neighbors)[i] = NULL;
-  }
-  if (row == 0) {
-    // ThisSquare is in the top-left position.
-    if (col == 0) {
-      square->num_neighbors = 3;
-      (square->neighbors)[0] = square + 1;
-      (square->neighbors)[1] = square + MAX_COL + 1;
-      (square->neighbors)[2] = square + MAX_COL;
-    }
-    // ThisSquare is in the top-right position.
-    else if (col == (MAX_COL - 1)) {
-      square->num_neighbors = 3;
-      (square->neighbors)[0] = square + MAX_COL;
-      (square->neighbors)[1] = square + MAX_COL - 1;
-      (square->neighbors)[2] = square - 1;
-    }
-    // ThisSquare is in a top-middle position.
-    else {
-      square->num_neighbors = 5;
-      (square->neighbors)[0] = square + 1;
-      (square->neighbors)[1] = square + MAX_COL + 1;
-      (square->neighbors)[2] = square + MAX_COL;
-      (square->neighbors)[3] = square + MAX_COL - 1;
-      (square->neighbors)[4] = square - 1;
-    }
-  } else if (row == (MAX_ROW - 1)) {
-    // ThisSquare is in the bottom-left position.
-    if (col == 0) {
-      square->num_neighbors = 3;
-      (square->neighbors)[0] = square - MAX_COL;
-      (square->neighbors)[1] = square - MAX_COL + 1;
-      (square->neighbors)[2] = square + 1;
-    }
-    // ThisSquare is in the bottom-right position.
-    else if (col == (MAX_COL - 1)) {
-      square->num_neighbors = 3;
-      (square->neighbors)[0] = square - MAX_COL - 1;
-      (square->neighbors)[1] = square - MAX_COL;
-      (square->neighbors)[2] = square - 1;
-    }
-    // ThisSquare is in a bottom-middle position.
-    else {
-      square->num_neighbors = 5;
-      (square->neighbors)[0] = square - MAX_COL - 1;
-      (square->neighbors)[1] = square - MAX_COL;
-      (square->neighbors)[2] = square - MAX_COL + 1;
-      (square->neighbors)[3] = square + 1;
-      (square->neighbors)[4] = square - 1;
-    }
-  }
-  // ThisSquare is in a middle-left position.
-  else if (col == 0) {
-    square->num_neighbors = 5;
-    (square->neighbors)[0] = square - MAX_COL;
-    (square->neighbors)[1] = square - MAX_COL + 1;
-    (square->neighbors)[2] = square + 1;
-    (square->neighbors)[3] = square + MAX_COL + 1;
-    (square->neighbors)[4] = square + MAX_COL;
-    (square->neighbors)[5] = NULL;
-    (square->neighbors)[6] = NULL;
-    (square->neighbors)[7] = NULL;
-  }
-  // ThisSquare is in a middle-right position.
-  else if (col == (MAX_COL - 1)) {
-    square->num_neighbors = 5;
-    (square->neighbors)[0] = square - MAX_COL - 1;
-    (square->neighbors)[1] = square - MAX_COL;
-    (square->neighbors)[2] = square + MAX_COL;
-    (square->neighbors)[3] = square + MAX_COL - 1;
-    (square->neighbors)[4] = square - 1;
-  }
-  // ThisSquare is in a middle-middle position.
-  else {
-    square->num_neighbors = NEIGHBOURS;
-    (square->neighbors)[0] = square - MAX_COL - 1;
-    (square->neighbors)[1] = square - MAX_COL;
-    (square->neighbors)[2] = square - MAX_COL + 1;
-    (square->neighbors)[3] = square + 1;
-    (square->neighbors)[4] = square + MAX_COL + 1;
-    (square->neighbors)[5] = square + MAX_COL;
-    (square->neighbors)[6] = square + MAX_COL - 1;
-    (square->neighbors)[7] = square - 1;
-  }
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-// A board is defined as simply a static 2 dimensional array of Squares.
-struct Board {
-  Square Block[MAX_ROW][MAX_COL];
-};
-
-// This initialization function sets the neighbour array for all of the Squares in
-// ThisBoard's Block (this only needs to be done once). The Letter index for each square
-// will be a blank space ' ', and they will all be not Used.
-void BoardInit(Board *ThisBoard) {
-  uint32_t Row;
-  uint32_t Col;
-  for (Row = MAX_ROW; Row-- > 0;) {
-    for (Col = MAX_COL; Col-- > 0;) {
-      SquareInit(&(ThisBoard->Block[Row][Col]), Row, Col);
-    }
-  }
-}
+uint32_t used;
+int letter_idxs[25];
 
 // This function simply transcribes the BoardString data into ThisBoard using the
 // correct format. A major optimization has taken place at this level because the
 // ADTDAWG's direct property enforces the "Order Does Not Matter," paradigm, and thus,
 // no sorting is required.
-void BoardPopulate(Board *bd, const char *letters) {
-  for (uint32_t Row = MAX_ROW; Row-- > 0;) {
-    for (uint32_t Col = MAX_COL; Col-- > 0;) {
-      (bd->Block)[Row][Col].letter_idx =
-          CHARACTER_LOCATIONS[letters[Row * MAX_COL + Col] - 'A'];
-    }
+void BoardPopulate(const char *letters) {
+  for (int i = 0; i < 25; i++) {
+    letter_idxs[i] = CHARACTER_LOCATIONS[letters[i] - 'A'];
   }
 }
 
@@ -256,15 +127,44 @@ uint32_t *Tracking;
 // counting of identical words. Every letter on the board must be contained in the
 // lexicon character set.
 
+#define REC(idx)                                                                    \
+  do {                                                                              \
+    if ((used & (1 << idx)) == 0) {                                                 \
+      letter_idx = letter_idxs[idx];                                                \
+      offset64 = child_offsets & CHILD_MASKS[letter_idx];                           \
+      if (offset64) {                                                               \
+        offset64 >>= CHILD_SHIFTS[letter_idx];                                      \
+        next_idx = child_idx + offset64 - 1;                                        \
+        next_lexicon_idx =                                                          \
+            lexicon_idx + Tracking[next_idx] - Tracking[child_idx] - is_word;       \
+        score += ScoreSquare(idx, next_idx, next_lexicon_idx, mark, num_chars + 1); \
+      }                                                                             \
+    }                                                                               \
+  } while (0)
+
+#define REC3(a, b, c) \
+  REC(a);             \
+  REC(b);             \
+  REC(c)
+
+#define REC5(a, b, c, d, e) \
+  REC3(a, b, c);            \
+  REC(d);                   \
+  REC(e)
+
+#define REC8(a, b, c, d, e, f, g, h) \
+  REC5(a, b, c, d, e);               \
+  REC3(f, g, h)
+
 int ScoreSquare(
-    Square *square,
+    int square,
     uint32_t node_idx,
     uint32_t lexicon_idx,
     uint32_t mark,
     uint32_t num_chars
 ) {
   uint32_t score = 0;
-  square->used = true;
+  used ^= (1 << square);
   const auto &node = Nodes[node_idx];
 
   // Check if we have arrived at a new word, and if so, add the correct score
@@ -281,43 +181,52 @@ int ScoreSquare(
   if (child_idx) {
     uint64_t child_offsets = ChildOffsets[node.offset_index];
 
-    Square **neighbors = square->neighbors;
+    uint32_t letter_idx, next_idx, next_lexicon_idx;
+    uint64_t offset64;
 
-    // Loop through all neighbors
-    for (int i = 0; i < square->num_neighbors; i++) {
-      auto n = neighbors[i];
-      if (n->used) {
-        continue;
-      }
-      auto letter_idx = n->letter_idx;
-      uint64_t offset64 = child_offsets & CHILD_MASKS[letter_idx];
-
-      if (offset64) {
-        offset64 >>= CHILD_SHIFTS[letter_idx];
-        uint32_t next_idx = child_idx + offset64 - 1;
-
-        auto next_lexicon_idx =
-            lexicon_idx + Tracking[next_idx] - Tracking[child_idx] - is_word;
-
-        score += ScoreSquare(n, next_idx, next_lexicon_idx, mark, num_chars + 1);
-      }
+    // clang-format off
+    switch(square) {
+      case 0: REC3(1, 5, 6); break;
+      case 1: REC5(0, 2, 5, 6, 7); break;
+      case 2: REC5(1, 3, 6, 7, 8); break;
+      case 3: REC5(2, 4, 7, 8, 9); break;
+      case 4: REC3(3, 8, 9); break;
+      case 5: REC5(0, 1, 6, 10, 11); break;
+      case 6: REC8(0, 1, 2, 5, 7, 10, 11, 12); break;
+      case 7: REC8(1, 2, 3, 6, 8, 11, 12, 13); break;
+      case 8: REC8(2, 3, 4, 7, 9, 12, 13, 14); break;
+      case 9: REC5(3, 4, 8, 13, 14); break;
+      case 10: REC5(5, 6, 11, 15, 16); break;
+      case 11: REC8(5, 6, 7, 10, 12, 15, 16, 17); break;
+      case 12: REC8(6, 7, 8, 11, 13, 16, 17, 18); break;
+      case 13: REC8(7, 8, 9, 12, 14, 17, 18, 19); break;
+      case 14: REC5(8, 9, 13, 18, 19); break;
+      case 15: REC5(10, 11, 16, 20, 21); break;
+      case 16: REC8(10, 11, 12, 15, 17, 20, 21, 22); break;
+      case 17: REC8(11, 12, 13, 16, 18, 21, 22, 23); break;
+      case 18: REC8(12, 13, 14, 17, 19, 22, 23, 24); break;
+      case 19: REC5(13, 14, 18, 23, 24); break;
+      case 20: REC3(15, 16, 21); break;
+      case 21: REC5(15, 16, 17, 20, 22); break;
+      case 22: REC5(16, 17, 18, 21, 23); break;
+      case 23: REC5(17, 18, 19, 22, 24); break;
+      case 24: REC3(18, 19, 23); break;
     }
+    // clang-format on
   }
 
-  square->used = false;
+  used ^= (1 << square);
   return score;
 }
 
 // The function returns the Boggle score for "ThisBoard."
-uint32_t ScoreBoard(Board *ThisBoard, uint32_t mark) {
-  auto &block = ThisBoard->Block;
+uint32_t ScoreBoard(uint32_t mark) {
   uint32_t score = 0;
+  used = 0;
   // Add up all the scores that originate from each square in the board.
-  for (uint32_t row = 0; row < MAX_ROW; row++) {
-    for (uint32_t col = 0; col < MAX_COL; col++) {
-      uint32_t part1_idx = block[row][col].letter_idx + 1;
-      score += ScoreSquare(&block[row][col], part1_idx, Tracking[part1_idx], mark, 1);
-    }
+  for (int i = 0; i < SQUARE_COUNT; i++) {
+    uint32_t part1_idx = letter_idxs[i] + 1;
+    score += ScoreSquare(i, part1_idx, Tracking[part1_idx], mark, 1);
   }
   return score;
 }
@@ -425,7 +334,6 @@ int main(int argc, char *argv[]) {
   uint32_t BoardCount = 0;
 
   char BoardString[SQUARE_COUNT + 1];
-  Board *WorkingBoard = (Board *)malloc(sizeof(Board));
 
   double BeginWorkTime;
   double EndWorkTime;
@@ -438,8 +346,6 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "Usage: %s <board_file>\n", argv[0]);
     return 1;
   }
-
-  BoardInit(WorkingBoard);
 
   // Allocate the set of lexicon time stamps as uint32_tegers.
   size_t bytes_marks = (TOTAL_WORDS_IN_LEXICON + 1) * sizeof(uint32_t);
@@ -488,8 +394,8 @@ int main(int argc, char *argv[]) {
 
   uint32_t total_score = 0;
   for (const auto &board : boards) {
-    BoardPopulate(WorkingBoard, board.c_str());
-    CurrentScore = ScoreBoard(WorkingBoard, BoardCount + 1);
+    BoardPopulate(board.c_str());
+    CurrentScore = ScoreBoard(BoardCount + 1);
     total_score += CurrentScore;
     BoardCount++;
   }
@@ -510,7 +416,6 @@ int main(int argc, char *argv[]) {
   );
 
   // Clean up
-  free(WorkingBoard);
   free(LexiconMarks);
   free(Nodes);
   free(DanNodes);
