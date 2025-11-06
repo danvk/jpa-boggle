@@ -45,6 +45,12 @@ struct Node {
   int blank : 5;
 };
 
+struct NodeDan {
+  unsigned int child_index : 15;  // bits 0-14
+  unsigned int is_word : 1;
+  unsigned int child_mask : 16;
+};
+
 // Constants that define the high level algorithm.
 #define NUMBER_OF_WORKER_THREADS 1
 
@@ -237,6 +243,7 @@ uint32_t *LexiconMarks;
 // variables are branded as "Read Only," they can be utilized globally without passing
 // pointers.
 Node *Nodes;
+NodeDan *DanNodes;
 uint64_t *ChildOffsets;
 uint32_t *Tracking;
 
@@ -315,6 +322,18 @@ uint32_t ScoreBoard(Board *ThisBoard, uint32_t mark) {
   return score;
 }
 
+void ToDan(const Node &in, NodeDan &out) {
+  out.child_index = in.child_index;
+  out.is_word = in.is_word;
+  out.child_mask = 0;
+  auto offset = ChildOffsets[in.offset_index];
+  for (int i = 0; i < SIZE_OF_CHARACTER_SET; i++) {
+    if (offset & CHILD_MASKS[i]) {
+      out.child_mask |= (1 << i);
+    }
+  }
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 int LoadDictionary() {
@@ -338,6 +357,7 @@ int LoadDictionary() {
   size_t bytes_two = SizeOfPartTwo * sizeof(uint64_t);
   size_t bytes_three = (SizeOfPartOne + 1) * sizeof(uint32_t);
   Nodes = (Node *)malloc(bytes_one);
+  DanNodes = (NodeDan *)malloc((SizeOfPartOne + 1) * sizeof(NodeDan));
   ChildOffsets = (uint64_t *)malloc(bytes_two);
   Tracking = (uint32_t *)malloc(bytes_three);
 
@@ -364,6 +384,32 @@ int LoadDictionary() {
   for (int X = (SizeOfPartThree + 1); X <= SizeOfPartOne; X++) {
     if (fread(&TempReadIn, 1, 1, PartFour) != 1) return 0;
     Tracking[X] = TempReadIn;
+  }
+  int num_nodes = (SizeOfPartOne + 1);
+  uint32_t max_track = 0;
+  for (int i = 0; i < num_nodes; i++) {
+    max_track = max(max_track, Tracking[i]);
+  }
+  printf("max track: %u\n", max_track);
+
+  int32_t min_delta = 0, max_delta = 0;
+  uint32_t max_child_idx = 0;
+  for (int i = 0; i < num_nodes; i++) {
+    auto &n = Nodes[i];
+    auto delta = i - n.child_index;
+    if (delta < min_delta) {
+      min_delta = delta;
+    } else if (delta > max_delta) {
+      max_delta = delta;
+    }
+    max_child_idx = max(n.child_index, max_child_idx);
+  }
+  printf("delta range: [%d, %d]\n", min_delta, max_delta);
+  printf("max child idx: %u\n", max_child_idx);
+
+  for (int i = 0; i < num_nodes; i++) {
+    auto &n = Nodes[i];
+    ToDan(n, DanNodes[i]);
   }
 
   fclose(PartOne);
@@ -416,7 +462,7 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  for (int i = 0; i < 100; i++) {
+  for (int i = 0; i < 1; i++) {
     auto c = ChildOffsets[i];
     printf("%d: %llu\n", i, c);
     for (int j = 0; j < SIZE_OF_CHARACTER_SET; j++) {
@@ -467,6 +513,7 @@ int main(int argc, char *argv[]) {
   free(WorkingBoard);
   free(LexiconMarks);
   free(Nodes);
+  free(DanNodes);
   free(ChildOffsets);
   free(Tracking);
 
