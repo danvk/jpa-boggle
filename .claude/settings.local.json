@@ -11,7 +11,14 @@
       "Bash(python3:*)",
       "Bash(awk:*)",
       "Read(///**)",
-      "./deepsearch"
+      "./deepsearch",
+      "Bash(g++:*)",
+      "Bash(./GunsOfNavarone guns.snapshot.txt)",
+      "Bash(timeout:*)",
+      "Bash(./GunsOfNavarone_debug:*)",
+      "Bash(cat:*)",
+      "Bash(test_board.txt)",
+      "Bash(./GunsOfNavarone test_board.txt:*)"
     ],
     "deny": [],
     "ask": []

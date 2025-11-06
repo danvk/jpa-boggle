@@ -4,6 +4,7 @@
 #include <string.h>
 #include <time.h>  // Ensure this is included for clock()
 
+#include <bit>
 #include <string>
 #include <vector>
 
@@ -231,14 +232,121 @@ uint32_t ScoreBoard(uint32_t mark) {
   return score;
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Dan versions using NodeDan structure
+
+#define REC_DAN(idx)                                                                    \
+  do {                                                                                  \
+    if ((used & (1 << idx)) == 0) {                                                     \
+      letter_idx = letter_idxs[idx];                                                    \
+      if (child_mask & (1 << letter_idx)) {                                             \
+        uint32_t offset = std::popcount(child_mask & ((1 << letter_idx) - 1));         \
+        next_idx = child_idx + offset;                                                  \
+        next_lexicon_idx =                                                              \
+            lexicon_idx + Tracking[next_idx] - Tracking[child_idx] - is_word;           \
+        score += ScoreSquareDan(idx, next_idx, next_lexicon_idx, mark, num_chars + 1); \
+      }                                                                                 \
+    }                                                                                   \
+  } while (0)
+
+#define REC3_DAN(a, b, c) \
+  REC_DAN(a);             \
+  REC_DAN(b);             \
+  REC_DAN(c)
+
+#define REC5_DAN(a, b, c, d, e) \
+  REC3_DAN(a, b, c);            \
+  REC_DAN(d);                   \
+  REC_DAN(e)
+
+#define REC8_DAN(a, b, c, d, e, f, g, h) \
+  REC5_DAN(a, b, c, d, e);               \
+  REC3_DAN(f, g, h)
+
+int ScoreSquareDan(
+    int square,
+    uint32_t node_idx,
+    uint32_t lexicon_idx,
+    uint32_t mark,
+    uint32_t num_chars
+) {
+  uint32_t score = 0;
+  used ^= (1 << square);
+  const auto &node = DanNodes[node_idx];
+
+  // Check if we have arrived at a new word, and if so, add the correct score
+  auto is_word = node.is_word;
+  if (is_word) {
+    if (LexiconMarks[lexicon_idx] < mark) {
+      score += SCORES[num_chars];
+      LexiconMarks[lexicon_idx] = mark;
+    }
+  }
+
+  // If this node has children in the lexicon, explore the neighbors
+  uint32_t child_idx = node.child_index;
+  if (child_idx) {
+    uint32_t child_mask = node.child_mask;
+
+    uint32_t letter_idx, next_idx, next_lexicon_idx;
+
+    // clang-format off
+    switch(square) {
+      case 0: REC3_DAN(1, 5, 6); break;
+      case 1: REC5_DAN(0, 2, 5, 6, 7); break;
+      case 2: REC5_DAN(1, 3, 6, 7, 8); break;
+      case 3: REC5_DAN(2, 4, 7, 8, 9); break;
+      case 4: REC3_DAN(3, 8, 9); break;
+      case 5: REC5_DAN(0, 1, 6, 10, 11); break;
+      case 6: REC8_DAN(0, 1, 2, 5, 7, 10, 11, 12); break;
+      case 7: REC8_DAN(1, 2, 3, 6, 8, 11, 12, 13); break;
+      case 8: REC8_DAN(2, 3, 4, 7, 9, 12, 13, 14); break;
+      case 9: REC5_DAN(3, 4, 8, 13, 14); break;
+      case 10: REC5_DAN(5, 6, 11, 15, 16); break;
+      case 11: REC8_DAN(5, 6, 7, 10, 12, 15, 16, 17); break;
+      case 12: REC8_DAN(6, 7, 8, 11, 13, 16, 17, 18); break;
+      case 13: REC8_DAN(7, 8, 9, 12, 14, 17, 18, 19); break;
+      case 14: REC5_DAN(8, 9, 13, 18, 19); break;
+      case 15: REC5_DAN(10, 11, 16, 20, 21); break;
+      case 16: REC8_DAN(10, 11, 12, 15, 17, 20, 21, 22); break;
+      case 17: REC8_DAN(11, 12, 13, 16, 18, 21, 22, 23); break;
+      case 18: REC8_DAN(12, 13, 14, 17, 19, 22, 23, 24); break;
+      case 19: REC5_DAN(13, 14, 18, 23, 24); break;
+      case 20: REC3_DAN(15, 16, 21); break;
+      case 21: REC5_DAN(15, 16, 17, 20, 22); break;
+      case 22: REC5_DAN(16, 17, 18, 21, 23); break;
+      case 23: REC5_DAN(17, 18, 19, 22, 24); break;
+      case 24: REC3_DAN(18, 19, 23); break;
+    }
+    // clang-format on
+  }
+
+  used ^= (1 << square);
+  return score;
+}
+
+// The function returns the Boggle score for "ThisBoard" using NodeDan structure.
+uint32_t ScoreBoardDan(uint32_t mark) {
+  uint32_t score = 0;
+  used = 0;
+  // Add up all the scores that originate from each square in the board.
+  for (int i = 0; i < SQUARE_COUNT; i++) {
+    uint32_t part1_idx = letter_idxs[i] + 1;
+    score += ScoreSquareDan(i, part1_idx, Tracking[part1_idx], mark, 1);
+  }
+  return score;
+}
+
 void ToDan(const Node &in, NodeDan &out) {
   out.child_index = in.child_index;
   out.is_word = in.is_word;
   out.child_mask = 0;
-  auto offset = ChildOffsets[in.offset_index];
-  for (int i = 0; i < SIZE_OF_CHARACTER_SET; i++) {
-    if (offset & CHILD_MASKS[i]) {
-      out.child_mask |= (1 << i);
+  if (in.child_index != 0) {
+    auto offset = ChildOffsets[in.offset_index];
+    for (int i = 0; i < SIZE_OF_CHARACTER_SET; i++) {
+      if (offset & CHILD_MASKS[i]) {
+        out.child_mask |= (1 << i);
+      }
     }
   }
 }
@@ -393,17 +501,31 @@ int main(int argc, char *argv[]) {
   fclose(input_file);
 
   uint32_t total_score = 0;
+  uint32_t total_score_dan = 0;
   for (const auto &board : boards) {
     BoardPopulate(board.c_str());
-    CurrentScore = ScoreBoard(BoardCount + 1);
+    CurrentScore = ScoreBoard(BoardCount * 2 + 1);
+    uint32_t CurrentScoreDan = ScoreBoardDan(BoardCount * 2 + 2);
+
+    if (CurrentScore != CurrentScoreDan) {
+      fprintf(stderr, "MISMATCH at board %u: Node=%u, NodeDan=%u\n",
+              BoardCount, CurrentScore, CurrentScoreDan);
+    }
+
     total_score += CurrentScore;
+    total_score_dan += CurrentScoreDan;
     BoardCount++;
   }
 
   EndWorkTime = (double)clock() / CLOCKS_PER_SEC;
   TheRunTime = EndWorkTime - BeginWorkTime;
 
-  printf("Evaluated %zu boards\nTotal score: %u\n", boards.size(), total_score);
+  printf("Evaluated %zu boards\n", boards.size());
+  printf("Total score (Node):    %u\n", total_score);
+  printf("Total score (NodeDan): %u\n", total_score_dan);
+  if (total_score == total_score_dan) {
+    printf("✓ Scores match!\n");
+  }
   // printf("sizeof(long int) = %zu\n", sizeof(long int));  // 8
 
   // Report performance to stderr
