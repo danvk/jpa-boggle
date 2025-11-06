@@ -235,18 +235,18 @@ uint32_t ScoreBoard(uint32_t mark) {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Dan versions using NodeDan structure
 
-#define REC_DAN(idx)                                                                    \
-  do {                                                                                  \
-    if ((used & (1 << idx)) == 0) {                                                     \
-      letter_idx = letter_idxs[idx];                                                    \
-      if (child_mask & (1 << letter_idx)) {                                             \
+#define REC_DAN(idx)                                                                   \
+  do {                                                                                 \
+    if ((used & (1 << idx)) == 0) {                                                    \
+      letter_idx = letter_idxs[idx];                                                   \
+      if (child_mask & (1 << letter_idx)) {                                            \
         uint32_t offset = std::popcount(child_mask & ((1 << letter_idx) - 1));         \
-        next_idx = child_idx + offset;                                                  \
-        next_lexicon_idx =                                                              \
-            lexicon_idx + Tracking[next_idx] - Tracking[child_idx] - is_word;           \
+        next_idx = child_idx + offset;                                                 \
+        next_lexicon_idx =                                                             \
+            lexicon_idx + Tracking[next_idx] - Tracking[child_idx] - is_word;          \
         score += ScoreSquareDan(idx, next_idx, next_lexicon_idx, mark, num_chars + 1); \
-      }                                                                                 \
-    }                                                                                   \
+      }                                                                                \
+    }                                                                                  \
   } while (0)
 
 #define REC3_DAN(a, b, c) \
@@ -438,14 +438,9 @@ int LoadDictionary() {
 
 int main(int argc, char *argv[]) {
   uint32_t X;
-  uint32_t CurrentScore;
-  uint32_t BoardCount = 0;
+  uint32_t board_count = 0;
 
   char BoardString[SQUARE_COUNT + 1];
-
-  double BeginWorkTime;
-  double EndWorkTime;
-  double TheRunTime;
 
   FILE *input_file;
 
@@ -476,19 +471,17 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  for (int i = 0; i < 1; i++) {
-    auto c = ChildOffsets[i];
-    printf("%d: %llu\n", i, c);
-    for (int j = 0; j < SIZE_OF_CHARACTER_SET; j++) {
-      printf(" %2llu", (c & CHILD_MASKS[j]) >> CHILD_SHIFTS[j]);
-    }
-    printf("\n");
-  }
+  // for (int i = 0; i < 1; i++) {
+  //   auto c = ChildOffsets[i];
+  //   printf("%d: %llu\n", i, c);
+  //   for (int j = 0; j < SIZE_OF_CHARACTER_SET; j++) {
+  //     printf(" %2llu", (c & CHILD_MASKS[j]) >> CHILD_SHIFTS[j]);
+  //   }
+  //   printf("\n");
+  // }
 
   // Read the boards in advance to avoid measuring I/O time.
   vector<string> boards;
-
-  BeginWorkTime = (double)clock() / CLOCKS_PER_SEC;
 
   // Read boards from file and score them
   while (fscanf(input_file, "%25s", BoardString) == 1) {
@@ -500,25 +493,31 @@ int main(int argc, char *argv[]) {
   }
   fclose(input_file);
 
-  uint32_t total_score = 0;
-  uint32_t total_score_dan = 0;
+  double start_secs = (double)clock() / CLOCKS_PER_SEC;
+  uint32_t total_score = 0, total_score_dan = 0;
+  board_count = 1;
   for (const auto &board : boards) {
     BoardPopulate(board.c_str());
-    CurrentScore = ScoreBoard(BoardCount * 2 + 1);
-    uint32_t CurrentScoreDan = ScoreBoardDan(BoardCount * 2 + 2);
-
-    if (CurrentScore != CurrentScoreDan) {
-      fprintf(stderr, "MISMATCH at board %u: Node=%u, NodeDan=%u\n",
-              BoardCount, CurrentScore, CurrentScoreDan);
-    }
-
-    total_score += CurrentScore;
-    total_score_dan += CurrentScoreDan;
-    BoardCount++;
+    auto score = ScoreBoard(board_count++);
+    total_score += score;
   }
+  double mid_secs = (double)clock() / CLOCKS_PER_SEC;
+  double jpa_time_secs = mid_secs - start_secs;
+  fprintf(
+      stderr,
+      "JPA: Scored %zu boards in %.3f seconds (%.2f boards/second)\n",
+      boards.size(),
+      jpa_time_secs,
+      boards.size() / jpa_time_secs
+  );
 
-  EndWorkTime = (double)clock() / CLOCKS_PER_SEC;
-  TheRunTime = EndWorkTime - BeginWorkTime;
+  for (const auto &board : boards) {
+    BoardPopulate(board.c_str());
+    uint32_t score_dan = ScoreBoardDan(board_count++);
+    total_score_dan += score_dan;
+  }
+  double finish_secs = (double)clock() / CLOCKS_PER_SEC;
+  double dan_time_secs = finish_secs - mid_secs;
 
   printf("Evaluated %zu boards\n", boards.size());
   printf("Total score (Node):    %u\n", total_score);
@@ -528,13 +527,12 @@ int main(int argc, char *argv[]) {
   }
   // printf("sizeof(long int) = %zu\n", sizeof(long int));  // 8
 
-  // Report performance to stderr
   fprintf(
       stderr,
-      "Scored %u boards in %.3f seconds (%.2f boards/second)\n",
-      BoardCount,
-      TheRunTime,
-      BoardCount / TheRunTime
+      "Dan: Scored %zu boards in %.3f seconds (%.2f boards/second)\n",
+      boards.size(),
+      dan_time_secs,
+      boards.size() / dan_time_secs
   );
 
   // Clean up
