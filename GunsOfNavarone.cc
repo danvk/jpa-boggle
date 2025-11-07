@@ -322,6 +322,15 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
+  for (int i = 0; i < 100; i++) {
+    auto c = ChildOffsets[i];
+    printf("%d: %llu\n", i, c);
+    for (int j = 0; j < SIZE_OF_CHARACTER_SET; j++) {
+      printf(" %2llu", (c & CHILD_MASKS[j]) >> CHILD_SHIFTS[j]);
+    }
+    printf("\n");
+  }
+
   // Read the boards in advance to avoid measuring I/O time.
   vector<string> boards;
 

@@ -32,6 +32,42 @@ Adamovsky wrote [five blog posts][series], each describing part of his Boggle al
 
 ## DeepSearch.c
 
+> Traditional hill climbing has extremely limited scope, because the shortest distance to go up, one step at a time, is almost never the best way to the apex.
+> ...
+> Thus, the highest level algorithm involved in DeepSearch.c has been branded, "The Intelligent Locust Swarm" method (ILS).  Every algorithmic choice from this point forward, will concentrate on refining the swarm's raw intelligence.  At the end of this optimization exercise, the locusts will not require the burden of free will to isolate the apex.  They will always find it using the cold methods of a deterministic automaton; ruthlessly devouring the landscape in every direction.
+
+What is JPA's "Intelligent Locust Swarm?" How does it work?
+
+- Start with a single board. Score this and add it to the "master list." (Whenever you score a board and its score is high enough, add it to the master list.)
+- Repeat 1000x (or as long as you like):
+  - Take the highest-scoring board off the master list that hasn't been usd as a seed yet. This is the new seed.
+  - Generate all "single deviations" of this board, i.e. replace each cell with all other possible letters. There are `5*5 * 13 = 325` of these. (JPA uses a 14 letter alphabet.) For each of these, note which cell was changed.
+  - Take the top 66 of these that haven't previously been evaluated to form the "eval list."
+  - Repeat 25x:
+    - From the eval list, take the top 64 boards.
+    - Mark these boards as "evaluated."
+    - Generate single deviations of each of these, ignoring the "off-limit cell" (the one that was last deviated). There will be up to `64*24*13=19968` of these.
+    - Set the next eval list to the top 66 of that haven't been previously evaluated.
+
+Notes:
+
+- This is broadly similar to an Evolutionary Strategy.
+- JPA's concern about hill climbing going one step at a time is ameliorated by using a larger pool. (I used 1,000 or 2,000, rather than his 66.)
+- JPA seeks fine-grained parallelism to speed up board scoring. If I were to add this back, I'd go for more coarse-level parallelism (at the level of `RunOneSeed`).
+- I suspect his "off limits cell" optimization is a complete waste.
+
+Summary of changes:
+
+- Changed from C to C++.
+- Replaced custom MinTrie structure with a `std::vector` (no perf diff).
+- Replaced his GunsOfNavaronne Boggle scorer with mine (~30% speedup).
+- Removed all threading code (more on this below).
+- Renamed many variables.
+- Factored out `RunOneSeed` and `GenerateSingleDeviations` functions.
+- Replaced board strings with trailing numbers with a `BoardWithCell` struct.
+- Replaced all macros with functions or direct struct access.
+- Replaced most arrays with hard-coded lengths with `std::vector`.
+
 To check for diffs:
 
     ./deepsearch > output.txt
