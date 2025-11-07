@@ -235,12 +235,21 @@ uint32_t ScoreBoard(uint32_t mark) {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Dan versions using NodeDan structure
 
+inline uint32_t countBit1Fast(uint32_t n) {
+  n = (n & 0x55555555u) + ((n >> 1) & 0x55555555u);
+  n = (n & 0x33333333u) + ((n >> 2) & 0x33333333u);
+  n = (n & 0x0f0f0f0fu) + ((n >> 4) & 0x0f0f0f0fu);
+  n = (n & 0x00ff00ffu) + ((n >> 8) & 0x00ff00ffu);
+  n = (n & 0x0000ffffu) + ((n >> 16) & 0x0000ffffu);
+  return n;
+}
+
 #define REC_DAN(idx)                                                                   \
   do {                                                                                 \
     if ((used & (1 << idx)) == 0) {                                                    \
       letter_idx = letter_idxs[idx];                                                   \
       if (child_mask & (1 << letter_idx)) {                                            \
-        uint32_t offset = std::popcount(child_mask & ((1 << letter_idx) - 1));         \
+        uint32_t offset = countBit1Fast(child_mask & ((1 << letter_idx) - 1));         \
         next_idx = child_idx + offset;                                                 \
         next_lexicon_idx =                                                             \
             lexicon_idx + Tracking[next_idx] - Tracking[child_idx] - is_word;          \
