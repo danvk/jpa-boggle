@@ -76,6 +76,51 @@ To check for diffs:
 
 ## GunsOfNavarone.c
 
+This is JPA's Boggle Solver. (The name is a reference to a [1961 film].)
+
+Outside of his dictionary data structure, there are two notable choices he makes:
+
+- He uses a `struct` to represent the cells of the board. Each square has a neighbor count and an array of pointers to its neighbors. As we'll see shortly, this is a performance disaster!
+- To traverse the board, he uses an explicit stack rather than recursion. He says this was inspired by qsort and that the "resulting speed up is noticeable." I changed his explicit stack back to recursion and got a 7% speedup so, if this optimization was ever a win, it's not any more.
+
+About the `Square` structure. Here's what a board looks like:
+
+```c++
+#define MAX_ROW 5
+#define MAX_COL 5
+#define NEIGHBOURS 8
+struct Square {
+  bool used;
+  uint32_t letter_idx;
+  uint32_t num_neighbors;
+  Square *neighbors[NEIGHBOURS];
+};
+struct Board {
+  Square Block[MAX_ROW][MAX_COL];
+};
+```
+
+`letter_idx` and `used` vary from board to board, while `num_neighbors` and `neighbors` are fixed. Here's the recursive code that uses that structure in scoring a board:
+
+```c++
+Square **neighbors = square->neighbors;
+
+// Loop through all neighbors
+for (int i = 0; i < square->num_neighbors; i++) {
+  auto n = neighbors[i];
+  if (n->used) {
+    continue;
+  }
+  auto letter_idx = n->letter_idx;
+  if (we_should_continue) {
+    // ...
+    score += ScoreSquare(...);  // recursive call
+  }
+}
+```
+
+So there's a `for` loop over all the neighhbors of each cell.
+
 To check for diffs:
 
     ./gunsofnavarone random10k.txt > guns.snapshot.txt
