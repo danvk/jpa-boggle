@@ -78,12 +78,12 @@ To check for diffs:
 
 This is JPA's Boggle Solver. (The name is a reference to a [1961 film].)
 
-Outside of his dictionary data structure, there are two notable choices he makes:
+Outside of his dictionary data structure (more on this shortly), there are two notable choices he makes:
 
 - He uses a `struct` to represent the cells of the board. Each square has a neighbor count and an array of pointers to its neighbors. As we'll see shortly, this is a performance disaster!
 - To traverse the board, he uses an explicit stack rather than recursion. He says this was inspired by qsort and that the "resulting speed up is noticeable." I changed his explicit stack back to recursion and got a 7% speedup so, if this optimization was ever a win, it's not any more.
 
-About the `Square` structure. Here's what a board looks like:
+Here's what his `Square` and `Board` structs looks like:
 
 ```c++
 #define MAX_ROW 5
@@ -308,14 +308,59 @@ As we descend through the DAG, we need to keep track of a word ID, so `Descend` 
 
 This `Descend` method is considerably more complex than the previous ones, and it has a loop. Unsurprisingly, this tanks performance:
 
-- Full TWL06: 1.24MB RAM, 70,000 random bds/sec, 5,600 good bds/sec
-- JPA TWL06: 330KB RAM, 23,000 random bds/sec, 6,150 good bds/sec
+- Full TWL06:  54,654 nodes, 1.24MB RAM, 70,000 random bds/sec, 5,600 good bds/sec
+- JPA TWL06: 14,711 nodes, 330KB RAM, 23,000 random bds/sec, 6,150 good bds/sec
 
 For good boards, this is roughly a 33% slowdown compared to the pure DAWG. On the plus side, though, we're getting correct scores and still using less than half the memory of the Popcount Trie.
 
 ### A Tracking DAWG
 
+The problem with the counting DAWG was the loop over previous children. What if, instead of calculating these sums while "boggling," we precomputed partial sums. We'll call these "tracking numbers." So rather than:
 
+```
+Root
+- A (10 words)
+- B (5 words)
+- C (8 words)
+```
+
+We'd store:
+
+```
+Root:
+- A 0
+- B 10
+- C 15 (10 + 5)
+```
+
+This way we can eliminate the loop. The only drawback is that, while the words under a node was a property of the node itself, its tracking number depends on all the children of its parent node. The upshot is that we need to consider the tracking number when converting from a Trie to a DAWG, which will result in more nodes.
+
+```c++
+struct CompactNode {
+  uint32_t child_mask_;
+  uint32_t tracking_;
+  int32_t children[];  // Child indices
+
+  // StartsWord, IsWord as before
+
+  CompactNode *Descend(int i) {
+    uint32_t letter_bit = 1u << i;
+    if (!(child_mask_ & letter_bit)) {
+      return nullptr;
+    }
+    uint32_t mask_before = child_mask_ & (letter_bit - 1);
+    int child_index = std::popcount(mask_before);
+    auto child_offset = children[child_index];
+    auto child = (CompactNode *)((uint32_t *)this + child_offset);
+    return child;
+  }
+};
+```
+
+- Full TWL06: 71,248 nodes, 1.45MB RAM, 103,000 bds/sec random, 7,600 bds/sec good
+- JPA14 TWL06: 18,897 nodes, 384KB RAM, 31,000 bds/sec random, 8,300 bds/sec good
+
+So ~30% more nodes, ~15% more RAM, ~35% faster board evaluation. We're still using only half the memory of the popcount Trie, but performance is about 8% worse.
 
 [deep]: https://pages.pathcom.com/~vadco/deep.html
 [44]: https://www.danvk.org/2025/08/25/boggle-roundup.html
