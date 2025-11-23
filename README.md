@@ -6,19 +6,23 @@ I spent a silly amount of time in 2025 [solving 4x4 BoggleMax][44]. Did JPA solv
 
 In a word, "no." He didn't _prove_ anything. But I strongly suspect that his top ten list is accurate. Despite [significant effort], I have yet to find a higher scoring board than any of his.
 
-Beyond the results, are there any interesting ideas in his code? There's at least one, but to see it we have to wade through lots of cruft. JPA is a clever man, but he's not trained as a software developer, and so his code is a mixture of good ideas and reinventing the wheel.
+Beyond the results, are there any interesting ideas in his code? There's at least one, but to see it we have to wade through lots of cruft. JPA is a clever man, but he's a self-taught software developer and his code is a mixture of good ideas and reinventing the wheel.
 
-This repo reworks his code to separate the wheat from the chaff.
+This repo reworks his code to separate the wheat from the chaff. This document analyzes JPA's claims and tries to explain his code in a more understandable style than his blog posts.
 
 ## The Claim
 
 > The 10 Best Dense 5x5 Boggle Boards Beyond Reasonable Doubt
 
+I have doubts!
+
 > The Three Demonstration DeepSearch.c's That Are Not Quite An Arcane Academic Proof...  But Are Well Beyond Good Enough
+
+My BoggleMax project is this "arcane mathematical proof." I don't think it's that "arcane" compared to the ADTDAWG! (More on that below.)
 
 > One fact needs to be made very clear right now.  Even though DeepSearch.c considers only a fraction of the TWL06 lexicon, the global top ten list posted above is unequivocally equal to top ten analysis results for the entire TWL06 lexicon.  If DeepSearch.c was attempting to isolate the best 10,000 boards, only then, would the lexicon shrink alter the results.  The statement:  'Q' will never appear anywhere near the Boggle board top ten list for TWL06, is closer to a keen algorithm decision, than a modification of the lexicon being considered.
 
-This is definitely false! The 23rd best board contains a B.
+This is definitely false! The 23rd best board contains a B. About 30% of the top 1000 boards contain characters outside of JPA's 14 letter alphabet.
 
 ## The Five Parts
 
@@ -124,6 +128,31 @@ This is in the critical path of the Boggle solver, the hottest of the hot loops.
 The board's adjacency graph is fixed, it does not vary from board to board. So we can eliminate this loop by hard-coding it. My Boggle solver uses a `switch` and some macros to pull this off:
 
 ```c++
+
+#define REC(idx)                     \
+  do {                               \
+    if ((used_ & (1 << idx)) == 0) { \
+      cc = bd_[idx];                 \
+      auto tc = t->Descend(cc);      \
+      if (tc) {                      \
+        DoDFS(idx, len, tc);         \
+      }                              \
+    }                                \
+  } while (0)
+
+#define PREFIX()                  \
+  int c = bd_[i], cc;             \
+  used_ ^= (1 << i);              \
+  len += (c == kQ ? 2 : 1);       \
+  if (t->IsWord()) {              \
+    if (t->Mark() != runs_) {     \
+      t->SetMark(runs_);          \
+      score_ += kWordScores[len]; \
+    }                             \
+  }
+
+#define SUFFIX() used_ ^= (1 << i)
+
 void Boggler::DoDFS(unsigned int i, unsigned int len, CompactNode* t) {
   PREFIX();
   switch(i) {
@@ -146,6 +175,8 @@ void Boggler::DoDFS(unsigned int i, unsigned int len, CompactNode* t) {
 
 Cell 0 is a corner and has three neighbors (1, 5 and 6). Cell 6 is in the middle and has eight neighbors. This can all be hard-coded. This expands to much more code (~5,000 lines of assembly) but it results in a 30% speedup. This is an order of magnitude larger than any speedup we'll achieve by fiddling with the data structures.
 
+I suspect this works so well because it allows the compiler to precompute some array offsets and bit shifts that would otherwise have to be calculated at runtime. But that's just a guess.
+
 To check for diffs:
 
     ./gunsofnavarone random10k.txt > guns.snapshot.txt
@@ -160,7 +191,7 @@ A Trie uses less memory than a list of words because it shares common prefixes. 
 
 ### An inefficient Trie
 
-image of a Trie
+(Insert image of a Trie)
 
 Here's a simple Trie structure in C++:
 
@@ -274,17 +305,19 @@ Still, let's not let evidence get in the way of a good idea. We want that space 
 
 The trick is to store a count of the number of words under each node. Then, as we descend the DAWG, we add the number of words in the subtrees to our left to get the current word's index.
 
+(reference to paper)
+
 Here's the new structure:
 
 ```c++
-struct CompactNode {
+struct Dawg {
   uint32_t child_mask_;
   uint32_t words_under_;
   int32_t children[];  // Child indices
 
   // StartsWord/IsWord as before
 
-  pair<CompactNode *, uint32_t> Descend(int i) {
+  pair<Dawg *, uint32_t> Descend(int i) {
     uint32_t letter_bit = 1u << i;
     if (!(child_mask_ & letter_bit)) {
       return {nullptr, 0};
@@ -294,11 +327,11 @@ struct CompactNode {
     uint32_t word_id = 0;
     for (int idx = 0; idx < child_index; idx++) {
       auto child_offset = children[idx];
-      auto child = (CompactNode *)((uint32_t *)this + child_offset);
+      auto child = (Dawg *)((uint32_t *)this + child_offset);
       word_id += child->words_under_;
     }
     auto child_offset = children[child_index];
-    auto child = (CompactNode *)((uint32_t *)this + child_offset);
+    auto child = (Dawg *)((uint32_t *)this + child_offset);
     return {child, word_id};
   };
 };
@@ -336,14 +369,14 @@ Root:
 This way we can eliminate the loop. The only drawback is that, while the words under a node was a property of the node itself, its tracking number depends on all the children of its parent node. The upshot is that we need to consider the tracking number when converting from a Trie to a DAWG, which will result in more nodes.
 
 ```c++
-struct CompactNode {
+struct Dawg {
   uint32_t child_mask_;
   uint32_t tracking_;
   int32_t children[];  // Child indices
 
   // StartsWord, IsWord as before
 
-  CompactNode *Descend(int i) {
+  Dawg *Descend(int i) {
     uint32_t letter_bit = 1u << i;
     if (!(child_mask_ & letter_bit)) {
       return nullptr;
@@ -351,7 +384,7 @@ struct CompactNode {
     uint32_t mask_before = child_mask_ & (letter_bit - 1);
     int child_index = std::popcount(mask_before);
     auto child_offset = children[child_index];
-    auto child = (CompactNode *)((uint32_t *)this + child_offset);
+    auto child = (Dawg *)((uint32_t *)this + child_offset);
     return child;
   }
 };
@@ -367,6 +400,91 @@ So ~30% more nodes, ~15% more RAM, ~35% faster board evaluation. We're still usi
 The popcount Trie required that its children be contiguous in memory, which meant that
 it could store only the offset to its first child. Can we do something similar with the
 tracking DAWG?
+
+(reference Jerzy post)
+
+The answer is a resounding "Yes!" Here's what the structure looks like:
+
+```c++
+struct Dawg {
+  uint32_t child_mask_;
+  int32_t first_child_offset_;
+  uint32_t tracking_;
+
+  // Other methods as before
+
+  Dawg *Descend(int i) {
+    uint32_t letter_bit = 1u << i;
+    if (!(child_mask_ & letter_bit)) {
+      return nullptr;
+    }
+    uint32_t mask_before = child_mask_ & (letter_bit - 1);
+    int child_index = std::popcount(mask_before);
+    auto child_offset = first_child_offset_ + child_index;
+    auto child = this + child_offset;
+    return child;
+  }
+};
+```
+
+We need to take some care in constructing the DAWG to ensure that every node's children are consecutive in memory. This comes at a cost: whereas the pure DAWG used about 19,000 nodes to encode JPA's 14-letter version of TWL06, we now need about 30,000. This doesn't translate directly into more RAM, however, because we no longer have to store all the children, just an offset to the first one.
+
+- Full TWL06: 114,439 nodes, 1.65M RAM, 107230.89 bds/sec random, 7809.44 bds/sec good
+- JPA TWL06: 29,263 nodes, 430KB RAM, 32511.07 bds/sec random, 8442.49 bds/sec good
+
+So we use ~12% more RAM in exchange for a 2-3% speedup.
+
+These numbers include one small, additional optimization: since we're storing the offset to the first child and the number of children, we can reuse a node's children if ours are a _subsequence_ of them. They don't need to be an exact match. This nets us a ~3% reduction in number of nodes and (crucially!) gets us a lower node count than JPA's ADTDAWG, which has 29,797 nodes.
+
+### Notes on JPA's ADTDAWG
+
+This structure differs from JPA's ADTDAWG in a few small ways:
+
+1. JPA's tracking number is different. He stores "words to end of branch list" rather than the "more intuitive 'words to start of branch list.'" He never explains what a branch list is, so it's hard to know what he's talking about. But the tracking number described above is conceptually similar and produces a nearly-identical number of nodes.
+2. JPA does not store his tracking numbers directly in the nodes. Instead, he uses two separate arrays, which he calls parts three and four. These are really just one array: part three stores large tracking numbers (which occur at the top of the DAWG) and part four stores smaller ones. You just concatenate them to get the full array. JPA's GunsOfNavarone stores them as a single array of 32-bit integers in memory, which is how I count them here.
+3. JPA doesn't use `popcount`. Instead, he uses a lookup table (his part two array) that combines our `child_mask_` and `popcount(mask_before)` for each possible letter. Then each node only needs to store an index into this array, which saves a few bits. I'm not sure JPA realizes this is what his encoding is doing. He says this is a "remarkably short list" due to "patterns that emerge from an investigation of the English lexicon" which is sort of true: only 1505/16384 possible sets of next letters occur in TWL06. But the encoding itself is also redundant.
+
+This encoding explains why JPA insists on reducing the alphabet to only 14 letters. The encoding scheme for his part 2 exceeds 64 bits once you have more than 18 letters, and this makes things larger, slower and more complicated. I'm not sure why he opted for 14 characters rather than 18.
+
+On systems that have a built-in `popcount` hardware op (x86), I'm skeptical that this lookup table is a win. But on ARM systems (like my M2 Macbook), the `popcount` instruction is [tied to a vector subsystem](https://stackoverflow.com/questions/73435031/popcount-in-arm-assembly-without-neon) and incurs some overhead. So the lookup table might be better.
+
+Because JPA hardcodes the 14 character alphabet, he's able to use a more compact node structure:
+
+```c++
+struct Node {
+  // this is the index of the first child of this node (zero for leaf)
+  unsigned int child_index : 15;  // bits 0-14
+  // this is an index into the child offsets array
+  unsigned int offset_index : 11;  // bits 15-25
+  unsigned int is_word : 1;        // bit 26
+  int blank : 5;
+};
+```
+
+The marks array and child offsets array are counted separately. When I remove his explicit stack and plug in my `#define` macros, I get these numbers:
+
+- TWL06 JPA14: 413KB, 32670 bds/sec random, 9040 bds/sec good.
+
+Compared to the popcount Trie, this is a tiny bit faster on good boards, a smidge worse on random boards, and uses a little more than half the RAM.
+
+### ADTDAWG Conclusions
+
+The ADTDAWG is the one truly novel thing about JPA's Boggle solver. I have to hand it to JPA, it is truly clever. I would not have expected to be able to use a DAWG _and_ track which word you're on quite so efficiently.
+
+Still, is it worth it? Compared to the vastly simpler popcount Trie, the ADTDAWG saves ~45% on RAM in exchange for marginally better performance. And this comes at an enormous cost: we're no longer able to use all 26 letters in the alphabet, at least not without adding further complexity.
+
+So kudos to JPA for developing a novel data structure. But if the ADTDAWG is only a marginal win for the niche use case for which it was designed, it's hard for me to imagine what other applications it might have.
+
+It's instructive that JPA went incredibly deep on optimizing this data structure for marginal gains, but completely missed the much bigger `#define` macro optimization. Despite all your cleverness, you might be barking up the wrong tree.
+
+## Overall conclusions
+
+After spending too much time analyzing JPA's code, here are my conclusions:
+
+- JPA's cryptic C isn't hiding many deep insights. There's just a lot of reinventing the wheel here.
+- The one truly novel thing about his Boggle solver is the ADTDAWG structure. This is quite clever, but ultimately it doesn't gain much performance vs. a much simpler Trie, and it comes at an enormous cost in both complexity and pushing you to use a restricted alphabet.
+- I think it is _quite likely_ that JPA did find the top ten 5x5 Boggle boards for TWL06. Despite a [very deep search](https://github.com/danvk/hybrid-boggle/issues/183#issuecomment-3402245058) using a 20-letter alphabet, I didn't find anything he missed. (The best board outside his 14-letter alphabet was [bllsroaiegcrtndseasidlpme](https://www.danvk.org/boggle/?wordlist=twl06&dims=55&board=bllsroaiegcrtndseasidlpme) at #23.)
+- JPA has certainly not demonstrated this "beyond a reasonable doubt," as he says. I have doubts! He would call my BoggleMax efforts an "Arcane Academic Proof." But until we have that, it's entirely possible we're missing a high-scoring board.
 
 [deep]: https://pages.pathcom.com/~vadco/deep.html
 [44]: https://www.danvk.org/2025/08/25/boggle-roundup.html
