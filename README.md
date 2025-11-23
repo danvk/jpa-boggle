@@ -362,6 +362,12 @@ struct CompactNode {
 
 So ~30% more nodes, ~15% more RAM, ~35% faster board evaluation. We're still using only half the memory of the popcount Trie, but performance is about 8% worse.
 
+### The ADTDAWG
+
+The popcount Trie required that its children be contiguous in memory, which meant that
+it could store only the offset to its first child. Can we do something similar with the
+tracking DAWG?
+
 [deep]: https://pages.pathcom.com/~vadco/deep.html
 [44]: https://www.danvk.org/2025/08/25/boggle-roundup.html
 [significant effort]: https://github.com/danvk/hybrid-boggle/issues/183#issuecomment-3402245058
