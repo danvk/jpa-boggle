@@ -22,7 +22,18 @@ My BoggleMax project is this "arcane mathematical proof." I don't think it's tha
 
 > One fact needs to be made very clear right now.  Even though DeepSearch.c considers only a fraction of the TWL06 lexicon, the global top ten list posted above is unequivocally equal to top ten analysis results for the entire TWL06 lexicon.  If DeepSearch.c was attempting to isolate the best 10,000 boards, only then, would the lexicon shrink alter the results.  The statement:  'Q' will never appear anywhere near the Boggle board top ten list for TWL06, is closer to a keen algorithm decision, than a modification of the lexicon being considered.
 
-This is definitely false! The 23rd best board contains a B. About 30% of the top 1000 boards contain characters outside of JPA's 14 letter alphabet.
+Don't let his statement about Q fool you. JPA's claim here is significantly broader than that. He says that there are only 14 characters that can appear in the best boards:
+
+- JPA14 letters: A, C, D, E, G, I, L, M, N, O, P, R, S, T
+- Excluded letters: Q, Z, X, J, K, V, W, Y, F, H, B, U
+
+This screams of [post-hoc reasoning](https://en.wikipedia.org/wiki/Testing_hypotheses_suggested_by_the_data). I am, perhaps, willing to grant that a Q is unlikely to appear on the optimal 5x5 Boggle board. But H and U?
+
+The claim about the top 10,000 is definitely false! The 23rd best board contains a B. About 30% of the top 1000 boards (that I know of) contain characters outside of JPA's 14 letter alphabet.
+
+Further undermining this claim, the [best boards](https://github.com/danvk/hybrid-boggle/?tab=readme-ov-file#results-for-other-wordlists) for two other dictionaries, YAWL and SOWPODS, contain a U, one of the forbidden letters. (This may be because they contain British spellings like "colour".)
+
+Why is JPA so insistent on using such a restricted alphabet? It makes board evaluation faster. But there's a much more specific reason having to do with his data structures, as we'll see later.
 
 ## The Five Parts
 
