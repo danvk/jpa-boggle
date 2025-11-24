@@ -128,7 +128,6 @@ This is in the critical path of the Boggle solver, the hottest of the hot loops.
 The board's adjacency graph is fixed, it does not vary from board to board. So we can eliminate this loop by hard-coding it. My Boggle solver uses a `switch` and some macros to pull this off:
 
 ```c++
-
 #define REC(idx)                     \
   do {                               \
     if ((used_ & (1 << idx)) == 0) { \
@@ -140,21 +139,16 @@ The board's adjacency graph is fixed, it does not vary from board to board. So w
     }                                \
   } while (0)
 
-#define PREFIX()                  \
-  int c = bd_[i], cc;             \
-  used_ ^= (1 << i);              \
-  len += (c == kQ ? 2 : 1);       \
-  if (t->IsWord()) {              \
-    if (t->Mark() != runs_) {     \
-      t->SetMark(runs_);          \
-      score_ += kWordScores[len]; \
-    }                             \
-  }
-
-#define SUFFIX() used_ ^= (1 << i)
-
 void Boggler::DoDFS(unsigned int i, unsigned int len, CompactNode* t) {
-  PREFIX();
+  int c = bd_[i], cc;
+  used_ ^= (1 << i);
+  len += (c == kQ ? 2 : 1);
+  if (t->IsWord()) {
+    if (t->Mark() != runs_) {
+      t->SetMark(runs_);
+      score_ += kWordScores[len];
+    }
+  }
   switch(i) {
     case 0: REC3(1, 5, 6); break;
     case 1: REC5(0, 2, 5, 6, 7); break;
@@ -169,7 +163,7 @@ void Boggler::DoDFS(unsigned int i, unsigned int len, CompactNode* t) {
     case 23: REC5(17, 18, 19, 22, 24); break;
     case 24: REC3(18, 19, 23); break;
   }
-  SUFFIX();
+  used_ ^= (1 << i);
 }
 ```
 
@@ -193,6 +187,16 @@ A Trie uses less memory than a list of words because it shares common prefixes. 
 
 (Insert image of a Trie)
 
+[Reference implementation](https://github.com/danvk/boggle-zoo/tree/main)
+
+A Trie is the [perfect data structure](https://www.danvk.org/wp/2007-02-01/tries-the-perfect-data-structure/index.html) for finding the words on a Boggle board. For fast Boggle solving, a Trie node needs to support these five operations:
+
+1. `IsWord`: Does this node represent a complete word?
+2. `StartsWord(char)`: If we add `char` to this letter sequence, does it start any words?
+3. `Descend(char)`: Get the child Trie node for `char`.
+4. `GetMark()`: Get a number associated with this node (used to avoid finding the same word twice).
+5. `SetMark(mark)`: Set the mark on this node.
+
 Here's a simple Trie structure in C++:
 
 ```c++
@@ -200,35 +204,28 @@ struct Trie {
   bool is_word_;       // does this represent a complete word?
   Trie* children_[26]; // letter -> child node, or null
   uintptr_t mark_;     // used to track whether we've found a word
-};
-```
 
-On a 64-bit system, this uses 220 bytes per Trie node. Most of this is in the `children_` array. We can define some methods on this struct:
-
-```c++
-struct Trie {
-  bool is_word_;       // does this represent a complete word?
-  Trie* children_[26]; // letter -> child node, or null
-  uintptr_t mark_;     // used to track whether we've found a word
-
+  // The five operations -- all very simple!
+  bool IsWord() const { return is_word_; }
   bool StartsWord(int i) const { return children_[i]; }
   Trie* Descend(int i) const { return children_[i]; }
-
-  bool IsWord() const { return is_word_; }
-
   void Mark(uintptr_t m) { mark_ = m; }
   uintptr_t Mark() const { return mark_; }
 };
 ```
 
+On a 64-bit system, this uses 220 bytes per Trie node. Most of this is in the `children_` array.
+
 This is a completely workable Trie structure, and it's the one I used for my BoggleMax project. Here are some stats on how it performs:
 
-- Full TWL06 wordlist: 87 MB RAM, 93,000 random boards/sec, 7800 good boards/sec.
-- JPA14 TWL06 wordlist: 20.5MB RAM, 31,000 random boards/sec, 8300 good boards/sec.
+- Full TWL06 wordlist: 394,842 nodes, 87 MB RAM, 93,000 random boards/sec, 7,800 good boards/sec.
+- JPA14 TWL06 wordlist: 92,761 nodes, 20.5MB RAM, 31,000 random boards/sec, 8,300 good boards/sec.
 
-On a modern computer, 870MB isn't that much. But this structure is grossly inefficient: most nodes have only zero or one children, so the vast majority of the 26 child pointers will be `null`. If we could shrink the Trie, this might improve cache coherence and thus increase speed.
+On a modern computer, 87MB isn't that much. But this structure is grossly inefficient: most nodes have only zero or one child, so the vast majority of the 26 child pointers will be `null`. If we could shrink the Trie, this might improve cache coherence and thus increase speed.
 
 ### Popcount Trie
+
+[Reference implementation](https://github.com/danvk/boggle-zoo/tree/popcount-trie)
 
 Our next Trie looks a little different:
 
@@ -239,6 +236,7 @@ struct Trie {
   uint16_t first_child_offset_;
   uint16_t mark_;
 
+  bool IsWord() const { return is_word_; }
   bool StartsWord(int i) const { return (1 << i) & child_mask_; }
 
   // Requires: StartsWord(i)
@@ -248,7 +246,6 @@ struct Trie {
     return base + index;
   }
 
-  bool IsWord() const { return is_word_; }
   // Mark() as before
 };
 ```
@@ -256,7 +253,7 @@ struct Trie {
 This uses only 8 bytes per node. Much less than 220! There are a few things to note here:
 
 - We store which letters lead to children using a bit mask. We only need 26 bits to do this.
-- We only out the offset from the parent node to its first child. The children are assumed to be contiguous. We can ensure this by traversing the inefficient Trie with a BFS.
+- We only store the offset from the parent node to its first child. The children are assumed to be contiguous. We can ensure this by traversing the inefficient Trie with a BFS.
 - We use `std::popcount` to go from letter to child index. This is fast on all platforms, and it's even a hardware operation on x86.
 - We only get 16 bits for the mark. To make this work, we have to clear the marks every 65536 Boggle boards. This is a trivial cost.
 
@@ -269,7 +266,9 @@ This is a 30x decrease in RAM and, depending on which types of boards you're sco
 
 ### A Pure DAWG
 
-Shrinking the data structure gave us a meaningful speed boost. Can we get it even smaller? One standard way to shrink a Trie is to convert it into a DAWG by sharing suffixes in addition to prefixes. This turns the tree into a DAG (Directed Acyclic Graph):
+[Reference implementation](https://github.com/danvk/boggle-zoo/tree/pure-dawg)
+
+Shrinking the data structure gave us a meaningful speed boost. Can we get it even smaller? One standard way to shrink a Trie is to convert it into a [DAWG](https://en.wikipedia.org/wiki/Deterministic_acyclic_finite_state_automaton) by sharing suffixes in addition to prefixes. This turns the tree into a DAG ([Directed Acyclic Graph](https://en.wikipedia.org/wiki/Directed_acyclic_graph)):
 
 ... image ...
 
@@ -290,12 +289,12 @@ struct Dawg {
 }
 ```
 
-We've given up on contiguous children in favor of storing the offsets to all children. This makes the Dawg node variable-sized, but that can be handled by whatever process generates it. Because each node can represent many different words (depending on the path you took to it), it no longer makes sense to mark the node to indicate that we've found a word.
+We've given up on contiguous children in favor of storing the offsets to all children. This makes the Dawg node variable-sized, but that can be handled by whatever process generates it. Because each node can represent many different words (depending on the path you took to it), it no longer makes sense to mark the node itself to indicate that we've found a word.
 
-This is a problem: it means we can't calculate a board's score! We'll address this soon, but for now we can calculate the "multiboggle score," which allows the same word to be found multiple times. Since we're not doing any bookkeeping, we expect this to be faster than any DAWG-based Boggle algorithm.
+This is a problem: it means we can't calculate a board's score! We'll address this soon, but for now we can calculate the [multiboggle score](https://www.danvk.org/2025/02/13/boggle2025.html#multi-boggle), which allows the same word to be found multiple times. Since we're not doing any bookkeeping, we expect this to be faster than any DAWG-based algorithm that calculates the true Boggle score.
 
-- Full TWL06: 711KB RAM, 111,600 bds/sec random, 9,040 bds/sec good.
-- JPA14 TWL06: 186KB RAM, 33,600 bds/sec random, 9,270 bds/sec good.
+- Full TWL06: 54,654 nodes, 711KB RAM, 111,600 bds/sec random, 9,040 bds/sec good.
+- JPA14 TWL06: 14,711 nodes, 186KB RAM, 33,600 bds/sec random, 9,270 bds/sec good.
 
 Despite using 4x less RAM, this is marginally slower than the popcount Trie on random boards and only ~3% faster on good boards. And we're not even calculating the right score!
 
@@ -303,9 +302,9 @@ Still, let's not let evidence get in the way of a good idea. We want that space 
 
 ### A Counting DAWG
 
-The trick is to store a count of the number of words under each node. Then, as we descend the DAWG, we add the number of words in the subtrees to our left to get the current word's index.
+[Reference implementation](https://github.com/danvk/boggle-zoo/tree/count-under-dawg)
 
-(reference to paper)
+[The trick](https://en.wikipedia.org/wiki/Deterministic_acyclic_finite_state_automaton#cite_note-kowaltowski1993-4) is to store a count of the number of words under each node. Then, as we descend the DAWG, we add the number of words in the subtrees to our left to get the current word's index.
 
 Here's the new structure:
 
@@ -341,14 +340,16 @@ As we descend through the DAG, we need to keep track of a word ID, so `Descend` 
 
 This `Descend` method is considerably more complex than the previous ones, and it has a loop. Unsurprisingly, this tanks performance:
 
-- Full TWL06:  54,654 nodes, 1.24MB RAM, 70,000 random bds/sec, 5,600 good bds/sec
+- Full TWL06: 54,654 nodes, 1.24MB RAM, 70,000 random bds/sec, 5,600 good bds/sec
 - JPA TWL06: 14,711 nodes, 330KB RAM, 23,000 random bds/sec, 6,150 good bds/sec
 
 For good boards, this is roughly a 33% slowdown compared to the pure DAWG. On the plus side, though, we're getting correct scores and still using less than half the memory of the Popcount Trie.
 
 ### A Tracking DAWG
 
-The problem with the counting DAWG was the loop over previous children. What if, instead of calculating these sums while "boggling," we precomputed partial sums. We'll call these "tracking numbers." So rather than:
+[Reference implementation](https://github.com/danvk/boggle-zoo/tree/tracking-dawg)
+
+The problem with the counting DAWG was the loop over previous children. What if, instead of calculating these sums while "boggling," we precomputed partial sums? We'll call these "tracking numbers." So rather than:
 
 ```
 Root
@@ -376,16 +377,16 @@ struct Dawg {
 
   // StartsWord, IsWord as before
 
-  Dawg *Descend(int i) {
+  pair<Dawg *, uint32_t> Descend(int i) {
     uint32_t letter_bit = 1u << i;
     if (!(child_mask_ & letter_bit)) {
-      return nullptr;
+      return {nullptr, 0};
     }
     uint32_t mask_before = child_mask_ & (letter_bit - 1);
     int child_index = std::popcount(mask_before);
     auto child_offset = children[child_index];
     auto child = (Dawg *)((uint32_t *)this + child_offset);
-    return child;
+    return {child, child->tracking_};
   }
 };
 ```
@@ -397,11 +398,11 @@ So ~30% more nodes, ~15% more RAM, ~35% faster board evaluation. We're still usi
 
 ### The ADTDAWG
 
+[Reference implementation](https://github.com/danvk/boggle-zoo/tree/adtdawg)
+
 The popcount Trie required that its children be contiguous in memory, which meant that
 it could store only the offset to its first child. Can we do something similar with the
 tracking DAWG?
-
-(reference Jerzy post)
 
 The answer is a resounding "Yes!" Here's what the structure looks like:
 
@@ -413,16 +414,16 @@ struct Dawg {
 
   // Other methods as before
 
-  Dawg *Descend(int i) {
+  pair<Dawg *, uint32_t> Descend(int i) {
     uint32_t letter_bit = 1u << i;
     if (!(child_mask_ & letter_bit)) {
-      return nullptr;
+      return {nullptr, 0};
     }
     uint32_t mask_before = child_mask_ & (letter_bit - 1);
     int child_index = std::popcount(mask_before);
     auto child_offset = first_child_offset_ + child_index;
     auto child = this + child_offset;
-    return child;
+    return {child, child->tracking_};
   }
 };
 ```
@@ -476,6 +477,8 @@ Still, is it worth it? Compared to the vastly simpler popcount Trie, the ADTDAWG
 So kudos to JPA for developing a novel data structure. But if the ADTDAWG is only a marginal win for the niche use case for which it was designed, it's hard for me to imagine what other applications it might have.
 
 It's instructive that JPA went incredibly deep on optimizing this data structure for marginal gains, but completely missed the much bigger `#define` macro optimization. Despite all your cleverness, you might be barking up the wrong tree.
+
+_(Many thanks to Jerzy Chałupski for his [excellent blog post](https://chalup.github.io/blog/2012/03/19/dawg-data-structure-in-word-judge/) describing a slightly different data structure of JPA's.)_
 
 ## Overall conclusions
 
